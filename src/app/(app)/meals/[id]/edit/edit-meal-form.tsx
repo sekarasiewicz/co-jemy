@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { updateMealAction } from "@/app/actions/meals";
 import { MealForm, type MealFormData } from "@/components/meals/meal-form";
 import type { Ingredient, MealType, MealWithRelations, Tag } from "@/types";
@@ -21,9 +22,15 @@ export function EditMealForm({
   const router = useRouter();
 
   const handleSubmit = async (data: MealFormData) => {
-    await updateMealAction(meal.id, data);
-    router.push(`/meals/${meal.id}`);
-    router.refresh();
+    try {
+      await updateMealAction(meal.id, data);
+      toast.success("Zmiany zapisane");
+      router.push(`/meals/${meal.id}`);
+      router.refresh();
+    } catch {
+      toast.error("Nie udało się zapisać zmian");
+      throw new Error("Failed to update meal");
+    }
   };
 
   return (

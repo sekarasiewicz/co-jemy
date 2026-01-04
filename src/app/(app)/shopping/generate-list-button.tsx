@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { generateShoppingListAction } from "@/app/actions/shopping";
 import { ProfileAvatar } from "@/components/profiles/profile-avatar";
 import { Button, Checkbox, Input, Modal } from "@/components/ui";
@@ -52,8 +53,11 @@ export function GenerateListButton({ profiles }: GenerateListButtonProps) {
         name,
       });
 
+      toast.success("Lista zakupów wygenerowana");
       router.push(`/shopping/${list.id}`);
       router.refresh();
+    } catch {
+      toast.error("Nie udało się wygenerować listy");
     } finally {
       setLoading(false);
     }

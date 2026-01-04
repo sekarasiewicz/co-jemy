@@ -2,6 +2,7 @@
 
 import { Check, Home, ShoppingBag } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { toggleShoppingItemAction } from "@/app/actions/shopping";
 import { Card, CardContent } from "@/components/ui";
 import { cn, groupByCategory } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
     } catch {
       // Revert on error
       setList(initialList);
+      toast.error("Nie udało się zaktualizować");
     }
   };
 

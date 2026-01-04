@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { deleteMealAction } from "@/app/actions/meals";
 import { Button, Modal } from "@/components/ui";
 
@@ -20,8 +21,11 @@ export function DeleteMealButton({ mealId, mealName }: DeleteMealButtonProps) {
     setLoading(true);
     try {
       await deleteMealAction(mealId);
+      toast.success("Danie usunięte");
       router.push("/meals");
       router.refresh();
+    } catch {
+      toast.error("Nie udało się usunąć dania");
     } finally {
       setLoading(false);
     }

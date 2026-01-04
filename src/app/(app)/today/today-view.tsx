@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   addMealToPlanAction,
   getDailyPlanAction,
@@ -53,25 +54,34 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   const handleAddMeal = async (mealId: string) => {
     if (!addingMealType || !activeProfile) return;
 
-    await addMealToPlanAction({
-      profileId: activeProfile.id,
-      date: today,
-      mealId,
-      mealTypeId: addingMealType.id,
-    });
+    try {
+      await addMealToPlanAction({
+        profileId: activeProfile.id,
+        date: today,
+        mealId,
+        mealTypeId: addingMealType.id,
+      });
 
-    const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
-    setPlan(updatedPlan || null);
-    setAddingMealType(null);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      setPlan(updatedPlan || null);
+      setAddingMealType(null);
+      toast.success("Dodano do planu");
+    } catch {
+      toast.error("Nie udało się dodać do planu");
+    }
   };
 
   const handleRemoveMeal = async (planMealId: string) => {
     if (!activeProfile) return;
 
-    await removeMealFromPlanAction(planMealId);
-
-    const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
-    setPlan(updatedPlan || null);
+    try {
+      await removeMealFromPlanAction(planMealId);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      setPlan(updatedPlan || null);
+      toast.success("Usunięto z planu");
+    } catch {
+      toast.error("Nie udało się usunąć z planu");
+    }
   };
 
   const handleToggleCompleted = async (

@@ -2,6 +2,7 @@
 
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   createIngredientAction,
   deleteIngredientAction,
@@ -124,11 +125,15 @@ export function IngredientsManager({
         setIngredients(
           ingredients.map((ing) => (ing.id === editingId ? updated : ing))
         );
+        toast.success("Składnik zaktualizowany");
       } else {
         const created = await createIngredientAction(data);
         setIngredients([...ingredients, created]);
+        toast.success("Składnik dodany");
       }
       closeModal();
+    } catch {
+      toast.error("Wystąpił błąd");
     } finally {
       setLoading(false);
     }
@@ -139,6 +144,9 @@ export function IngredientsManager({
     try {
       await deleteIngredientAction(id);
       setIngredients(ingredients.filter((ing) => ing.id !== id));
+      toast.success("Składnik usunięty");
+    } catch {
+      toast.error("Nie można usunąć składnika");
     } finally {
       setDeleting(null);
     }

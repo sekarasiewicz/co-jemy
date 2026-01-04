@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   addMealToPlanAction,
   getDailyPlanAction,
@@ -71,42 +72,52 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
   const handleAddMeal = async (mealId: string) => {
     if (!addingMeal || !activeProfile) return;
 
-    await addMealToPlanAction({
-      profileId: activeProfile.id,
-      date: addingMeal.date,
-      mealId,
-      mealTypeId: addingMeal.mealTypeId,
-    });
-
-    // Reload the plan for this day
-    const plan = await getDailyPlanAction(activeProfile.id, addingMeal.date);
-    if (plan) {
-      setPlans((prev) => {
-        const newPlans = new Map(prev);
-        newPlans.set(addingMeal.date.toISOString().split("T")[0], plan);
-        return newPlans;
+    try {
+      await addMealToPlanAction({
+        profileId: activeProfile.id,
+        date: addingMeal.date,
+        mealId,
+        mealTypeId: addingMeal.mealTypeId,
       });
-    }
 
-    setAddingMeal(null);
+      // Reload the plan for this day
+      const plan = await getDailyPlanAction(activeProfile.id, addingMeal.date);
+      if (plan) {
+        setPlans((prev) => {
+          const newPlans = new Map(prev);
+          newPlans.set(addingMeal.date.toISOString().split("T")[0], plan);
+          return newPlans;
+        });
+      }
+
+      setAddingMeal(null);
+      toast.success("Dodano do planu");
+    } catch {
+      toast.error("Nie udało się dodać do planu");
+    }
   };
 
   const handleRemoveMeal = async (planMealId: string, date: Date) => {
     if (!activeProfile) return;
 
-    await removeMealFromPlanAction(planMealId);
+    try {
+      await removeMealFromPlanAction(planMealId);
 
-    const plan = await getDailyPlanAction(activeProfile.id, date);
-    setPlans((prev) => {
-      const newPlans = new Map(prev);
-      const key = date.toISOString().split("T")[0];
-      if (plan) {
-        newPlans.set(key, plan);
-      } else {
-        newPlans.delete(key);
-      }
-      return newPlans;
-    });
+      const plan = await getDailyPlanAction(activeProfile.id, date);
+      setPlans((prev) => {
+        const newPlans = new Map(prev);
+        const key = date.toISOString().split("T")[0];
+        if (plan) {
+          newPlans.set(key, plan);
+        } else {
+          newPlans.delete(key);
+        }
+        return newPlans;
+      });
+      toast.success("Usunięto z planu");
+    } catch {
+      toast.error("Nie udało się usunąć z planu");
+    }
   };
 
   const handleToggleCompleted = async (

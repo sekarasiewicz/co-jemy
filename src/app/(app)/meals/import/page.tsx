@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, FileText, Upload } from "lucide-reac
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { importMealsFromMarkdownAction } from "@/app/actions/meals";
 import { Button, Card, CardContent, Textarea } from "@/components/ui";
 
@@ -59,11 +60,18 @@ export default function ImportMealsPage() {
       const importResult = await importMealsFromMarkdownAction(markdown);
       setResult(importResult);
 
-      if (importResult.imported > 0 && importResult.errors.length === 0) {
-        setTimeout(() => {
-          router.push("/meals");
-        }, 1500);
+      if (importResult.imported > 0) {
+        toast.success(`Zaimportowano ${importResult.imported} ${importResult.imported === 1 ? "przepis" : "przepisów"}`);
+        if (importResult.errors.length === 0) {
+          setTimeout(() => {
+            router.push("/meals");
+          }, 1500);
+        }
+      } else if (importResult.errors.length > 0) {
+        toast.error("Wystąpiły błędy podczas importu");
       }
+    } catch {
+      toast.error("Nie udało się zaimportować przepisów");
     } finally {
       setLoading(false);
     }

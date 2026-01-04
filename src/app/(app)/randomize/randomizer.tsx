@@ -3,6 +3,7 @@
 import { Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 import { addMealToPlanAction } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
 import {
@@ -105,6 +106,9 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         servings: result.servings,
       });
       setAddedToPlan(true);
+      toast.success("Dodano do planu na dziś");
+    } catch {
+      toast.error("Nie udało się dodać do planu");
     } finally {
       setAddingToPlan(false);
     }
