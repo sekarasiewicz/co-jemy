@@ -1,18 +1,18 @@
+import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { dailyPlans, dailyPlanMeals, profiles } from "@/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { dailyPlanMeals, dailyPlans, profiles } from "@/db/schema";
 import { generateId, isSameDay } from "@/lib/utils";
 import type {
   DailyPlan,
-  NewDailyPlan,
-  DailyPlanWithMeals,
   DailyPlanMeal,
+  DailyPlanWithMeals,
+  NewDailyPlan,
 } from "@/types";
 
 export async function getDailyPlanByDate(
   userId: string,
   profileId: string,
-  date: Date
+  date: Date,
 ): Promise<DailyPlanWithMeals | undefined> {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
@@ -25,7 +25,7 @@ export async function getDailyPlanByDate(
       eq(dailyPlans.userId, userId),
       eq(dailyPlans.profileId, profileId),
       gte(dailyPlans.date, startOfDay),
-      lte(dailyPlans.date, endOfDay)
+      lte(dailyPlans.date, endOfDay),
     ),
     with: {
       profile: true,
@@ -48,7 +48,7 @@ export async function getDailyPlanByDate(
 
 export async function getDailyPlansForAllProfiles(
   userId: string,
-  date: Date
+  date: Date,
 ): Promise<DailyPlanWithMeals[]> {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
@@ -60,7 +60,7 @@ export async function getDailyPlansForAllProfiles(
     where: and(
       eq(dailyPlans.userId, userId),
       gte(dailyPlans.date, startOfDay),
-      lte(dailyPlans.date, endOfDay)
+      lte(dailyPlans.date, endOfDay),
     ),
     with: {
       profile: true,
@@ -83,14 +83,14 @@ export async function getDailyPlansByDateRange(
   userId: string,
   profileId: string,
   dateFrom: Date,
-  dateTo: Date
+  dateTo: Date,
 ): Promise<DailyPlanWithMeals[]> {
   const plans = await db.query.dailyPlans.findMany({
     where: and(
       eq(dailyPlans.userId, userId),
       eq(dailyPlans.profileId, profileId),
       gte(dailyPlans.date, dateFrom),
-      lte(dailyPlans.date, dateTo)
+      lte(dailyPlans.date, dateTo),
     ),
     with: {
       profile: true,
@@ -113,7 +113,7 @@ export async function getDailyPlansByDateRange(
 export async function getOrCreateDailyPlan(
   userId: string,
   profileId: string,
-  date: Date
+  date: Date,
 ): Promise<DailyPlan> {
   const existing = await getDailyPlanByDate(userId, profileId, date);
 
@@ -138,7 +138,7 @@ export async function addMealToPlan(
   dailyPlanId: string,
   mealId: string,
   mealTypeId: string,
-  servings: number = 1
+  servings: number = 1,
 ): Promise<DailyPlanMeal> {
   const [planMeal] = await db
     .insert(dailyPlanMeals)
@@ -160,7 +160,7 @@ export async function removeMealFromPlan(planMealId: string): Promise<void> {
 
 export async function toggleMealCompleted(
   planMealId: string,
-  completed: boolean
+  completed: boolean,
 ): Promise<DailyPlanMeal> {
   const [planMeal] = await db
     .update(dailyPlanMeals)
@@ -173,7 +173,7 @@ export async function toggleMealCompleted(
 
 export async function updatePlanMealServings(
   planMealId: string,
-  servings: number
+  servings: number,
 ): Promise<DailyPlanMeal> {
   const [planMeal] = await db
     .update(dailyPlanMeals)

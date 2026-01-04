@@ -1,28 +1,28 @@
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  ingredients,
+  mealIngredients,
+  mealMealTypes,
   meals,
   mealTags,
-  mealMealTypes,
-  mealIngredients,
-  tags,
   mealTypes,
-  ingredients,
+  tags,
 } from "@/db/schema";
-import { eq, and, lte, gte, inArray } from "drizzle-orm";
 import { generateId, getRandomItem } from "@/lib/utils";
 import type {
+  Ingredient,
   Meal,
-  NewMeal,
+  MealIngredient,
+  MealType,
   MealWithRelations,
+  NewMeal,
   RandomizerFilters,
   Tag,
-  MealType,
-  MealIngredient,
-  Ingredient,
 } from "@/types";
 
 export async function getMealsByUserId(
-  userId: string
+  userId: string,
 ): Promise<MealWithRelations[]> {
   const mealsData = await db.query.meals.findMany({
     where: eq(meals.userId, userId),
@@ -50,7 +50,7 @@ export async function getMealsByUserId(
 
 export async function getMealById(
   mealId: string,
-  userId: string
+  userId: string,
 ): Promise<MealWithRelations | undefined> {
   const meal = await db.query.meals.findFirst({
     where: and(eq(meals.id, mealId), eq(meals.userId, userId)),
@@ -77,7 +77,10 @@ export async function getMealById(
   };
 }
 
-type CreateMealData = Omit<NewMeal, "id" | "userId" | "createdAt" | "updatedAt"> & {
+type CreateMealData = Omit<
+  NewMeal,
+  "id" | "userId" | "createdAt" | "updatedAt"
+> & {
   tagIds?: string[];
   mealTypeIds?: string[];
   ingredientsList?: { ingredientId: string; amount: number; unit: string }[];
@@ -85,7 +88,7 @@ type CreateMealData = Omit<NewMeal, "id" | "userId" | "createdAt" | "updatedAt">
 
 export async function createMeal(
   userId: string,
-  data: CreateMealData
+  data: CreateMealData,
 ): Promise<Meal> {
   const { tagIds, mealTypeIds, ingredientsList, ...mealData } = data;
   const mealId = generateId();
@@ -104,7 +107,7 @@ export async function createMeal(
       tagIds.map((tagId) => ({
         mealId,
         tagId,
-      }))
+      })),
     );
   }
 
@@ -113,7 +116,7 @@ export async function createMeal(
       mealTypeIds.map((mealTypeId) => ({
         mealId,
         mealTypeId,
-      }))
+      })),
     );
   }
 
@@ -125,7 +128,7 @@ export async function createMeal(
         ingredientId: ing.ingredientId,
         amount: ing.amount,
         unit: ing.unit,
-      }))
+      })),
     );
   }
 
@@ -135,7 +138,7 @@ export async function createMeal(
 export async function updateMeal(
   mealId: string,
   userId: string,
-  data: Partial<CreateMealData>
+  data: Partial<CreateMealData>,
 ): Promise<Meal> {
   const { tagIds, mealTypeIds, ingredientsList, ...mealData } = data;
 
@@ -156,7 +159,7 @@ export async function updateMeal(
         tagIds.map((tagId) => ({
           mealId,
           tagId,
-        }))
+        })),
       );
     }
   }
@@ -168,7 +171,7 @@ export async function updateMeal(
         mealTypeIds.map((mealTypeId) => ({
           mealId,
           mealTypeId,
-        }))
+        })),
       );
     }
   }
@@ -183,7 +186,7 @@ export async function updateMeal(
           ingredientId: ing.ingredientId,
           amount: ing.amount,
           unit: ing.unit,
-        }))
+        })),
       );
     }
   }
@@ -191,7 +194,10 @@ export async function updateMeal(
   return meal;
 }
 
-export async function deleteMeal(mealId: string, userId: string): Promise<void> {
+export async function deleteMeal(
+  mealId: string,
+  userId: string,
+): Promise<void> {
   await db
     .delete(meals)
     .where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
@@ -199,28 +205,47 @@ export async function deleteMeal(mealId: string, userId: string): Promise<void> 
 
 export async function getFilteredMeals(
   userId: string,
-  filters: RandomizerFilters
+  filters: RandomizerFilters,
 ): Promise<MealWithRelations[]> {
   const allMeals = await getMealsByUserId(userId);
 
   return allMeals.filter((meal) => {
-    if (filters.mealTypeId && !meal.mealTypes.some((mt) => mt.id === filters.mealTypeId)) {
+    if (
+      filters.mealTypeId &&
+      !meal.mealTypes.some((mt) => mt.id === filters.mealTypeId)
+    ) {
       return false;
     }
 
-    if (filters.maxPrepTime && meal.prepTimeMinutes && meal.prepTimeMinutes > filters.maxPrepTime) {
+    if (
+      filters.maxPrepTime &&
+      meal.prepTimeMinutes &&
+      meal.prepTimeMinutes > filters.maxPrepTime
+    ) {
       return false;
     }
 
-    if (filters.maxCookTime && meal.cookTimeMinutes && meal.cookTimeMinutes > filters.maxCookTime) {
+    if (
+      filters.maxCookTime &&
+      meal.cookTimeMinutes &&
+      meal.cookTimeMinutes > filters.maxCookTime
+    ) {
       return false;
     }
 
-    if (filters.maxCalories && meal.calories && meal.calories > filters.maxCalories) {
+    if (
+      filters.maxCalories &&
+      meal.calories &&
+      meal.calories > filters.maxCalories
+    ) {
       return false;
     }
 
-    if (filters.minProtein && meal.protein && meal.protein < filters.minProtein) {
+    if (
+      filters.minProtein &&
+      meal.protein &&
+      meal.protein < filters.minProtein
+    ) {
       return false;
     }
 
@@ -248,7 +273,7 @@ export async function getFilteredMeals(
 
 export async function randomizeSingleMeal(
   userId: string,
-  filters: RandomizerFilters
+  filters: RandomizerFilters,
 ): Promise<MealWithRelations | undefined> {
   const filteredMeals = await getFilteredMeals(userId, filters);
   return getRandomItem(filteredMeals);

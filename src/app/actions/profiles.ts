@@ -1,24 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAuth } from "./auth";
-import {
-  getProfilesByUserId,
-  getProfileById,
-  createProfile,
-  updateProfile,
-  deleteProfile,
-  createDefaultProfile,
-} from "@/lib/services/profiles";
 import { createDefaultMealTypes } from "@/lib/services/meal-types";
+import {
+  createDefaultProfile,
+  createProfile,
+  deleteProfile,
+  getProfileById,
+  getProfilesByUserId,
+  updateProfile,
+} from "@/lib/services/profiles";
 import type { Profile } from "@/types";
+import { requireAuth } from "./auth";
 
 export async function getProfilesAction(): Promise<Profile[]> {
   const session = await requireAuth();
   return getProfilesByUserId(session.user.id);
 }
 
-export async function getProfileAction(profileId: string): Promise<Profile | undefined> {
+export async function getProfileAction(
+  profileId: string,
+): Promise<Profile | undefined> {
   const session = await requireAuth();
   return getProfileById(profileId, session.user.id);
 }
@@ -51,7 +53,7 @@ export async function updateProfileAction(
     dailyFatGoal?: number;
     isChild?: boolean;
     isActive?: boolean;
-  }
+  },
 ): Promise<Profile> {
   const session = await requireAuth();
   const profile = await updateProfile(profileId, session.user.id, data);
@@ -68,15 +70,20 @@ export async function deleteProfileAction(profileId: string): Promise<void> {
 export async function initializeNewUserAction(): Promise<Profile> {
   const session = await requireAuth();
 
+  // Check if user already has profiles (prevent duplicates)
+  const existingProfiles = await getProfilesByUserId(session.user.id);
+  if (existingProfiles.length > 0) {
+    return existingProfiles[0];
+  }
+
   // Create default profile
   const profile = await createDefaultProfile(
     session.user.id,
-    session.user.name || "Ja"
+    session.user.name || "Ja",
   );
 
   // Create default meal types
   await createDefaultMealTypes(session.user.id);
 
-  revalidatePath("/");
   return profile;
 }

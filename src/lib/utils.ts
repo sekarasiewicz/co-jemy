@@ -1,6 +1,6 @@
-import { clsx, type ClassValue } from "clsx";
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { Meal, ShoppingListItem, Ingredient } from "@/types";
+import type { Ingredient, ShoppingListItem } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -18,10 +18,21 @@ export function formatMinutes(minutes: number): string {
   return `${hours}h ${remainingMinutes}min`;
 }
 
-type NutritionTotal = { calories: number; protein: number; carbs: number; fat: number };
+type NutritionTotal = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
 
 export function calculateTotalNutrition(
-  meals: { calories?: number | null; protein?: number | null; carbs?: number | null; fat?: number | null; servings?: number }[]
+  meals: {
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+    servings?: number;
+  }[],
 ): NutritionTotal {
   return meals.reduce<NutritionTotal>(
     (acc, meal) => ({
@@ -30,7 +41,7 @@ export function calculateTotalNutrition(
       carbs: acc.carbs + (meal.carbs ?? 0) * (meal.servings ?? 1),
       fat: acc.fat + (meal.fat ?? 0) * (meal.servings ?? 1),
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
 }
 
@@ -44,7 +55,7 @@ type AggregatedIngredient = {
 };
 
 export function aggregateIngredients(
-  items: (ShoppingListItem & { ingredient: Ingredient | null })[]
+  items: (ShoppingListItem & { ingredient: Ingredient | null })[],
 ): AggregatedIngredient[] {
   const aggregated = new Map<string, AggregatedIngredient>();
 
@@ -70,7 +81,7 @@ export function aggregateIngredients(
 }
 
 export function groupByCategory<T extends { category: string }>(
-  items: T[]
+  items: T[],
 ): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
 

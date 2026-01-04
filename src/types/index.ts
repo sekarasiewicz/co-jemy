@@ -1,16 +1,16 @@
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type {
-  users,
-  profiles,
-  ingredients,
-  meals,
-  tags,
-  mealTypes,
-  mealIngredients,
-  dailyPlans,
   dailyPlanMeals,
-  shoppingLists,
+  dailyPlans,
+  ingredients,
+  mealIngredients,
+  meals,
+  mealTypes,
+  profiles,
   shoppingListItems,
+  shoppingLists,
+  tags,
+  users,
 } from "@/db/schema";
 
 // Base types

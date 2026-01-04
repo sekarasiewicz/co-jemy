@@ -1,8 +1,8 @@
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tags } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
-import type { Tag, NewTag } from "@/types";
+import type { NewTag, Tag } from "@/types";
 
 export async function getTagsByUserId(userId: string): Promise<Tag[]> {
   return db.query.tags.findMany({
@@ -13,7 +13,7 @@ export async function getTagsByUserId(userId: string): Promise<Tag[]> {
 
 export async function getTagById(
   tagId: string,
-  userId: string
+  userId: string,
 ): Promise<Tag | undefined> {
   return db.query.tags.findFirst({
     where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
@@ -22,7 +22,7 @@ export async function getTagById(
 
 export async function createTag(
   userId: string,
-  data: Omit<NewTag, "id" | "userId" | "createdAt">
+  data: Omit<NewTag, "id" | "userId" | "createdAt">,
 ): Promise<Tag> {
   const [tag] = await db
     .insert(tags)
@@ -39,7 +39,7 @@ export async function createTag(
 export async function updateTag(
   tagId: string,
   userId: string,
-  data: Partial<Omit<NewTag, "id" | "userId" | "createdAt">>
+  data: Partial<Omit<NewTag, "id" | "userId" | "createdAt">>,
 ): Promise<Tag> {
   const [tag] = await db
     .update(tags)

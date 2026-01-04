@@ -1,23 +1,23 @@
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  shoppingLists,
-  shoppingListItems,
-  dailyPlans,
   dailyPlanMeals,
+  dailyPlans,
+  type ingredients,
   mealIngredients,
-  ingredients,
+  shoppingListItems,
+  shoppingLists,
 } from "@/db/schema";
-import { eq, and, gte, lte, inArray } from "drizzle-orm";
-import { generateId, aggregateIngredients } from "@/lib/utils";
+import { aggregateIngredients, generateId } from "@/lib/utils";
 import type {
-  ShoppingList,
   NewShoppingList,
-  ShoppingListWithItems,
+  ShoppingList,
   ShoppingListItem,
+  ShoppingListWithItems,
 } from "@/types";
 
 export async function getShoppingListsByUserId(
-  userId: string
+  userId: string,
 ): Promise<ShoppingList[]> {
   return db.query.shoppingLists.findMany({
     where: eq(shoppingLists.userId, userId),
@@ -27,13 +27,10 @@ export async function getShoppingListsByUserId(
 
 export async function getShoppingListById(
   listId: string,
-  userId: string
+  userId: string,
 ): Promise<ShoppingListWithItems | undefined> {
   const list = await db.query.shoppingLists.findFirst({
-    where: and(
-      eq(shoppingLists.id, listId),
-      eq(shoppingLists.userId, userId)
-    ),
+    where: and(eq(shoppingLists.id, listId), eq(shoppingLists.userId, userId)),
     with: {
       items: {
         with: {
@@ -51,7 +48,7 @@ export async function generateShoppingListFromDateRange(
   profileIds: string[],
   dateFrom: Date,
   dateTo: Date,
-  name: string
+  name: string,
 ): Promise<ShoppingListWithItems> {
   // Get all daily plans for selected profiles in date range
   const plans = await db.query.dailyPlans.findMany({
@@ -59,7 +56,7 @@ export async function generateShoppingListFromDateRange(
       eq(dailyPlans.userId, userId),
       inArray(dailyPlans.profileId, profileIds),
       gte(dailyPlans.date, dateFrom),
-      lte(dailyPlans.date, dateTo)
+      lte(dailyPlans.date, dateTo),
     ),
     with: {
       dailyPlanMeals: {
@@ -116,7 +113,11 @@ export async function generateShoppingListFromDateRange(
   // Aggregate and insert items
   const aggregatedMap = new Map<
     string,
-    { ingredient: typeof ingredients.$inferSelect; totalAmount: number; unit: string }
+    {
+      ingredient: typeof ingredients.$inferSelect;
+      totalAmount: number;
+      unit: string;
+    }
   >();
 
   for (const item of allIngredients) {
@@ -159,7 +160,7 @@ export async function addItemToShoppingList(
     amount?: number;
     unit?: string;
     category: string;
-  }
+  },
 ): Promise<ShoppingListItem> {
   const [item] = await db
     .insert(shoppingListItems)
@@ -175,7 +176,7 @@ export async function addItemToShoppingList(
 
 export async function toggleShoppingListItem(
   itemId: string,
-  field: "checked" | "inPantry"
+  field: "checked" | "inPantry",
 ): Promise<ShoppingListItem> {
   const item = await db.query.shoppingListItems.findFirst({
     where: eq(shoppingListItems.id, itemId),
@@ -200,26 +201,22 @@ export async function deleteShoppingListItem(itemId: string): Promise<void> {
 
 export async function deleteShoppingList(
   listId: string,
-  userId: string
+  userId: string,
 ): Promise<void> {
   await db
     .delete(shoppingLists)
-    .where(
-      and(eq(shoppingLists.id, listId), eq(shoppingLists.userId, userId))
-    );
+    .where(and(eq(shoppingLists.id, listId), eq(shoppingLists.userId, userId)));
 }
 
 export async function updateShoppingListName(
   listId: string,
   userId: string,
-  name: string
+  name: string,
 ): Promise<ShoppingList> {
   const [list] = await db
     .update(shoppingLists)
     .set({ name })
-    .where(
-      and(eq(shoppingLists.id, listId), eq(shoppingLists.userId, userId))
-    )
+    .where(and(eq(shoppingLists.id, listId), eq(shoppingLists.userId, userId)))
     .returning();
 
   return list;

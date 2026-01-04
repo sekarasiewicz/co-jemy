@@ -1,13 +1,13 @@
+import { relations } from "drizzle-orm";
 import {
-  pgTable,
-  text,
-  timestamp,
   boolean,
   integer,
-  real,
+  pgTable,
   primaryKey,
+  real,
+  text,
+  timestamp,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 
 // ============================================
 // Better Auth tables
@@ -162,7 +162,7 @@ export const mealTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.mealId, t.tagId] })]
+  (t) => [primaryKey({ columns: [t.mealId, t.tagId] })],
 );
 
 // Junction: meals <-> mealTypes
@@ -176,7 +176,7 @@ export const mealMealTypes = pgTable(
       .notNull()
       .references(() => mealTypes.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.mealId, t.mealTypeId] })]
+  (t) => [primaryKey({ columns: [t.mealId, t.mealTypeId] })],
 );
 
 // Meal ingredients
@@ -328,7 +328,7 @@ export const mealIngredientsRelations = relations(
       fields: [mealIngredients.ingredientId],
       references: [ingredients.id],
     }),
-  })
+  }),
 );
 
 export const dailyPlansRelations = relations(dailyPlans, ({ one, many }) => ({
@@ -340,23 +340,20 @@ export const dailyPlansRelations = relations(dailyPlans, ({ one, many }) => ({
   dailyPlanMeals: many(dailyPlanMeals),
 }));
 
-export const dailyPlanMealsRelations = relations(
-  dailyPlanMeals,
-  ({ one }) => ({
-    dailyPlan: one(dailyPlans, {
-      fields: [dailyPlanMeals.dailyPlanId],
-      references: [dailyPlans.id],
-    }),
-    meal: one(meals, {
-      fields: [dailyPlanMeals.mealId],
-      references: [meals.id],
-    }),
-    mealType: one(mealTypes, {
-      fields: [dailyPlanMeals.mealTypeId],
-      references: [mealTypes.id],
-    }),
-  })
-);
+export const dailyPlanMealsRelations = relations(dailyPlanMeals, ({ one }) => ({
+  dailyPlan: one(dailyPlans, {
+    fields: [dailyPlanMeals.dailyPlanId],
+    references: [dailyPlans.id],
+  }),
+  meal: one(meals, {
+    fields: [dailyPlanMeals.mealId],
+    references: [meals.id],
+  }),
+  mealType: one(mealTypes, {
+    fields: [dailyPlanMeals.mealTypeId],
+    references: [mealTypes.id],
+  }),
+}));
 
 export const shoppingListsRelations = relations(
   shoppingLists,
@@ -366,7 +363,7 @@ export const shoppingListsRelations = relations(
       references: [users.id],
     }),
     items: many(shoppingListItems),
-  })
+  }),
 );
 
 export const shoppingListItemsRelations = relations(
@@ -380,5 +377,5 @@ export const shoppingListItemsRelations = relations(
       fields: [shoppingListItems.ingredientId],
       references: [ingredients.id],
     }),
-  })
+  }),
 );
