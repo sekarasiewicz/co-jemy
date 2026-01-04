@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  Apple,
   Calendar,
+  Home,
   LogOut,
   ShoppingCart,
   Shuffle,
@@ -17,7 +19,9 @@ import { ModeToggle } from "./mode-toggle";
 import { ProfileSwitcher } from "./profiles/profile-switcher";
 
 const navItems = [
+  { href: "/today", label: "Dziś", icon: Home },
   { href: "/meals", label: "Dania", icon: UtensilsCrossed },
+  { href: "/ingredients", label: "Składniki", icon: Apple },
   { href: "/randomize", label: "Losuj", icon: Shuffle },
   { href: "/planner", label: "Planer", icon: Calendar },
   { href: "/shopping", label: "Zakupy", icon: ShoppingCart },

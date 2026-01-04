@@ -8,7 +8,7 @@ export default async function Home() {
   const session = await getSession();
 
   if (session?.user) {
-    redirect("/profiles");
+    redirect("/today");
   }
 
   return (
