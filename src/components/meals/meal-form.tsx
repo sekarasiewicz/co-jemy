@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Calculator, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createIngredientAction } from "@/app/actions/ingredients";
@@ -80,7 +80,7 @@ export function MealForm({
   const [description, setDescription] = useState(meal?.description || "");
   const [instructions, setInstructions] = useState(meal?.instructions || "");
   const [imageUrl, setImageUrl] = useState(meal?.imageUrl || "");
-  const [servings, setServings] = useState(meal?.servings || 2);
+  const [servings, setServings] = useState(meal?.servings || 1);
   const [prepTimeMinutes, setPrepTimeMinutes] = useState(
     meal?.prepTimeMinutes || "",
   );
@@ -176,6 +176,74 @@ export function MealForm({
     setAvailableIngredients([...availableIngredients, newIngredient]);
     return { value: newIngredient.id, label: newIngredient.name };
   };
+
+  // Calculate nutritional values from ingredients
+  const calculateNutrition = () => {
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+    let hasData = false;
+
+    for (const si of selectedIngredients) {
+      if (!si.ingredientId) continue;
+
+      const ingredient = availableIngredients.find(
+        (ing) => ing.id === si.ingredientId,
+      );
+      if (!ingredient) continue;
+
+      // Convert amount to grams for calculation
+      let amountInGrams = si.amount;
+      if (si.unit === "kg") {
+        amountInGrams = si.amount * 1000;
+      } else if (si.unit !== "g") {
+        // Skip non-gram units for now (can't accurately convert)
+        continue;
+      }
+
+      const multiplier = amountInGrams / 100;
+
+      if (ingredient.caloriesPer100g) {
+        totalCalories += ingredient.caloriesPer100g * multiplier;
+        hasData = true;
+      }
+      if (ingredient.proteinPer100g) {
+        totalProtein += ingredient.proteinPer100g * multiplier;
+        hasData = true;
+      }
+      if (ingredient.carbsPer100g) {
+        totalCarbs += ingredient.carbsPer100g * multiplier;
+        hasData = true;
+      }
+      if (ingredient.fatPer100g) {
+        totalFat += ingredient.fatPer100g * multiplier;
+        hasData = true;
+      }
+    }
+
+    if (!hasData) {
+      return;
+    }
+
+    // Calculate per serving
+    const perServing = servings || 1;
+    setCalories(Math.round(totalCalories / perServing));
+    setProtein(Math.round((totalProtein / perServing) * 10) / 10);
+    setCarbs(Math.round((totalCarbs / perServing) * 10) / 10);
+    setFat(Math.round((totalFat / perServing) * 10) / 10);
+  };
+
+  const hasIngredientsWithNutrition = selectedIngredients.some((si) => {
+    const ing = availableIngredients.find((i) => i.id === si.ingredientId);
+    return (
+      ing &&
+      (ing.caloriesPer100g ||
+        ing.proteinPer100g ||
+        ing.carbsPer100g ||
+        ing.fatPer100g)
+    );
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,9 +350,22 @@ export function MealForm({
 
       <Card>
         <CardContent className="pt-6 space-y-4">
-          <h2 className="font-semibold text-foreground">
-            Wartości odżywcze (na porcję)
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">
+              Wartości odżywcze (na porcję)
+            </h2>
+            {hasIngredientsWithNutrition && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={calculateNutrition}
+              >
+                <Calculator className="w-4 h-4 mr-1" />
+                Oblicz ze składników
+              </Button>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Input

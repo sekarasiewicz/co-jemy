@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
 import { getMealsAction } from "@/app/actions/meals";
 import { MealCard } from "@/components/meals/meal-card";
@@ -16,12 +16,20 @@ export default async function MealsPage() {
             {meals.length} {meals.length === 1 ? "danie" : "dań"} w kolekcji
           </p>
         </div>
-        <Link href="/meals/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Dodaj danie
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/meals/import">
+            <Button variant="outline">
+              <FileText className="w-4 h-4 mr-2" />
+              Importuj
+            </Button>
+          </Link>
+          <Link href="/meals/new">
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Dodaj danie
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {meals.length === 0 ? (

@@ -1,8 +1,9 @@
 "use client";
 
-import { Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
+import { Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { addMealToPlanAction } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
 import {
   Badge,
@@ -32,6 +33,8 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
   const [noResults, setNoResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [addingToPlan, setAddingToPlan] = useState(false);
+  const [addedToPlan, setAddedToPlan] = useState(false);
 
   // Filters
   const [mealTypeId, setMealTypeId] = useState("");
@@ -49,6 +52,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     setLoading(true);
     setNoResults(false);
     setIsAnimating(true);
+    setAddedToPlan(false);
 
     const filters: RandomizerFilters = {
       mealTypeId: mealTypeId || undefined,
@@ -77,6 +81,32 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     } finally {
       setLoading(false);
       setIsAnimating(false);
+    }
+  };
+
+  const handleAddToPlan = async () => {
+    if (!result || !activeProfile) return;
+
+    // Use selected mealTypeId from filter, or first type from meal, or first available type
+    const typeId =
+      mealTypeId ||
+      result.mealTypes[0]?.id ||
+      mealTypes[0]?.id;
+
+    if (!typeId) return;
+
+    setAddingToPlan(true);
+    try {
+      await addMealToPlanAction({
+        profileId: activeProfile.id,
+        date: new Date(),
+        mealId: result.id,
+        mealTypeId: typeId,
+        servings: result.servings,
+      });
+      setAddedToPlan(true);
+    } finally {
+      setAddingToPlan(false);
     }
   };
 
@@ -258,10 +288,23 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
                   Zobacz przepis
                 </Button>
               </Link>
-              <Button variant="primary" className="flex-1">
-                <Plus className="w-4 h-4 mr-2" />
-                Dodaj do planu
-              </Button>
+              {addedToPlan ? (
+                <Button variant="outline" className="flex-1" disabled>
+                  <Check className="w-4 h-4 mr-2 text-emerald-500" />
+                  Dodano do planu
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  onClick={handleAddToPlan}
+                  loading={addingToPlan}
+                  disabled={!activeProfile}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Dodaj do planu
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
