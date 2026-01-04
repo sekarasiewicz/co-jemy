@@ -18,7 +18,7 @@ export function ProfileSelector({ profiles }: ProfileSelectorProps) {
   const handleSelectProfile = (profile: Profile) => {
     setProfiles(profiles);
     setActiveProfile(profile);
-    router.push("/planner");
+    router.push("/today");
   };
 
   return (
