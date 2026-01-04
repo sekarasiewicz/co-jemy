@@ -4,6 +4,7 @@ export { Button } from "./button";
 export { Card, CardContent, CardFooter, CardHeader } from "./card";
 export type { CheckboxProps } from "./checkbox";
 export { Checkbox } from "./checkbox";
+export { Combobox } from "./combobox";
 export {
   Form,
   FormControl,

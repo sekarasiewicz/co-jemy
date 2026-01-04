@@ -3,14 +3,15 @@
 import { useRouter } from "next/navigation";
 import { createMealAction } from "@/app/actions/meals";
 import { MealForm, type MealFormData } from "@/components/meals/meal-form";
-import type { MealType, Tag } from "@/types";
+import type { Ingredient, MealType, Tag } from "@/types";
 
 interface NewMealFormProps {
   mealTypes: MealType[];
   tags: Tag[];
+  ingredients: Ingredient[];
 }
 
-export function NewMealForm({ mealTypes, tags }: NewMealFormProps) {
+export function NewMealForm({ mealTypes, tags, ingredients }: NewMealFormProps) {
   const router = useRouter();
 
   const handleSubmit = async (data: MealFormData) => {
@@ -19,5 +20,12 @@ export function NewMealForm({ mealTypes, tags }: NewMealFormProps) {
     router.refresh();
   };
 
-  return <MealForm mealTypes={mealTypes} tags={tags} onSubmit={handleSubmit} />;
+  return (
+    <MealForm
+      mealTypes={mealTypes}
+      tags={tags}
+      ingredients={ingredients}
+      onSubmit={handleSubmit}
+    />
+  );
 }

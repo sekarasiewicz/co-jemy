@@ -172,6 +172,32 @@ export default async function MealPage({
         </div>
       )}
 
+      {meal.ingredients.length > 0 && (
+        <Card className="mb-8">
+          <CardContent className="pt-4">
+            <h2 className="font-semibold text-foreground mb-4">
+              Składniki ({meal.servings} porcji)
+            </h2>
+            <ul className="space-y-2">
+              {meal.ingredients.map((mi) => (
+                <li
+                  key={mi.id}
+                  className="flex items-center gap-2 text-foreground"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>
+                    {mi.ingredient.name} -{" "}
+                    <span className="text-muted-foreground">
+                      {mi.amount} {mi.unit}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       {meal.instructions && (
         <Card>
           <CardContent className="pt-4">

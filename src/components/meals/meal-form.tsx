@@ -1,22 +1,44 @@
 "use client";
 
+import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createIngredientAction } from "@/app/actions/ingredients";
 import {
   Button,
   Card,
   CardContent,
   Checkbox,
+  Combobox,
   Input,
+  Select,
   Textarea,
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { Meal, MealType, Tag } from "@/types";
+import type {
+  Ingredient,
+  Meal,
+  MealIngredient,
+  MealType,
+  Tag,
+} from "@/types";
+import { UNITS } from "@/types";
+
+interface IngredientEntry {
+  ingredientId: string;
+  amount: number;
+  unit: string;
+}
 
 interface MealFormProps {
-  meal?: Meal & { mealTypes: MealType[]; tags: Tag[] };
+  meal?: Meal & {
+    mealTypes: MealType[];
+    tags: Tag[];
+    ingredients: (MealIngredient & { ingredient: Ingredient })[];
+  };
   mealTypes: MealType[];
   tags: Tag[];
+  ingredients: Ingredient[];
   onSubmit: (data: MealFormData) => Promise<void>;
 }
 
@@ -41,9 +63,16 @@ export interface MealFormData {
   isChildFriendly: boolean;
   mealTypeIds: string[];
   tagIds: string[];
+  ingredientsList: IngredientEntry[];
 }
 
-export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
+export function MealForm({
+  meal,
+  mealTypes,
+  tags,
+  ingredients,
+  onSubmit,
+}: MealFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -79,6 +108,74 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     meal?.tags.map((t) => t.id) || [],
   );
+  const [selectedIngredients, setSelectedIngredients] = useState<
+    IngredientEntry[]
+  >(
+    meal?.ingredients.map((mi) => ({
+      ingredientId: mi.ingredientId,
+      amount: mi.amount,
+      unit: mi.unit,
+    })) || [],
+  );
+
+  // Keep track of available ingredients (can grow when user creates new ones)
+  const [availableIngredients, setAvailableIngredients] =
+    useState<Ingredient[]>(ingredients);
+
+  const ingredientOptions = availableIngredients.map((ing) => ({
+    value: ing.id,
+    label: ing.name,
+  }));
+
+  const addIngredient = () => {
+    setSelectedIngredients([
+      ...selectedIngredients,
+      {
+        ingredientId: "",
+        amount: 100,
+        unit: "g",
+      },
+    ]);
+  };
+
+  const removeIngredient = (index: number) => {
+    setSelectedIngredients(selectedIngredients.filter((_, i) => i !== index));
+  };
+
+  const updateIngredientField = (
+    index: number,
+    field: keyof IngredientEntry,
+    value: string | number,
+  ) => {
+    setSelectedIngredients(
+      selectedIngredients.map((ing, i) => {
+        if (i === index) {
+          if (field === "ingredientId") {
+            const newIng = availableIngredients.find((ig) => ig.id === value);
+            return {
+              ...ing,
+              ingredientId: String(value),
+              unit: newIng?.defaultUnit || ing.unit,
+            };
+          }
+          if (field === "amount") {
+            return { ...ing, amount: Number(value) };
+          }
+          return { ...ing, unit: String(value) };
+        }
+        return ing;
+      }),
+    );
+  };
+
+  const handleCreateIngredient = async (name: string) => {
+    const newIngredient = await createIngredientAction({
+      name,
+      category: "Inne",
+    });
+    setAvailableIngredients([...availableIngredients, newIngredient]);
+    return { value: newIngredient.id, label: newIngredient.name };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +203,7 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
         isChildFriendly,
         mealTypeIds: selectedMealTypeIds,
         tagIds: selectedTagIds,
+        ingredientsList: selectedIngredients.filter((si) => si.ingredientId),
       });
     } finally {
       setLoading(false);
@@ -221,6 +319,83 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
               step={0.1}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">Składniki</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addIngredient}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Dodaj składnik
+            </Button>
+          </div>
+
+          {selectedIngredients.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Kliknij "Dodaj składnik", aby dodać składniki do dania.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {selectedIngredients.map((si, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50"
+                >
+                  <div className="flex-1">
+                    <Combobox
+                      value={si.ingredientId}
+                      onChange={(value) =>
+                        updateIngredientField(index, "ingredientId", value)
+                      }
+                      onCreateNew={handleCreateIngredient}
+                      options={ingredientOptions}
+                      placeholder="Wpisz nazwę składnika..."
+                    />
+                  </div>
+                  <div className="w-20">
+                    <Input
+                      type="number"
+                      value={si.amount}
+                      onChange={(e) =>
+                        updateIngredientField(
+                          index,
+                          "amount",
+                          Number(e.target.value),
+                        )
+                      }
+                      min={0}
+                      step={0.1}
+                    />
+                  </div>
+                  <div className="w-24">
+                    <Select
+                      value={si.unit}
+                      onChange={(e) =>
+                        updateIngredientField(index, "unit", e.target.value)
+                      }
+                      options={UNITS.map((u) => ({ value: u, label: u }))}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeIngredient(index)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
