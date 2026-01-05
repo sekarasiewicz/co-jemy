@@ -11,7 +11,7 @@ import {
 } from "@/app/actions/daily-plans";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatDateShort, getWeekDays } from "@/lib/utils";
+import { cn, formatDateShort, getTodayNoon, getWeekDays } from "@/lib/utils";
 import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
 
 interface WeekPlannerProps {
@@ -24,7 +24,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
   const [weekStart, setWeekStart] = useState(() => {
     const today = new Date();
     today.setDate(today.getDate() - today.getDay() + 1); // Monday
-    today.setHours(0, 0, 0, 0);
+    today.setHours(12, 0, 0, 0); // Noon to avoid timezone issues
     return today;
   });
   const [plans, setPlans] = useState<Map<string, DailyPlanWithMeals>>(
@@ -149,8 +149,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
     return <div>Wybierz profil...</div>;
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getTodayNoon();
 
   return (
     <div>

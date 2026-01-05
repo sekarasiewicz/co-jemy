@@ -21,7 +21,7 @@ import {
 } from "@/app/actions/daily-plans";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatMinutes } from "@/lib/utils";
+import { cn, formatMinutes, getTodayNoon } from "@/lib/utils";
 import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
 
 interface TodayViewProps {
@@ -35,8 +35,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   const [loading, setLoading] = useState(true);
   const [addingMealType, setAddingMealType] = useState<MealType | null>(null);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getTodayNoon();
 
   useEffect(() => {
     if (!activeProfile) return;

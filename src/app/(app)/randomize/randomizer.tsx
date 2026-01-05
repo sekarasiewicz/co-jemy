@@ -12,16 +12,38 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Modal,
   Select,
 } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatMinutes } from "@/lib/utils";
+import { cn, formatMinutes, getTodayNoon } from "@/lib/utils";
 import type {
   MealType,
   MealWithRelations,
   RandomizerFilters,
   Tag,
 } from "@/types";
+
+function getNextDays(count: number): Date[] {
+  const days: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() + i);
+    date.setHours(12, 0, 0, 0);
+    days.push(date);
+  }
+  return days;
+}
+
+function formatDayOption(date: Date, index: number): string {
+  if (index === 0) return "Dziś";
+  if (index === 1) return "Jutro";
+  return date.toLocaleDateString("pl-PL", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+  });
+}
 
 interface DayMeal {
   mealType: MealType;
@@ -41,12 +63,15 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
   const [loading, setLoading] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [addingToPlan, setAddingToPlan] = useState(false);
-  const [addedToPlan, setAddedToPlan] = useState(false);
+  const [addedToPlan, setAddedToPlan] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Full day mode
   const [dayMeals, setDayMeals] = useState<DayMeal[]>([]);
   const [loadingDay, setLoadingDay] = useState(false);
   const [addingAllToPlan, setAddingAllToPlan] = useState(false);
+  const [showDayDatePicker, setShowDayDatePicker] = useState(false);
+  const [addedDayToPlan, setAddedDayToPlan] = useState<Date | null>(null);
 
   // Filters
   const [mealTypeId, setMealTypeId] = useState("");
@@ -64,7 +89,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     setLoading(true);
     setNoResults(false);
     setIsAnimating(true);
-    setAddedToPlan(false);
+    setAddedToPlan(null);
 
     const filters: RandomizerFilters = {
       mealTypeId: mealTypeId || undefined,
@@ -96,7 +121,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     }
   };
 
-  const handleAddToPlan = async () => {
+  const handleAddToPlan = async (date: Date) => {
     if (!result || !activeProfile) return;
 
     // Use selected mealTypeId from filter, or first type from meal, or first available type
@@ -108,16 +133,18 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     if (!typeId) return;
 
     setAddingToPlan(true);
+    setShowDatePicker(false);
     try {
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date: new Date(),
+        date,
         mealId: result.id,
         mealTypeId: typeId,
         servings: result.servings,
       });
-      setAddedToPlan(true);
-      toast.success("Dodano do planu na dziś");
+      setAddedToPlan(date);
+      const isToday = date.toDateString() === new Date().toDateString();
+      toast.success(isToday ? "Dodano do planu na dziś" : "Dodano do planu");
     } catch {
       toast.error("Nie udało się dodać do planu");
     } finally {
@@ -135,6 +162,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     setLoadingDay(true);
     setResult(null);
     setDayMeals([]);
+    setAddedDayToPlan(null);
 
     const baseFilters: Omit<RandomizerFilters, "mealTypeId"> = {
       isVegetarian: isVegetarian || undefined,
@@ -171,19 +199,20 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     setLoadingDay(false);
   };
 
-  const handleAddAllToPlan = async () => {
+  const handleAddAllToPlan = async (date: Date) => {
     if (!activeProfile) return;
 
     const mealsToAdd = dayMeals.filter((dm) => dm.meal && !dm.addedToPlan);
     if (mealsToAdd.length === 0) return;
 
     setAddingAllToPlan(true);
+    setShowDayDatePicker(false);
     try {
       for (const dm of mealsToAdd) {
         if (dm.meal) {
           await addMealToPlanAction({
             profileId: activeProfile.id,
-            date: new Date(),
+            date,
             mealId: dm.meal.id,
             mealTypeId: dm.mealType.id,
             servings: dm.meal.servings,
@@ -194,33 +223,13 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
       setDayMeals((prev) =>
         prev.map((dm) => (dm.meal ? { ...dm, addedToPlan: true } : dm))
       );
-      toast.success("Dodano wszystkie posiłki do planu");
+      setAddedDayToPlan(date);
+      const isToday = date.toDateString() === new Date().toDateString();
+      toast.success(isToday ? "Dodano wszystkie posiłki na dziś" : "Dodano wszystkie posiłki do planu");
     } catch {
       toast.error("Nie udało się dodać posiłków do planu");
     } finally {
       setAddingAllToPlan(false);
-    }
-  };
-
-  const handleAddSingleDayMeal = async (index: number) => {
-    const dm = dayMeals[index];
-    if (!dm.meal || !activeProfile) return;
-
-    try {
-      await addMealToPlanAction({
-        profileId: activeProfile.id,
-        date: new Date(),
-        mealId: dm.meal.id,
-        mealTypeId: dm.mealType.id,
-        servings: dm.meal.servings,
-      });
-
-      setDayMeals((prev) =>
-        prev.map((item, i) => (i === index ? { ...item, addedToPlan: true } : item))
-      );
-      toast.success("Dodano do planu");
-    } catch {
-      toast.error("Nie udało się dodać do planu");
     }
   };
 
@@ -444,7 +453,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
                 <Button
                   variant="primary"
                   className="flex-1"
-                  onClick={handleAddToPlan}
+                  onClick={() => setShowDatePicker(true)}
                   loading={addingToPlan}
                   disabled={!activeProfile}
                 >
@@ -461,11 +470,16 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">
-              Plan na dziś
+              Wylosowane posiłki
             </h2>
-            {dayMeals.some((dm) => dm.meal && !dm.addedToPlan) && (
+            {addedDayToPlan ? (
+              <span className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                <Check className="w-4 h-4" />
+                Dodano do planu
+              </span>
+            ) : dayMeals.some((dm) => dm.meal) && (
               <Button
-                onClick={handleAddAllToPlan}
+                onClick={() => setShowDayDatePicker(true)}
                 loading={addingAllToPlan}
                 disabled={!activeProfile}
               >
@@ -521,20 +535,10 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
                       </div>
                     </div>
 
-                    {dm.addedToPlan ? (
+                    {addedDayToPlan && (
                       <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
                         <Check className="w-4 h-4" />
-                        Dodano
                       </span>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAddSingleDayMeal(index)}
-                        disabled={!activeProfile}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
                     )}
                   </div>
                 ) : (
@@ -547,6 +551,66 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
           ))}
         </div>
       )}
+
+      <Modal
+        isOpen={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        title="Wybierz dzień"
+      >
+        <div className="space-y-2">
+          {getNextDays(7).map((date, index) => (
+            <button
+              key={date.toISOString()}
+              type="button"
+              onClick={() => handleAddToPlan(date)}
+              className={cn(
+                "w-full p-3 rounded-lg border text-left transition-colors",
+                "hover:border-emerald-500 hover:bg-emerald-500/10",
+                index === 0 && "border-emerald-500 bg-emerald-500/10"
+              )}
+            >
+              <span className="font-medium text-foreground capitalize">
+                {formatDayOption(date, index)}
+              </span>
+              {index > 1 && (
+                <span className="text-muted-foreground ml-2">
+                  ({date.getDate()}.{(date.getMonth() + 1).toString().padStart(2, "0")})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showDayDatePicker}
+        onClose={() => setShowDayDatePicker(false)}
+        title="Wybierz dzień dla wszystkich posiłków"
+      >
+        <div className="space-y-2">
+          {getNextDays(7).map((date, index) => (
+            <button
+              key={date.toISOString()}
+              type="button"
+              onClick={() => handleAddAllToPlan(date)}
+              className={cn(
+                "w-full p-3 rounded-lg border text-left transition-colors",
+                "hover:border-emerald-500 hover:bg-emerald-500/10",
+                index === 0 && "border-emerald-500 bg-emerald-500/10"
+              )}
+            >
+              <span className="font-medium text-foreground capitalize">
+                {formatDayOption(date, index)}
+              </span>
+              {index > 1 && (
+                <span className="text-muted-foreground ml-2">
+                  ({date.getDate()}.{(date.getMonth() + 1).toString().padStart(2, "0")})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }
