@@ -45,6 +45,14 @@ export default async function MealPage({
           <h1 className="text-3xl font-bold text-foreground mb-2">{meal.name}</h1>
 
           <div className="flex flex-wrap gap-2">
+            {meal.mealTypes.map((mt) => (
+              <span
+                key={mt.id}
+                className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium"
+              >
+                {mt.name}
+              </span>
+            ))}
             {meal.isChildFriendly && <Badge variant="info">Dla dzieci</Badge>}
             {meal.isVegetarian && <Badge variant="success">Wege</Badge>}
             {meal.isVegan && <Badge variant="success">Vegan</Badge>}
@@ -88,69 +96,49 @@ export default async function MealPage({
         <p className="text-muted-foreground mb-8">{meal.description}</p>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {(meal.calories || meal.protein || meal.carbs || meal.fat) && (
-          <Card>
-            <CardContent className="pt-4">
-              <h2 className="font-semibold text-foreground mb-4">
-                Wartości odżywcze (na porcję)
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                {meal.calories && (
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">
-                      {meal.calories}
-                    </p>
-                    <p className="text-sm text-muted-foreground">kcal</p>
-                  </div>
-                )}
-                {meal.protein && (
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">
-                      {meal.protein}g
-                    </p>
-                    <p className="text-sm text-muted-foreground">białko</p>
-                  </div>
-                )}
-                {meal.carbs && (
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">
-                      {meal.carbs}g
-                    </p>
-                    <p className="text-sm text-muted-foreground">węglowodany</p>
-                  </div>
-                )}
-                {meal.fat && (
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">
-                      {meal.fat}g
-                    </p>
-                    <p className="text-sm text-muted-foreground">tłuszcze</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {meal.mealTypes.length > 0 && (
-          <Card>
-            <CardContent className="pt-4">
-              <h2 className="font-semibold text-foreground mb-4">Typ posiłku</h2>
-              <div className="flex flex-wrap gap-2">
-                {meal.mealTypes.map((mt) => (
-                  <span
-                    key={mt.id}
-                    className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm"
-                  >
-                    {mt.name}
-                  </span>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {(meal.calories || meal.protein || meal.carbs || meal.fat) && (
+        <Card className="mb-8">
+          <CardContent className="pt-4">
+            <h2 className="font-semibold text-foreground mb-4">
+              Wartości odżywcze (na porcję)
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {meal.calories && (
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {meal.calories}
+                  </p>
+                  <p className="text-sm text-muted-foreground">kcal</p>
+                </div>
+              )}
+              {meal.protein && (
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {meal.protein}g
+                  </p>
+                  <p className="text-sm text-muted-foreground">białko</p>
+                </div>
+              )}
+              {meal.carbs && (
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {meal.carbs}g
+                  </p>
+                  <p className="text-sm text-muted-foreground">węglowodany</p>
+                </div>
+              )}
+              {meal.fat && (
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {meal.fat}g
+                  </p>
+                  <p className="text-sm text-muted-foreground">tłuszcze</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {meal.tags.length > 0 && (
         <div className="mb-8">

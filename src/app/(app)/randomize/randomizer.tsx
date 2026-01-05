@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
+import { Calendar, Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +23,12 @@ import type {
   Tag,
 } from "@/types";
 
+interface DayMeal {
+  mealType: MealType;
+  meal: MealWithRelations | null;
+  addedToPlan: boolean;
+}
+
 interface RandomizerProps {
   mealTypes: MealType[];
   tags: Tag[];
@@ -36,6 +42,11 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [addingToPlan, setAddingToPlan] = useState(false);
   const [addedToPlan, setAddedToPlan] = useState(false);
+
+  // Full day mode
+  const [dayMeals, setDayMeals] = useState<DayMeal[]>([]);
+  const [loadingDay, setLoadingDay] = useState(false);
+  const [addingAllToPlan, setAddingAllToPlan] = useState(false);
 
   // Filters
   const [mealTypeId, setMealTypeId] = useState("");
@@ -117,6 +128,126 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
   const toggleTag = (id: string) => {
     setSelectedTagIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
+  };
+
+  const handleRandomizeDay = async () => {
+    setLoadingDay(true);
+    setResult(null);
+    setDayMeals([]);
+
+    const baseFilters: Omit<RandomizerFilters, "mealTypeId"> = {
+      isVegetarian: isVegetarian || undefined,
+      isVegan: isVegan || undefined,
+      isGlutenFree: isGlutenFree || undefined,
+      isLactoseFree: isLactoseFree || undefined,
+      isQuick: isQuick || undefined,
+      isChildFriendly: isChildFriendly || undefined,
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+    };
+
+    const results: DayMeal[] = [];
+    const usedMealIds: string[] = [];
+
+    for (const mealType of mealTypes) {
+      const filters: RandomizerFilters = {
+        ...baseFilters,
+        mealTypeId: mealType.id,
+        excludeMealIds: usedMealIds.length > 0 ? usedMealIds : undefined,
+      };
+
+      const meal = await randomizeMealAction(filters);
+      if (meal) {
+        usedMealIds.push(meal.id);
+      }
+      results.push({
+        mealType,
+        meal: meal || null,
+        addedToPlan: false,
+      });
+    }
+
+    setDayMeals(results);
+    setLoadingDay(false);
+  };
+
+  const handleAddAllToPlan = async () => {
+    if (!activeProfile) return;
+
+    const mealsToAdd = dayMeals.filter((dm) => dm.meal && !dm.addedToPlan);
+    if (mealsToAdd.length === 0) return;
+
+    setAddingAllToPlan(true);
+    try {
+      for (const dm of mealsToAdd) {
+        if (dm.meal) {
+          await addMealToPlanAction({
+            profileId: activeProfile.id,
+            date: new Date(),
+            mealId: dm.meal.id,
+            mealTypeId: dm.mealType.id,
+            servings: dm.meal.servings,
+          });
+        }
+      }
+
+      setDayMeals((prev) =>
+        prev.map((dm) => (dm.meal ? { ...dm, addedToPlan: true } : dm))
+      );
+      toast.success("Dodano wszystkie posiłki do planu");
+    } catch {
+      toast.error("Nie udało się dodać posiłków do planu");
+    } finally {
+      setAddingAllToPlan(false);
+    }
+  };
+
+  const handleAddSingleDayMeal = async (index: number) => {
+    const dm = dayMeals[index];
+    if (!dm.meal || !activeProfile) return;
+
+    try {
+      await addMealToPlanAction({
+        profileId: activeProfile.id,
+        date: new Date(),
+        mealId: dm.meal.id,
+        mealTypeId: dm.mealType.id,
+        servings: dm.meal.servings,
+      });
+
+      setDayMeals((prev) =>
+        prev.map((item, i) => (i === index ? { ...item, addedToPlan: true } : item))
+      );
+      toast.success("Dodano do planu");
+    } catch {
+      toast.error("Nie udało się dodać do planu");
+    }
+  };
+
+  const handleRerollDayMeal = async (index: number) => {
+    const dm = dayMeals[index];
+    const usedMealIds = dayMeals
+      .filter((_, i) => i !== index)
+      .map((d) => d.meal?.id)
+      .filter(Boolean) as string[];
+
+    const filters: RandomizerFilters = {
+      mealTypeId: dm.mealType.id,
+      isVegetarian: isVegetarian || undefined,
+      isVegan: isVegan || undefined,
+      isGlutenFree: isGlutenFree || undefined,
+      isLactoseFree: isLactoseFree || undefined,
+      isQuick: isQuick || undefined,
+      isChildFriendly: isChildFriendly || undefined,
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+      excludeMealIds: dm.meal ? [...usedMealIds, dm.meal.id] : usedMealIds,
+    };
+
+    const meal = await randomizeMealAction(filters);
+    setDayMeals((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, meal: meal || null, addedToPlan: false } : item
+      )
     );
   };
 
@@ -204,17 +335,29 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         </CardContent>
       </Card>
 
-      <Button
-        onClick={handleRandomize}
-        loading={loading}
-        size="lg"
-        className="w-full"
-      >
-        <Shuffle
-          className={cn("w-5 h-5 mr-2", isAnimating && "animate-spin")}
-        />
-        {result ? "Losuj ponownie" : "Losuj danie"}
-      </Button>
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          onClick={handleRandomize}
+          loading={loading}
+          size="lg"
+          className="w-full"
+        >
+          <Shuffle
+            className={cn("w-5 h-5 mr-2", isAnimating && "animate-spin")}
+          />
+          {result ? "Losuj ponownie" : "Losuj danie"}
+        </Button>
+        <Button
+          onClick={handleRandomizeDay}
+          loading={loadingDay}
+          size="lg"
+          variant="outline"
+          className="w-full"
+        >
+          <Calendar className="w-5 h-5 mr-2" />
+          Losuj cały dzień
+        </Button>
+      </div>
 
       {noResults && (
         <Card className="border-amber-500/50 bg-amber-500/10">
@@ -312,6 +455,97 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {dayMeals.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">
+              Plan na dziś
+            </h2>
+            {dayMeals.some((dm) => dm.meal && !dm.addedToPlan) && (
+              <Button
+                onClick={handleAddAllToPlan}
+                loading={addingAllToPlan}
+                disabled={!activeProfile}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Dodaj wszystko do planu
+              </Button>
+            )}
+          </div>
+
+          {dayMeals.map((dm, index) => (
+            <Card key={dm.mealType.id}>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-foreground">
+                    {dm.mealType.name}
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRerollDayMeal(index)}
+                  >
+                    <Shuffle className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {dm.meal ? (
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        href={`/meals/${dm.meal.id}`}
+                        className="font-medium text-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                      >
+                        {dm.meal.name}
+                      </Link>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        {dm.meal.calories && (
+                          <span className="flex items-center gap-1">
+                            <Flame className="w-3 h-3" />
+                            {dm.meal.calories} kcal
+                          </span>
+                        )}
+                        {((dm.meal.prepTimeMinutes || 0) +
+                          (dm.meal.cookTimeMinutes || 0)) >
+                          0 && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatMinutes(
+                              (dm.meal.prepTimeMinutes || 0) +
+                                (dm.meal.cookTimeMinutes || 0)
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {dm.addedToPlan ? (
+                      <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
+                        <Check className="w-4 h-4" />
+                        Dodano
+                      </span>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddSingleDayMeal(index)}
+                        disabled={!activeProfile}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Brak dań dla tego typu posiłku
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );
