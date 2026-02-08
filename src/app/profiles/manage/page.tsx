@@ -27,6 +27,7 @@ export default async function ManageProfilesPage({
         <ProfilesManager
           initialProfiles={profiles}
           showCreateForm={params.create === "true"}
+          userId={session.user.id}
         />
       </div>
     </div>

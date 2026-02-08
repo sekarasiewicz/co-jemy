@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,11 +18,13 @@ import type { Profile } from "@/types";
 interface ProfilesManagerProps {
   initialProfiles: Profile[];
   showCreateForm?: boolean;
+  userId: string;
 }
 
 export function ProfilesManager({
   initialProfiles,
   showCreateForm = false,
+  userId,
 }: ProfilesManagerProps) {
   const router = useRouter();
   const { setProfiles } = useProfile();
@@ -30,6 +32,7 @@ export function ProfilesManager({
   const [isCreating, setIsCreating] = useState(showCreateForm);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [deletingProfile, setDeletingProfile] = useState<Profile | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleCreate = async (
     data: Parameters<typeof createProfileAction>[0],
@@ -181,6 +184,26 @@ export function ProfilesManager({
           </Button>
         </div>
       </Modal>
+
+      <div className="flex items-center gap-2 text-xs text-muted-foreground pt-4">
+        <span>User ID: {userId}</span>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(userId);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          className="hover:text-foreground transition-colors"
+          title="Kopiuj User ID"
+        >
+          {copied ? (
+            <Check className="w-3.5 h-3.5 text-green-500" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
+        </button>
+      </div>
     </div>
   );
 }

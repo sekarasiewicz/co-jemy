@@ -11,7 +11,8 @@
     "check": "biome check --write ./src",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:clear-user": "npx tsx scripts/clear-user-data.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
