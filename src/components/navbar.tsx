@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useProfile } from "@/contexts/profile-context";
-import { signOut, useSession } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "./mode-toggle";
 import { ProfileSwitcher } from "./profiles/profile-switcher";
@@ -29,15 +29,12 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
   const { activeProfile } = useProfile();
 
   const handleLogout = async () => {
     await signOut();
     window.location.href = "/auth/login";
   };
-
-  if (!session?.user) return null;
 
   return (
     <nav className="sticky top-0 z-40 bg-background border-b border-border">
