@@ -14,7 +14,7 @@ import {
   updateMeal,
 } from "@/lib/services/meals";
 import { createTag, getTagsByUserId } from "@/lib/services/tags";
-import type { Ingredient, Meal, MealType, MealWithRelations, RandomizerFilters, Tag } from "@/types";
+import type { Ingredient, Meal, MealWithRelations, RandomizerFilters, Tag } from "@/types";
 import { requireAuth } from "./auth";
 
 export async function getMealsAction(): Promise<MealWithRelations[]> {
@@ -222,9 +222,3 @@ export async function importMealsFromMarkdownAction(
   return { imported, errors };
 }
 
-export async function syncMealTypesAction(): Promise<MealType[]> {
-  const session = await requireAuth();
-  const mealTypes = await addMissingDefaultMealTypes(session.user.id);
-  revalidatePath("/");
-  return mealTypes;
-}

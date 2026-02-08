@@ -73,26 +73,6 @@ const DEFAULT_MEAL_TYPES = [
   { name: "Przekąska", order: 4 },
 ];
 
-export async function createDefaultMealTypes(
-  userId: string,
-): Promise<MealType[]> {
-  // Check if user already has meal types (prevent duplicates)
-  const existingMealTypes = await getMealTypesByUserId(userId);
-  if (existingMealTypes.length > 0) {
-    return existingMealTypes;
-  }
-
-  const mealTypesData = DEFAULT_MEAL_TYPES.map((type) => ({
-    id: generateId(),
-    userId,
-    ...type,
-  }));
-
-  await db.insert(mealTypes).values(mealTypesData);
-
-  return getMealTypesByUserId(userId);
-}
-
 export async function addMissingDefaultMealTypes(
   userId: string,
 ): Promise<MealType[]> {
@@ -104,10 +84,15 @@ export async function addMissingDefaultMealTypes(
   );
 
   if (missingTypes.length > 0) {
-    const mealTypesData = missingTypes.map((type) => ({
+    const maxOrder = existingMealTypes.length > 0
+      ? Math.max(...existingMealTypes.map((mt) => mt.order))
+      : -1;
+
+    const mealTypesData = missingTypes.map((type, index) => ({
       id: generateId(),
       userId,
-      ...type,
+      name: type.name,
+      order: maxOrder + 1 + index,
     }));
 
     await db.insert(mealTypes).values(mealTypesData);

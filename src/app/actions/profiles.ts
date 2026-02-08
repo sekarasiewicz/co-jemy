@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createDefaultMealTypes } from "@/lib/services/meal-types";
+import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import {
   createDefaultProfile,
   createProfile,
@@ -82,8 +82,7 @@ export async function initializeNewUserAction(): Promise<Profile> {
     session.user.name || "Ja",
   );
 
-  // Create default meal types
-  await createDefaultMealTypes(session.user.id);
+  await addMissingDefaultMealTypes(session.user.id);
 
   return profile;
 }
