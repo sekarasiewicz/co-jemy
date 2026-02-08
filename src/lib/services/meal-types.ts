@@ -65,6 +65,14 @@ export async function deleteMealType(
     .where(and(eq(mealTypes.id, mealTypeId), eq(mealTypes.userId, userId)));
 }
 
+const DEFAULT_MEAL_TYPES = [
+  { name: "Śniadanie", order: 0 },
+  { name: "II śniadanie", order: 1 },
+  { name: "Obiad", order: 2 },
+  { name: "Kolacja", order: 3 },
+  { name: "Przekąska", order: 4 },
+];
+
 export async function createDefaultMealTypes(
   userId: string,
 ): Promise<MealType[]> {
@@ -74,20 +82,36 @@ export async function createDefaultMealTypes(
     return existingMealTypes;
   }
 
-  const defaultTypes = [
-    { name: "Śniadanie", order: 0 },
-    { name: "Obiad", order: 1 },
-    { name: "Kolacja", order: 2 },
-    { name: "Przekąska", order: 3 },
-  ];
-
-  const mealTypesData = defaultTypes.map((type) => ({
+  const mealTypesData = DEFAULT_MEAL_TYPES.map((type) => ({
     id: generateId(),
     userId,
     ...type,
   }));
 
   await db.insert(mealTypes).values(mealTypesData);
+
+  return getMealTypesByUserId(userId);
+}
+
+export async function addMissingDefaultMealTypes(
+  userId: string,
+): Promise<MealType[]> {
+  const existingMealTypes = await getMealTypesByUserId(userId);
+  const existingNames = existingMealTypes.map((mt) => mt.name.toLowerCase());
+
+  const missingTypes = DEFAULT_MEAL_TYPES.filter(
+    (type) => !existingNames.includes(type.name.toLowerCase())
+  );
+
+  if (missingTypes.length > 0) {
+    const mealTypesData = missingTypes.map((type) => ({
+      id: generateId(),
+      userId,
+      ...type,
+    }));
+
+    await db.insert(mealTypes).values(mealTypesData);
+  }
 
   return getMealTypesByUserId(userId);
 }

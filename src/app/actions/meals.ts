@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createIngredient, getIngredientsByUserId } from "@/lib/services/ingredients";
 import { parseMarkdownMeals } from "@/lib/markdown-parser";
-import { getMealTypesByUserId } from "@/lib/services/meal-types";
+import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import {
   createMeal,
   deleteMeal,
@@ -130,7 +130,7 @@ export async function importMealsFromMarkdownAction(
 
   // Cache existing data
   let ingredients = await getIngredientsByUserId(userId);
-  const mealTypes = await getMealTypesByUserId(userId);
+  const mealTypes = await addMissingDefaultMealTypes(userId);
   let tags = await getTagsByUserId(userId);
 
   const errors: string[] = [];
@@ -220,4 +220,11 @@ export async function importMealsFromMarkdownAction(
 
   revalidatePath("/meals");
   return { imported, errors };
+}
+
+export async function syncMealTypesAction(): Promise<MealType[]> {
+  const session = await requireAuth();
+  const mealTypes = await addMissingDefaultMealTypes(session.user.id);
+  revalidatePath("/");
+  return mealTypes;
 }
