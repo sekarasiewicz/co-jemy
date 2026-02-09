@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -169,23 +169,27 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 mb-4">
+      {/* Day headers */}
+      <div className="grid grid-cols-[100px_repeat(7,1fr)] gap-3 mb-3">
+        <div />
         {weekDays.map((day: Date) => {
           const isToday = day.getTime() === today.getTime();
           return (
             <div
               key={day.toISOString()}
               className={cn(
-                "text-center py-2 rounded-lg text-sm font-medium",
+                "text-center py-2 rounded-xl font-medium",
                 isToday
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30"
                   : "text-muted-foreground",
               )}
             >
-              <div className="text-xs uppercase">
+              <div className="text-xs uppercase tracking-wide">
                 {day.toLocaleDateString("pl-PL", { weekday: "short" })}
               </div>
-              <div className="text-lg">{day.getDate()}</div>
+              <div className={cn("text-xl font-bold", isToday && "text-emerald-600 dark:text-emerald-400")}>
+                {day.getDate()}
+              </div>
             </div>
           );
         })}
@@ -196,71 +200,105 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
           Ładowanie...
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {mealTypes.map((mealType) => (
-            <Card key={mealType.id}>
-              <CardContent className="py-3">
-                <h3 className="font-semibold text-foreground mb-3">
+            <div key={mealType.id} className="grid grid-cols-[100px_repeat(7,1fr)] gap-3">
+              {/* Meal type label */}
+              <div className="flex items-start pt-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide leading-tight">
                   {mealType.name}
                 </h3>
+              </div>
 
-                <div className="grid grid-cols-7 gap-2">
-                  {weekDays.map((day: Date) => {
-                    const key = day.toISOString().split("T")[0];
-                    const plan = plans.get(key);
-                    const planMeals =
-                      plan?.meals.filter(
-                        (pm) => pm.mealType.id === mealType.id,
-                      ) || [];
+              {/* Day cells */}
+              {weekDays.map((day: Date) => {
+                const isToday = day.getTime() === today.getTime();
+                const key = day.toISOString().split("T")[0];
+                const plan = plans.get(key);
+                const planMeals =
+                  plan?.meals.filter(
+                    (pm) => pm.mealType.id === mealType.id,
+                  ) || [];
 
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className="min-h-[60px] bg-muted/50 rounded-lg p-1"
-                      >
-                        {planMeals.map((pm) => (
-                          <div
-                            key={pm.id}
-                            className={cn(
-                              "group relative text-xs p-1.5 rounded mb-1 cursor-pointer transition-colors",
-                              pm.completed
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 line-through"
-                                : "bg-card border border-border hover:border-muted-foreground",
-                            )}
-                            onClick={() =>
-                              handleToggleCompleted(pm.id, pm.completed, day)
-                            }
-                          >
-                            <span className="line-clamp-2">{pm.meal.name}</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveMeal(pm.id, day);
-                              }}
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-
-                        <button
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      "min-h-[80px] rounded-xl p-2 transition-colors",
+                      isToday
+                        ? "bg-emerald-500/5 ring-1 ring-emerald-500/20"
+                        : "bg-muted/30",
+                    )}
+                  >
+                    <div className="space-y-1.5">
+                      {planMeals.map((pm) => (
+                        <div
+                          key={pm.id}
+                          className={cn(
+                            "group relative rounded-lg p-2 cursor-pointer transition-all",
+                            pm.completed
+                              ? "bg-emerald-500/10 border border-emerald-500/20"
+                              : "bg-card border border-border shadow-sm hover:shadow-md hover:border-emerald-500/40",
+                          )}
                           onClick={() =>
-                            setAddingMeal({
-                              date: day,
-                              mealTypeId: mealType.id,
-                            })
+                            handleToggleCompleted(pm.id, pm.completed, day)
                           }
-                          className="w-full py-1 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
                         >
-                          <Plus className="w-4 h-4 mx-auto" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                          <div className="flex items-start gap-1.5">
+                            <div
+                              className={cn(
+                                "mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
+                                pm.completed
+                                  ? "bg-emerald-500 border-emerald-500"
+                                  : "border-border group-hover:border-emerald-400",
+                              )}
+                            >
+                              {pm.completed && (
+                                <Check className="w-2.5 h-2.5 text-white" />
+                              )}
+                            </div>
+                            <span
+                              className={cn(
+                                "text-sm leading-snug line-clamp-3",
+                                pm.completed
+                                  ? "text-emerald-600 dark:text-emerald-400 line-through opacity-70"
+                                  : "text-foreground font-medium",
+                              )}
+                            >
+                              {pm.meal.name}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveMeal(pm.id, day);
+                            }}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        setAddingMeal({
+                          date: day,
+                          mealTypeId: mealType.id,
+                        })
+                      }
+                      className={cn(
+                        "w-full mt-1.5 py-1.5 rounded-lg border border-dashed transition-all flex items-center justify-center gap-1",
+                        "border-transparent text-muted-foreground/50 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/5",
+                      )}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           ))}
         </div>
       )}
