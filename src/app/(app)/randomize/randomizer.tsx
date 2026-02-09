@@ -1,10 +1,10 @@
 "use client";
 
-import { Calendar, Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
+import { Calendar, CalendarRange, Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { addMealToPlanAction } from "@/app/actions/daily-plans";
+import { addMealToPlanAction, fillPlannerAction } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
 import {
   Badge,
@@ -45,6 +45,56 @@ function formatDayOption(date: Date, index: number): string {
   });
 }
 
+type FillRange = "week" | "next-week" | "2weeks" | "month";
+
+function getDatesForRange(range: FillRange): Date[] {
+  const dates: Date[] = [];
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  if (range === "week") {
+    // From today to end of this week (Sunday)
+    const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon...
+    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+    for (let i = 0; i <= daysUntilSunday; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+  } else if (range === "next-week") {
+    // Next Monday to next Sunday
+    const dayOfWeek = today.getDay();
+    const daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + daysUntilNextMonday + i);
+      dates.push(date);
+    }
+  } else if (range === "2weeks") {
+    for (let i = 0; i < 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+  } else {
+    // month — 30 days
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+  }
+
+  return dates;
+}
+
+const FILL_RANGE_LABELS: Record<FillRange, string> = {
+  week: "Ten tydzień (pon-nd)",
+  "next-week": "Następny tydzień",
+  "2weeks": "Najbliższe 2 tygodnie",
+  month: "Miesiąc (30 dni)",
+};
+
 interface DayMeal {
   mealType: MealType;
   meal: MealWithRelations | null;
@@ -72,6 +122,16 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
   const [addingAllToPlan, setAddingAllToPlan] = useState(false);
   const [showDayDatePicker, setShowDayDatePicker] = useState(false);
   const [addedDayToPlan, setAddedDayToPlan] = useState<Date | null>(null);
+
+  // Fill planner mode
+  const [showFillPlanner, setShowFillPlanner] = useState(false);
+  const [fillRange, setFillRange] = useState<FillRange>("week");
+  const [skipExisting, setSkipExisting] = useState(true);
+  const [fillingPlanner, setFillingPlanner] = useState(false);
+  const [fillResult, setFillResult] = useState<{
+    daysFilledCount: number;
+    mealsAddedCount: number;
+  } | null>(null);
 
   // Filters
   const [mealTypeId, setMealTypeId] = useState("");
@@ -260,6 +320,41 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     );
   };
 
+  const handleFillPlanner = async () => {
+    if (!activeProfile) return;
+
+    setFillingPlanner(true);
+    setFillResult(null);
+
+    const baseFilters: RandomizerFilters = {
+      isVegetarian: isVegetarian || undefined,
+      isVegan: isVegan || undefined,
+      isGlutenFree: isGlutenFree || undefined,
+      isLactoseFree: isLactoseFree || undefined,
+      isQuick: isQuick || undefined,
+      isChildFriendly: isChildFriendly || undefined,
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+    };
+
+    try {
+      const result = await fillPlannerAction({
+        profileId: activeProfile.id,
+        dates: getDatesForRange(fillRange),
+        filters: baseFilters,
+        mealTypeIds: mealTypes.map((mt) => mt.id),
+        skipExistingDays: skipExisting,
+      });
+      setFillResult(result);
+      toast.success(`Dodano ${result.mealsAddedCount} posiłków do planera`);
+    } catch {
+      toast.error("Nie udało się wypełnić planera");
+    } finally {
+      setFillingPlanner(false);
+    }
+  };
+
+  const fillDates = getDatesForRange(fillRange);
+
   const totalTime = result
     ? (result.prepTimeMinutes || 0) + (result.cookTimeMinutes || 0)
     : 0;
@@ -344,7 +439,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Button
           onClick={handleRandomize}
           loading={loading}
@@ -365,6 +460,19 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         >
           <Calendar className="w-5 h-5 mr-2" />
           Losuj cały dzień
+        </Button>
+        <Button
+          onClick={() => {
+            setFillResult(null);
+            setShowFillPlanner(true);
+          }}
+          size="lg"
+          variant="outline"
+          className="w-full"
+          disabled={!activeProfile}
+        >
+          <CalendarRange className="w-5 h-5 mr-2" />
+          Wypełnij planer
         </Button>
       </div>
 
@@ -558,7 +666,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         title="Wybierz dzień"
       >
         <div className="space-y-2">
-          {getNextDays(7).map((date, index) => (
+          {getNextDays(8).map((date, index) => (
             <button
               key={date.toISOString()}
               type="button"
@@ -588,7 +696,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         title="Wybierz dzień dla wszystkich posiłków"
       >
         <div className="space-y-2">
-          {getNextDays(7).map((date, index) => (
+          {getNextDays(8).map((date, index) => (
             <button
               key={date.toISOString()}
               type="button"
@@ -610,6 +718,93 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
             </button>
           ))}
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={showFillPlanner}
+        onClose={() => setShowFillPlanner(false)}
+        title="Wypełnij planer"
+      >
+        {fillResult ? (
+          <div className="space-y-4 text-center">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-emerald-500/10">
+              <Check className="w-6 h-6 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">
+                Dodano {fillResult.mealsAddedCount} posiłków na {fillResult.daysFilledCount} dni
+              </p>
+              {fillResult.mealsAddedCount === 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Wszystkie dni w wybranym zakresie mają już posiłki lub brak dań spełniających kryteria.
+                </p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Link href="/planner" className="flex-1">
+                <Button variant="primary" className="w-full">
+                  Przejdź do planera
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowFillPlanner(false)}
+              >
+                Zamknij
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Zakres dat
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(FILL_RANGE_LABELS) as [FillRange, string][]).map(
+                  ([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFillRange(value)}
+                      className={cn(
+                        "p-3 rounded-lg border text-sm text-left transition-colors",
+                        fillRange === value
+                          ? "border-emerald-500 bg-emerald-500/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-emerald-500/50"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
+            </div>
+
+            <Checkbox
+              label="Pomiń dni które już mają posiłki"
+              checked={skipExisting}
+              onChange={(e) => setSkipExisting(e.target.checked)}
+            />
+
+            <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+              Wylosuję posiłki na <span className="font-medium text-foreground">{fillDates.length} dni</span>
+              {" "}({mealTypes.length} posiłków dziennie)
+            </div>
+
+            <Button
+              onClick={handleFillPlanner}
+              loading={fillingPlanner}
+              variant="primary"
+              className="w-full"
+              disabled={!activeProfile}
+            >
+              <Shuffle className="w-4 h-4 mr-2" />
+              Losuj i dodaj do planera
+            </Button>
+          </div>
+        )}
       </Modal>
     </div>
   );
