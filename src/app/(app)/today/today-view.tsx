@@ -6,11 +6,13 @@ import {
   Clock,
   Flame,
   Plus,
+  ShoppingCart,
   Shuffle,
   Trash2,
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -19,6 +21,7 @@ import {
   removeMealFromPlanAction,
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
+import { generateShoppingListAction } from "@/app/actions/shopping";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import { cn, formatMinutes, getTodayNoon } from "@/lib/utils";
@@ -31,9 +34,11 @@ interface TodayViewProps {
 
 export function TodayView({ mealTypes, meals }: TodayViewProps) {
   const activeProfile = useActiveProfile();
+  const router = useRouter();
   const [plan, setPlan] = useState<DailyPlanWithMeals | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingMealType, setAddingMealType] = useState<MealType | null>(null);
+  const [generatingList, setGeneratingList] = useState(false);
 
   const today = getTodayNoon();
 
@@ -99,6 +104,32 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
     return meals.filter((meal) =>
       meal.mealTypes.some((mt) => mt.id === mealTypeId)
     );
+  };
+
+  const getMealIngredients = (mealId: string) => {
+    const meal = meals.find((m) => m.id === mealId);
+    return meal?.ingredients || [];
+  };
+
+  const handleGenerateShoppingList = async () => {
+    if (!activeProfile) return;
+    setGeneratingList(true);
+    try {
+      const dateStr = today.toLocaleDateString("pl-PL", {
+        day: "numeric",
+        month: "long",
+      });
+      const list = await generateShoppingListAction({
+        profileIds: [activeProfile.id],
+        dateFrom: today,
+        dateTo: today,
+        name: `Zakupy - ${dateStr}`,
+      });
+      router.push(`/shopping/${list.id}`);
+    } catch {
+      toast.error("Nie udało się wygenerować listy zakupów");
+      setGeneratingList(false);
+    }
   };
 
   // Calculate totals for the day
@@ -226,7 +257,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                           <div
                             key={pm.id}
                             className={cn(
-                              "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+                              "flex flex-wrap items-center gap-3 p-3 rounded-lg border transition-colors",
                               pm.completed
                                 ? "bg-emerald-500/10 border-emerald-500/30"
                                 : "bg-card border-border"
@@ -284,10 +315,23 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
                             <button
                               onClick={() => handleRemoveMeal(pm.id)}
-                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              className="text-muted-foreground hover:text-destructive transition-colors self-start mt-0.5"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
+
+                            {/* Ingredients list */}
+                            {getMealIngredients(pm.meal.id).length > 0 && (
+                              <div className="w-full border-t border-border/50 pt-2">
+                                <ul className="text-xs text-muted-foreground space-y-0.5">
+                                  {getMealIngredients(pm.meal.id).map((mi) => (
+                                    <li key={mi.id}>
+                                      {mi.amount} {mi.unit} {mi.ingredient.name}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -314,6 +358,17 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
             Planer tygodnia
           </Button>
         </Link>
+        {totalMeals > 0 && (
+          <Button
+            variant="outline"
+            className="w-full col-span-2"
+            onClick={handleGenerateShoppingList}
+            disabled={generatingList}
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            {generatingList ? "Generowanie..." : "Lista zakupów na dziś"}
+          </Button>
+        )}
       </div>
 
       {/* Add Meal Modal */}
