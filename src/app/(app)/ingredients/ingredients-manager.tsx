@@ -1,11 +1,12 @@
 "use client";
 
-import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { GitMerge, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createIngredientAction,
   deleteIngredientAction,
+  mergeIngredientsAction,
   updateIngredientAction,
 } from "@/app/actions/ingredients";
 import {
@@ -33,6 +34,12 @@ interface IngredientFormData {
   fatPer100g: string;
 }
 
+interface DuplicateGroup {
+  normalizedName: string;
+  ingredients: Ingredient[];
+  selectedTargetId: string;
+}
+
 const emptyForm: IngredientFormData = {
   name: "",
   category: "Inne",
@@ -43,6 +50,38 @@ const emptyForm: IngredientFormData = {
   fatPer100g: "",
 };
 
+function normalizeIngredientName(name: string): string {
+  let normalized = name.toLowerCase().trim();
+  // Strip parenthetical weight/volume info like (5g), (ok. 200g), (15ml)
+  normalized = normalized.replace(/\s*\((?:ok\.\s*)?\d+\s*(?:g|ml)\)\s*/gi, " ").trim();
+  // Strip leading unit words that may have leaked into the name
+  const unitWords = [
+    "kostki", "kostek", "kostka",
+    "garści", "garść",
+    "szczypty", "szczypt", "szczypta",
+    "listki", "listków", "listek",
+    "gałązki", "gałązek", "gałązka",
+    "łodygi", "łodyg", "łodyga",
+    "puszki", "puszek", "puszka",
+    "słoiki", "słoików", "słoik",
+    "łyżki", "łyżek", "łyżka",
+    "łyżeczki", "łyżeczek", "łyżeczka",
+    "szklanki", "szklankę", "szklanka",
+    "ząbki", "ząbków", "ząbek",
+    "plastry", "plasterki", "plasterków", "plaster",
+    "kromki", "kromek", "kromka",
+    "pęczki", "pęczków", "pęczek",
+    "opakowania", "opakowań", "opakowanie",
+  ];
+  for (const word of unitWords) {
+    if (normalized.startsWith(word + " ")) {
+      normalized = normalized.slice(word.length).trim();
+      break;
+    }
+  }
+  return normalized;
+}
+
 export function IngredientsManager({
   initialIngredients,
 }: IngredientsManagerProps) {
@@ -50,10 +89,43 @@ export function IngredientsManager({
     useState<Ingredient[]>(initialIngredients);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<IngredientFormData>(emptyForm);
   const [loading, setLoading] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+
+  const duplicateGroups = useMemo(() => {
+    const groups = new Map<string, Ingredient[]>();
+    for (const ing of ingredients) {
+      const key = normalizeIngredientName(ing.name);
+      const group = groups.get(key);
+      if (group) {
+        group.push(ing);
+      } else {
+        groups.set(key, [ing]);
+      }
+    }
+    const result: DuplicateGroup[] = [];
+    for (const [normalizedName, ings] of groups) {
+      if (ings.length >= 2) {
+        // Default target: shortest name (most likely the clean one)
+        const sorted = [...ings].sort((a, b) => a.name.length - b.name.length);
+        result.push({
+          normalizedName,
+          ingredients: ings,
+          selectedTargetId: sorted[0].id,
+        });
+      }
+    }
+    return result.sort((a, b) => a.normalizedName.localeCompare(b.normalizedName, "pl"));
+  }, [ingredients]);
+
+  const [mergeSelections, setMergeSelections] = useState<Record<string, string>>({});
+
+  const getTargetId = (group: DuplicateGroup) =>
+    mergeSelections[group.normalizedName] || group.selectedTargetId;
 
   const filteredIngredients = ingredients.filter(
     (ing) =>
@@ -96,6 +168,11 @@ export function IngredientsManager({
     setIsModalOpen(false);
     setEditingId(null);
     setForm(emptyForm);
+  };
+
+  const openMergeModal = () => {
+    setMergeSelections({});
+    setIsMergeModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,6 +229,39 @@ export function IngredientsManager({
     }
   };
 
+  const handleMerge = async () => {
+    setMerging(true);
+    let merged = 0;
+    try {
+      for (const group of duplicateGroups) {
+        const targetId = getTargetId(group);
+        const sourceIds = group.ingredients
+          .filter((ing) => ing.id !== targetId)
+          .map((ing) => ing.id);
+        if (sourceIds.length === 0) continue;
+        await mergeIngredientsAction(sourceIds, targetId);
+        merged++;
+      }
+      // Remove merged-away ingredients from local state
+      const allSourceIds = new Set<string>();
+      for (const group of duplicateGroups) {
+        const targetId = getTargetId(group);
+        for (const ing of group.ingredients) {
+          if (ing.id !== targetId) {
+            allSourceIds.add(ing.id);
+          }
+        }
+      }
+      setIngredients(ingredients.filter((ing) => !allSourceIds.has(ing.id)));
+      setIsMergeModalOpen(false);
+      toast.success(`Scalono ${merged} grup duplikatów`);
+    } catch {
+      toast.error("Wystąpił błąd podczas scalania");
+    } finally {
+      setMerging(false);
+    }
+  };
+
   return (
     <>
       <div className="flex gap-4 mb-6">
@@ -164,6 +274,12 @@ export function IngredientsManager({
             className="pl-10"
           />
         </div>
+        {duplicateGroups.length > 0 && (
+          <Button variant="outline" onClick={openMergeModal}>
+            <GitMerge className="w-4 h-4 mr-2" />
+            Scal duplikaty ({duplicateGroups.length})
+          </Button>
+        )}
         <Button onClick={openAddModal}>
           <Plus className="w-4 h-4 mr-2" />
           Dodaj składnik
@@ -365,6 +481,91 @@ export function IngredientsManager({
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isMergeModalOpen}
+        onClose={() => setIsMergeModalOpen(false)}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">
+              Scal duplikaty ({duplicateGroups.length} grup)
+            </h2>
+            <button
+              type="button"
+              onClick={() => setIsMergeModalOpen(false)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Wybierz który składnik zachować w każdej grupie. Pozostałe zostaną
+            scalone — ich powiązania z daniami i listami zakupów zostaną
+            przeniesione.
+          </p>
+
+          <div className="max-h-[60vh] overflow-y-auto space-y-4">
+            {duplicateGroups.map((group) => (
+              <Card key={group.normalizedName}>
+                <CardContent className="pt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    &quot;{group.normalizedName}&quot;
+                  </p>
+                  <div className="space-y-2">
+                    {group.ingredients.map((ing) => {
+                      const targetId = getTargetId(group);
+                      return (
+                        <label
+                          key={ing.id}
+                          className="flex items-center gap-3 cursor-pointer rounded-lg px-3 py-2 hover:bg-muted/50"
+                        >
+                          <input
+                            type="radio"
+                            name={`merge-${group.normalizedName}`}
+                            checked={targetId === ing.id}
+                            onChange={() =>
+                              setMergeSelections({
+                                ...mergeSelections,
+                                [group.normalizedName]: ing.id,
+                              })
+                            }
+                            className="accent-emerald-600"
+                          />
+                          <span className="text-foreground">{ing.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({ing.category})
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setIsMergeModalOpen(false)}
+              className="flex-1"
+            >
+              Anuluj
+            </Button>
+            <Button
+              onClick={handleMerge}
+              loading={merging}
+              className="flex-1"
+            >
+              <GitMerge className="w-4 h-4 mr-2" />
+              Scal wybrane
+            </Button>
+          </div>
+        </div>
       </Modal>
     </>
   );

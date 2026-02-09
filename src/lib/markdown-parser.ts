@@ -35,8 +35,60 @@ const FEATURE_MAP: Record<string, keyof ParsedMeal> = {
   "dla dzieci": "isChildFriendly",
 };
 
-// Build regex for units dynamically from UNITS constant
-const UNITS_PATTERN = UNITS.map((u) => u.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+// Map Polish unit variants to canonical form
+const UNIT_ALIASES: Record<string, string> = {
+  // Existing unit variants
+  łyżki: "łyżka",
+  łyżek: "łyżka",
+  łyżeczki: "łyżeczka",
+  łyżeczek: "łyżeczka",
+  szklanki: "szklanka",
+  szklankę: "szklanka",
+  ząbki: "ząbek",
+  ząbków: "ząbek",
+  plastry: "plaster",
+  plasterki: "plaster",
+  plasterków: "plaster",
+  kromki: "kromka",
+  kromek: "kromka",
+  pęczki: "pęczek",
+  pęczków: "pęczek",
+  opakowania: "opakowanie",
+  opakowań: "opakowanie",
+  // New unit variants
+  kostki: "kostka",
+  kostek: "kostka",
+  garści: "garść",
+  szczypty: "szczypta",
+  szczypt: "szczypta",
+  listki: "listek",
+  listków: "listek",
+  gałązki: "gałązka",
+  gałązek: "gałązka",
+  łodygi: "łodyga",
+  łodyg: "łodyga",
+  puszki: "puszka",
+  puszek: "puszka",
+  słoiki: "słoik",
+  słoików: "słoik",
+};
+
+function normalizeUnit(unit: string): string {
+  const lower = unit.toLowerCase();
+  return UNIT_ALIASES[lower] || lower;
+}
+
+function stripParenthetical(name: string): string {
+  // Remove parenthetical weight/volume info like (5g), (ok. 200g), (15ml), (ok. 50ml)
+  return name.replace(/\s*\((?:ok\.\s*)?\d+\s*(?:g|ml)\)\s*/gi, " ").trim();
+}
+
+// Build regex for units dynamically from UNITS constant + aliases (longer first)
+const allUnitForms = [...UNITS.map((u) => u as string), ...Object.keys(UNIT_ALIASES)]
+  .sort((a, b) => b.length - a.length);
+const UNITS_PATTERN = allUnitForms
+  .map((u) => u.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  .join("|");
 const INGREDIENT_REGEX = new RegExp(
   `^(\\d+(?:[.,]\\d+)?)\\s*(${UNITS_PATTERN})?\\s+(.+)$`,
   "i"
@@ -49,14 +101,14 @@ export function parseIngredient(line: string): ParsedIngredient | null {
   const match = trimmed.match(INGREDIENT_REGEX);
   if (match) {
     const amount = parseFloat(match[1].replace(",", "."));
-    const unit = match[2]?.toLowerCase() || "szt";
-    const name = match[3].trim();
+    const unit = normalizeUnit(match[2] || "szt");
+    const name = stripParenthetical(match[3].trim());
     return { amount, unit, name };
   }
 
   // Fallback: try to parse without strict format (e.g., "sól do smaku")
   // Treat as 1 szt
-  return { amount: 1, unit: "szt", name: trimmed };
+  return { amount: 1, unit: "szt", name: stripParenthetical(trimmed) };
 }
 
 function parseMinutes(value: string): number | undefined {

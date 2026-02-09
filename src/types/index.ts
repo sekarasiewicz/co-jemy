@@ -117,6 +117,14 @@ export const UNITS = [
   "ząbek",
   "plaster",
   "kromka",
+  "kostka",
+  "garść",
+  "szczypta",
+  "listek",
+  "gałązka",
+  "łodyga",
+  "puszka",
+  "słoik",
 ] as const;
 
 export type Unit = (typeof UNITS)[number];

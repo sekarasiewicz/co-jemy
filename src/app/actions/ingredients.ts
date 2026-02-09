@@ -6,6 +6,7 @@ import {
   deleteIngredient,
   getIngredientById,
   getIngredientsByUserId,
+  mergeIngredients,
   searchIngredients,
   updateIngredient,
 } from "@/lib/services/ingredients";
@@ -74,4 +75,14 @@ export async function deleteIngredientAction(
   const session = await requireAuth();
   await deleteIngredient(ingredientId, session.user.id);
   revalidatePath("/ingredients");
+}
+
+export async function mergeIngredientsAction(
+  sourceIds: string[],
+  targetId: string,
+): Promise<void> {
+  const session = await requireAuth();
+  await mergeIngredients(session.user.id, sourceIds, targetId);
+  revalidatePath("/ingredients");
+  revalidatePath("/meals");
 }
