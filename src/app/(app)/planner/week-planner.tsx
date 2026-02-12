@@ -221,6 +221,15 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
         return;
       }
 
+      // Remove existing meals in this cell first
+      const existingPlan = plans.get(dateKey);
+      const existingMeals = existingPlan?.meals.filter(
+        (pm) => pm.mealType.id === mealTypeId,
+      ) || [];
+      for (const pm of existingMeals) {
+        await removeMealFromPlanAction(pm.id);
+      }
+
       await addMealToPlanAction({
         profileId: activeProfile.id,
         date,
