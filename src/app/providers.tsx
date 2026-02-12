@@ -12,9 +12,9 @@ function ToasterWithTheme() {
       theme={theme}
       toastOptions={{
         style: {
-          background: "hsl(var(--card))",
-          border: "1px solid hsl(var(--border))",
-          color: "hsl(var(--foreground))",
+          background: "var(--card)",
+          border: "1px solid var(--border)",
+          color: "var(--foreground)",
         },
       }}
     />
