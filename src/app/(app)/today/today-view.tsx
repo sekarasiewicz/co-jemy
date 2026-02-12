@@ -25,7 +25,7 @@ import { randomizeMealAction } from "@/app/actions/meals";
 import { generateShoppingListAction } from "@/app/actions/shopping";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatMinutes, getTodayNoon } from "@/lib/utils";
+import { cn, formatAmount, formatMinutes, getTodayNoon } from "@/lib/utils";
 import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
 
 interface TodayViewProps {
@@ -420,7 +420,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                                 <ul className="text-xs text-muted-foreground space-y-0.5">
                                   {getMealIngredients(pm.meal.id).map((mi) => (
                                     <li key={mi.id}>
-                                      {mi.amount} {mi.unit} {mi.ingredient.name}
+                                      {formatAmount(mi.amount)} {mi.unit} {mi.ingredient.name}
                                     </li>
                                   ))}
                                 </ul>

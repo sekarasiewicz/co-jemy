@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMealAction } from "@/app/actions/meals";
 import { Badge, Button, Card, CardContent } from "@/components/ui";
-import { formatMinutes } from "@/lib/utils";
+import { formatAmount, formatMinutes } from "@/lib/utils";
 import { DeleteMealButton } from "./delete-meal-button";
 
 export default async function MealPage({
@@ -176,7 +176,7 @@ export default async function MealPage({
                   <span>
                     {mi.ingredient.name} -{" "}
                     <span className="text-muted-foreground">
-                      {mi.amount} {mi.unit}
+                      {formatAmount(mi.amount)} {mi.unit}
                     </span>
                   </span>
                 </li>

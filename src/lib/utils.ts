@@ -107,6 +107,39 @@ export function getRandomItems<T>(items: T[], count: number): T[] {
   return shuffled.slice(0, count);
 }
 
+const FRACTIONS: [number, string][] = [
+  [0.125, "⅛"],
+  [0.16666667, "⅙"],
+  [0.2, "⅕"],
+  [0.25, "¼"],
+  [0.33333334, "⅓"],
+  [0.5, "½"],
+  [0.66666667, "⅔"],
+  [0.75, "¾"],
+];
+
+export function formatAmount(amount: number): string {
+  if (amount === 0) return "0";
+
+  const whole = Math.floor(amount);
+  const frac = amount - whole;
+
+  // No fractional part
+  if (frac < 0.01) {
+    return whole.toString();
+  }
+
+  // Find matching fraction
+  for (const [value, symbol] of FRACTIONS) {
+    if (Math.abs(frac - value) < 0.02) {
+      return whole > 0 ? `${whole}${symbol}` : symbol;
+    }
+  }
+
+  // Fallback: round to 2 decimal places, strip trailing zeros
+  return parseFloat(amount.toFixed(2)).toString();
+}
+
 export function generateId(): string {
   return crypto.randomUUID();
 }

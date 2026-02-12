@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { toggleShoppingItemAction } from "@/app/actions/shopping";
 import { Card, CardContent } from "@/components/ui";
-import { cn, groupByCategory } from "@/lib/utils";
+import { cn, formatAmount, groupByCategory } from "@/lib/utils";
 import type { ShoppingListWithItems } from "@/types";
 
 interface ShoppingListViewProps {
@@ -106,7 +106,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                       </span>
                       {item.amount && item.unit && (
                         <span className="text-muted-foreground ml-2">
-                          {item.amount} {item.unit}
+                          {formatAmount(item.amount)} {item.unit}
                         </span>
                       )}
                     </div>
