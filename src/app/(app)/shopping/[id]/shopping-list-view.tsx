@@ -1,10 +1,10 @@
 "use client";
 
-import { Check, Home, ShoppingBag } from "lucide-react";
+import { Check, Download, Home, ShoppingBag } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toggleShoppingItemAction } from "@/app/actions/shopping";
-import { Card, CardContent } from "@/components/ui";
+import { Button, Card, CardContent } from "@/components/ui";
 import { cn, formatAmount, groupByCategory } from "@/lib/utils";
 import type { ShoppingListWithItems } from "@/types";
 
@@ -40,6 +40,33 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
   const checkedCount = list.items.filter((item) => item.checked).length;
   const totalCount = list.items.length;
 
+  const handleExport = () => {
+    const lines: string[] = [`# ${list.name}`, ""];
+
+    for (const [category, items] of groupedItems.entries()) {
+      lines.push(`## ${category}`, "");
+      for (const item of items) {
+        const name = item.ingredient?.name || item.customName || "";
+        const amount =
+          item.amount && item.unit
+            ? ` - ${formatAmount(item.amount)} ${item.unit}`
+            : "";
+        const check = item.checked ? "x" : " ";
+        lines.push(`- [${check}] ${name}${amount}`);
+      }
+      lines.push("");
+    }
+
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${list.name}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Wyeksportowano listę zakupów");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -54,6 +81,11 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
           <span className="flex items-center gap-1">
             <Home className="w-4 h-4 text-blue-500" />W domu
           </span>
+          {totalCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={handleExport}>
+              <Download className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
