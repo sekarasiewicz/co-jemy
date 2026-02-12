@@ -21,6 +21,7 @@ import {
   removeMealFromPlanAction,
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
+import { randomizeMealAction } from "@/app/actions/meals";
 import { generateShoppingListAction } from "@/app/actions/shopping";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
@@ -39,6 +40,8 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   const [loading, setLoading] = useState(true);
   const [addingMealType, setAddingMealType] = useState<MealType | null>(null);
   const [generatingList, setGeneratingList] = useState(false);
+  const [randomizingMealType, setRandomizingMealType] = useState<string | null>(null);
+  const [randomizingAll, setRandomizingAll] = useState(false);
 
   const today = getTodayNoon();
 
@@ -132,6 +135,72 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
     }
   };
 
+  const handleRandomizeMeal = async (mealType: MealType) => {
+    if (!activeProfile) return;
+
+    setRandomizingMealType(mealType.id);
+    try {
+      const meal = await randomizeMealAction({ mealTypeId: mealType.id });
+      if (!meal) {
+        toast.error(`Brak dań do wylosowania dla "${mealType.name}"`);
+        return;
+      }
+
+      await addMealToPlanAction({
+        profileId: activeProfile.id,
+        date: today,
+        mealId: meal.id,
+        mealTypeId: mealType.id,
+      });
+
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      setPlan(updatedPlan || null);
+      toast.success(`Wylosowano: ${meal.name}`);
+    } catch {
+      toast.error("Nie udało się wylosować dania");
+    } finally {
+      setRandomizingMealType(null);
+    }
+  };
+
+  const handleRandomizeAll = async () => {
+    if (!activeProfile) return;
+
+    setRandomizingAll(true);
+    let count = 0;
+    try {
+      for (const mealType of mealTypes) {
+        const planMeals =
+          plan?.meals.filter((pm) => pm.mealType.id === mealType.id) || [];
+        if (planMeals.length > 0) continue;
+
+        const meal = await randomizeMealAction({ mealTypeId: mealType.id });
+        if (!meal) continue;
+
+        await addMealToPlanAction({
+          profileId: activeProfile.id,
+          date: today,
+          mealId: meal.id,
+          mealTypeId: mealType.id,
+        });
+        count++;
+      }
+
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      setPlan(updatedPlan || null);
+
+      if (count > 0) {
+        toast.success(`Wylosowano ${count} ${count === 1 ? "danie" : count < 5 ? "dania" : "dań"}`);
+      } else {
+        toast.info("Wszystkie typy posiłków są już wypełnione");
+      }
+    } catch {
+      toast.error("Nie udało się wylosować dań");
+    } finally {
+      setRandomizingAll(false);
+    }
+  };
+
   // Calculate totals for the day
   const totals = plan?.meals.reduce(
     (acc, pm) => ({
@@ -212,6 +281,21 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
         </Card>
       )}
 
+      {/* Randomize full day */}
+      {!loading && (
+        <div className="mb-4">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleRandomizeAll}
+            disabled={randomizingAll}
+          >
+            <Shuffle className="w-4 h-4 mr-2" />
+            {randomizingAll ? "Losowanie..." : "Wylosuj cały dzień"}
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">
           Ładowanie...
@@ -229,13 +313,23 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                     <h2 className="font-semibold text-foreground">
                       {mealType.name}
                     </h2>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setAddingMealType(mealType)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRandomizeMeal(mealType)}
+                        disabled={randomizingMealType === mealType.id || randomizingAll}
+                      >
+                        <Shuffle className={cn("w-4 h-4", randomizingMealType === mealType.id && "animate-spin")} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAddingMealType(mealType)}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   {planMeals.length === 0 ? (
@@ -346,12 +440,6 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
       {/* Quick actions */}
       <div className="mt-8 grid grid-cols-2 gap-4">
-        <Link href="/randomize">
-          <Button variant="outline" className="w-full">
-            <Shuffle className="w-4 h-4 mr-2" />
-            Wylosuj danie
-          </Button>
-        </Link>
         <Link href="/planner">
           <Button variant="outline" className="w-full">
             <Calendar className="w-4 h-4 mr-2" />
@@ -361,12 +449,12 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
         {totalMeals > 0 && (
           <Button
             variant="outline"
-            className="w-full col-span-2"
+            className="w-full"
             onClick={handleGenerateShoppingList}
             disabled={generatingList}
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
-            {generatingList ? "Generowanie..." : "Lista zakupów na dziś"}
+            {generatingList ? "Generowanie..." : "Lista zakupów"}
           </Button>
         )}
       </div>
