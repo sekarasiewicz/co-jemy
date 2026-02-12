@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, Upload } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, FileText, FileUp, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { importMealsFromMarkdownAction } from "@/app/actions/meals";
 import { Button, Card, CardContent, Textarea } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 const EXAMPLE_FORMAT = `# Spaghetti Bolognese
 
@@ -45,10 +46,42 @@ export default function ImportMealsPage() {
   const [markdown, setMarkdown] = useState("");
   const [loading, setLoading] = useState(false);
   const [showFormat, setShowFormat] = useState(false);
+  const [mode, setMode] = useState<"paste" | "upload">("paste");
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<{
     imported: number;
     errors: string[];
   } | null>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".md") && !file.name.endsWith(".markdown") && !file.name.endsWith(".txt")) {
+      toast.error("Obsługiwane formaty: .md, .markdown, .txt");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setMarkdown(text);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      toast.error("Nie udało się odczytać pliku");
+    };
+    reader.readAsText(file);
+  };
+
+  const handleClearFile = () => {
+    setMarkdown("");
+    setFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleImport = async () => {
     if (!markdown.trim()) return;
@@ -94,7 +127,7 @@ export default function ImportMealsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Import z Markdown</h1>
           <p className="text-muted-foreground">
-            Wklej przepisy w formacie markdown
+            Wklej lub wgraj przepisy w formacie markdown
           </p>
         </div>
       </div>
@@ -120,13 +153,85 @@ export default function ImportMealsPage() {
             </pre>
           )}
 
-          <Textarea
-            value={markdown}
-            onChange={(e) => setMarkdown(e.target.value)}
-            placeholder="Wklej tutaj przepisy w formacie markdown..."
-            rows={16}
-            className="font-mono text-sm"
-          />
+          {/* Mode toggle */}
+          <div className="flex gap-1 p-1 bg-muted rounded-lg mb-4">
+            <button
+              type="button"
+              onClick={() => { setMode("paste"); handleClearFile(); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                mode === "paste"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FileText className="w-4 h-4" />
+              Wklej tekst
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("upload"); setMarkdown(""); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                mode === "upload"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FileUp className="w-4 h-4" />
+              Wgraj plik
+            </button>
+          </div>
+
+          {mode === "paste" ? (
+            <Textarea
+              value={markdown}
+              onChange={(e) => setMarkdown(e.target.value)}
+              placeholder="Wklej tutaj przepisy w formacie markdown..."
+              rows={16}
+              className="font-mono text-sm"
+            />
+          ) : (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.markdown,.txt"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              {fileName ? (
+                <div className="border-2 border-emerald-500/30 bg-emerald-500/5 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      <span className="font-medium text-foreground">{fileName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearFile}
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      Zmień plik
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {markdown.split("\n").length} linii, {markdown.length} znaków
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-12 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                >
+                  <FileUp className="w-8 h-8 mx-auto mb-2" />
+                  <span className="text-sm font-medium block">Kliknij, aby wybrać plik</span>
+                  <span className="text-xs block mt-1">.md, .markdown lub .txt</span>
+                </button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
