@@ -37,6 +37,10 @@ const FEATURE_MAP: Record<string, keyof ParsedMeal> = {
 
 // Map Polish unit variants to canonical form
 const UNIT_ALIASES: Record<string, string> = {
+  // szt variants
+  sztuki: "szt",
+  sztuk: "szt",
+  sztuka: "szt",
   // Existing unit variants
   łyżki: "łyżka",
   łyżek: "łyżka",
@@ -89,20 +93,56 @@ const allUnitForms = [...UNITS.map((u) => u as string), ...Object.keys(UNIT_ALIA
 const UNITS_PATTERN = allUnitForms
   .map((u) => u.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
+
+// Number pattern: handles decimals (1.5, 1,5), fractions (1/3), and mixed (1 1/2)
+const NUMBER_PATTERN = `(\\d+(?:[.,]\\d+)?\\s+\\d+/\\d+|\\d+/\\d+|\\d+(?:[.,]\\d+)?)`;
+
 const INGREDIENT_REGEX = new RegExp(
-  `^(\\d+(?:[.,]\\d+)?)\\s*(${UNITS_PATTERN})?\\s+(.+)$`,
+  `^${NUMBER_PATTERN}\\s*(${UNITS_PATTERN})?\\s+(.+)$`,
   "i"
 );
+
+// Reversed format: "Name - amount unit" or "Name - amount"
+const REVERSED_INGREDIENT_REGEX = new RegExp(
+  `^(.+?)\\s*[-–—]\\s*${NUMBER_PATTERN}\\s*(${UNITS_PATTERN})?\\s*$`,
+  "i"
+);
+
+function parseAmount(raw: string): number {
+  const trimmed = raw.trim();
+  // Mixed fraction: "1 1/2"
+  const mixedMatch = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixedMatch) {
+    return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
+  }
+  // Simple fraction: "1/3"
+  const fracMatch = trimmed.match(/^(\d+)\/(\d+)$/);
+  if (fracMatch) {
+    return parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
+  }
+  // Decimal
+  return parseFloat(trimmed.replace(",", "."));
+}
 
 export function parseIngredient(line: string): ParsedIngredient | null {
   const trimmed = line.replace(/^[-*]\s*/, "").trim();
   if (!trimmed) return null;
 
+  // Standard format: "500g mielona wołowina" or "1/3 sztuki awokado"
   const match = trimmed.match(INGREDIENT_REGEX);
   if (match) {
-    const amount = parseFloat(match[1].replace(",", "."));
+    const amount = parseAmount(match[1]);
     const unit = normalizeUnit(match[2] || "szt");
     const name = stripParenthetical(match[3].trim());
+    return { amount, unit, name };
+  }
+
+  // Reversed format: "Awokado - 1/3 sztuki"
+  const reversedMatch = trimmed.match(REVERSED_INGREDIENT_REGEX);
+  if (reversedMatch) {
+    const name = stripParenthetical(reversedMatch[1].trim());
+    const amount = parseAmount(reversedMatch[2]);
+    const unit = normalizeUnit(reversedMatch[3] || "szt");
     return { amount, unit, name };
   }
 
