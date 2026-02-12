@@ -125,6 +125,8 @@ export const UNITS = [
   "łodyga",
   "puszka",
   "słoik",
+  "woreczek",
+  "porcja",
 ] as const;
 
 export type Unit = (typeof UNITS)[number];

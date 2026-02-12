@@ -1,6 +1,6 @@
 "use client";
 
-import { GitMerge, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, GitMerge, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -324,7 +324,7 @@ export function IngredientsManager({
                             {(ing.caloriesPer100g ||
                               ing.proteinPer100g ||
                               ing.carbsPer100g ||
-                              ing.fatPer100g) && (
+                              ing.fatPer100g) ? (
                               <p className="text-sm text-muted-foreground">
                                 {ing.caloriesPer100g && (
                                   <span>{ing.caloriesPer100g} kcal</span>
@@ -347,6 +347,11 @@ export function IngredientsManager({
                                 <span className="ml-1 text-muted-foreground/60">
                                   / 100{ing.defaultUnit || "g"}
                                 </span>
+                              </p>
+                            ) : (
+                              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+                                <AlertTriangle className="w-3 h-3" />
+                                Brak wartości odżywczych
                               </p>
                             )}
                           </div>

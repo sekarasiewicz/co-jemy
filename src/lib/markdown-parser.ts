@@ -41,40 +41,68 @@ const UNIT_ALIASES: Record<string, string> = {
   sztuki: "szt",
   sztuk: "szt",
   sztuka: "szt",
-  // Existing unit variants
+  // łyżka variants
   łyżki: "łyżka",
   łyżek: "łyżka",
+  // łyżeczka variants
   łyżeczki: "łyżeczka",
   łyżeczek: "łyżeczka",
+  // szklanka variants
   szklanki: "szklanka",
   szklankę: "szklanka",
+  // ząbek variants
   ząbki: "ząbek",
   ząbków: "ząbek",
+  ząbka: "ząbek",
+  // plaster variants
   plastry: "plaster",
   plasterki: "plaster",
   plasterków: "plaster",
+  plastra: "plaster",
+  plastrów: "plaster",
+  // kromka variants
   kromki: "kromka",
   kromek: "kromka",
+  // pęczek variants
   pęczki: "pęczek",
   pęczków: "pęczek",
+  // opakowanie variants
   opakowania: "opakowanie",
   opakowań: "opakowanie",
-  // New unit variants
+  // kostka variants
   kostki: "kostka",
   kostek: "kostka",
+  // garść variants
   garści: "garść",
+  // szczypta variants
   szczypty: "szczypta",
   szczypt: "szczypta",
+  // listek variants
   listki: "listek",
   listków: "listek",
+  liście: "listek",
+  liści: "listek",
+  liść: "listek",
+  // gałązka variants
   gałązki: "gałązka",
   gałązek: "gałązka",
+  // łodyga variants
   łodygi: "łodyga",
   łodyg: "łodyga",
+  // puszka variants
   puszki: "puszka",
   puszek: "puszka",
+  // słoik variants
   słoiki: "słoik",
   słoików: "słoik",
+  // woreczek variants
+  woreczka: "woreczek",
+  woreczki: "woreczek",
+  woreczków: "woreczek",
+  // porcja variants
+  porcja: "porcja",
+  porcje: "porcja",
+  porcji: "porcja",
 };
 
 function normalizeUnit(unit: string): string {
@@ -94,23 +122,34 @@ const UNITS_PATTERN = allUnitForms
   .map((u) => u.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
 
-// Number pattern: handles decimals (1.5, 1,5), fractions (1/3), and mixed (1 1/2)
-const NUMBER_PATTERN = `(\\d+(?:[.,]\\d+)?\\s+\\d+/\\d+|\\d+/\\d+|\\d+(?:[.,]\\d+)?)`;
+// Number pattern: handles decimals (1.5, 1,5), fractions (1/3), mixed with space (1 1/2), mixed with "i" (2 i 1/2)
+const NUMBER_PATTERN = `(\\d+(?:[.,]\\d+)?\\s+i\\s+\\d+/\\d+|\\d+(?:[.,]\\d+)?\\s+\\d+/\\d+|\\d+/\\d+|\\d+(?:[.,]\\d+)?)`;
 
 const INGREDIENT_REGEX = new RegExp(
   `^${NUMBER_PATTERN}\\s*(${UNITS_PATTERN})?\\s+(.+)$`,
   "i"
 );
 
-// Reversed format: "Name - amount unit" or "Name - amount"
+// Reversed format: "Name - amount unit (weight)" or "Name - (weight)"
 const REVERSED_INGREDIENT_REGEX = new RegExp(
-  `^(.+?)\\s*[-–—]\\s*${NUMBER_PATTERN}\\s*(${UNITS_PATTERN})?\\s*$`,
+  `^(.+?)\\s*[-–—]\\s*${NUMBER_PATTERN}\\s*(${UNITS_PATTERN})?\\s*(?:\\(.*\\))?\\s*$`,
+  "i"
+);
+
+// Reversed format without amount: "Name - (200g)" — just parenthetical weight, no separate amount
+const REVERSED_NO_AMOUNT_REGEX = new RegExp(
+  `^(.+?)\\s*[-–—]\\s*\\(\\s*(\\d+(?:[.,]\\d+)?)\\s*(g|kg|ml|l)\\s*\\)\\s*$`,
   "i"
 );
 
 function parseAmount(raw: string): number {
   const trimmed = raw.trim();
-  // Mixed fraction: "1 1/2"
+  // Mixed fraction with "i": "2 i 1/2"
+  const mixedPolishMatch = trimmed.match(/^(\d+)\s+i\s+(\d+)\/(\d+)$/);
+  if (mixedPolishMatch) {
+    return parseInt(mixedPolishMatch[1]) + parseInt(mixedPolishMatch[2]) / parseInt(mixedPolishMatch[3]);
+  }
+  // Mixed fraction with space: "1 1/2"
   const mixedMatch = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mixedMatch) {
     return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
@@ -128,21 +167,31 @@ export function parseIngredient(line: string): ParsedIngredient | null {
   const trimmed = line.replace(/^[-*]\s*/, "").trim();
   if (!trimmed) return null;
 
+  // Reversed format: "Chleb żytni razowy - 2 i 1/2 kromki (100g)"
+  // Try this first since the user's data is primarily in this format
+  const reversedMatch = trimmed.match(REVERSED_INGREDIENT_REGEX);
+  if (reversedMatch) {
+    const name = stripParenthetical(reversedMatch[1].trim());
+    const amount = parseAmount(reversedMatch[2]);
+    const unit = normalizeUnit(reversedMatch[3] || "szt");
+    return { amount, unit, name };
+  }
+
+  // Reversed with no amount, just parenthetical weight: "Warzywa na patelnię - (200g)"
+  const reversedNoAmountMatch = trimmed.match(REVERSED_NO_AMOUNT_REGEX);
+  if (reversedNoAmountMatch) {
+    const name = stripParenthetical(reversedNoAmountMatch[1].trim());
+    const amount = parseFloat(reversedNoAmountMatch[2].replace(",", "."));
+    const unit = reversedNoAmountMatch[3].toLowerCase();
+    return { amount, unit, name };
+  }
+
   // Standard format: "500g mielona wołowina" or "1/3 sztuki awokado"
   const match = trimmed.match(INGREDIENT_REGEX);
   if (match) {
     const amount = parseAmount(match[1]);
     const unit = normalizeUnit(match[2] || "szt");
     const name = stripParenthetical(match[3].trim());
-    return { amount, unit, name };
-  }
-
-  // Reversed format: "Awokado - 1/3 sztuki"
-  const reversedMatch = trimmed.match(REVERSED_INGREDIENT_REGEX);
-  if (reversedMatch) {
-    const name = stripParenthetical(reversedMatch[1].trim());
-    const amount = parseAmount(reversedMatch[2]);
-    const unit = normalizeUnit(reversedMatch[3] || "szt");
     return { amount, unit, name };
   }
 
