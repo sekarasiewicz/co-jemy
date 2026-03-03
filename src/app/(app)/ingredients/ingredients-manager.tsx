@@ -620,7 +620,7 @@ export function IngredientsManager({
                 setForm({ ...form, weightPerUnit: e.target.value })
               }
               min={0}
-              step={1}
+              step="any"
               placeholder="np. 60"
             />
           </div>
