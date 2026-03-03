@@ -55,6 +55,7 @@ function getClient() {
 
 export async function enrichIngredients(
   names: string[],
+  forceUnit?: string,
 ): Promise<EnrichedIngredient[]> {
   if (names.length === 0) return [];
 
@@ -96,7 +97,7 @@ WAŻNE — weightPerUnit:
 - Nigdy nie zwracaj null dla jednostek takich jak szt, kostka, puszka, ząbek, kromka, plaster, opakowanie itp.
 
 Jeśli składnik jest przyprawą/ziołem, ustaw defaultUnit na odpowiednią jednostkę (np. szczypta, łyżeczka).
-Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUnit.`;
+Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUnit.${forceUnit ? `\n\nUżytkownik wybrał jednostkę "${forceUnit}". MUSISZ użyć "${forceUnit}" jako defaultUnit i podać odpowiedni weightPerUnit dla tej jednostki.` : ""}`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
@@ -123,7 +124,8 @@ Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUn
 
 export async function enrichSingleIngredient(
   name: string,
+  currentUnit?: string,
 ): Promise<EnrichedIngredient> {
-  const results = await enrichIngredients([name]);
+  const results = await enrichIngredients([name], currentUnit);
   return results[0];
 }

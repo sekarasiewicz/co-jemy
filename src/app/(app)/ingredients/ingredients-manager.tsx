@@ -553,11 +553,9 @@ export function IngredientsManager({
                   onClick={async () => {
                     setLoading(true);
                     try {
-                      const enriched = await enrichByNameAction(form.name.trim());
+                      const enriched = await enrichByNameAction(form.name.trim(), form.defaultUnit);
                       setForm({
                         ...form,
-                        category: enriched.category,
-                        defaultUnit: enriched.defaultUnit,
                         caloriesPer100g: enriched.caloriesPer100g?.toString() || "",
                         proteinPer100g: enriched.proteinPer100g?.toString() || "",
                         carbsPer100g: enriched.carbsPer100g?.toString() || "",

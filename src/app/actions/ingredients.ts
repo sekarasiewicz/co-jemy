@@ -91,6 +91,7 @@ export async function mergeIngredientsAction(
 
 export async function enrichByNameAction(
   name: string,
+  currentUnit?: string,
 ): Promise<{
   category: string;
   defaultUnit: string;
@@ -102,7 +103,7 @@ export async function enrichByNameAction(
 }> {
   await requireAuth();
   const { enrichSingleIngredient } = await import("@/lib/services/ai");
-  return enrichSingleIngredient(name);
+  return enrichSingleIngredient(name, currentUnit);
 }
 
 export async function enrichIngredientAction(
