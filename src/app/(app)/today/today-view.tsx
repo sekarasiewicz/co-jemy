@@ -390,6 +390,13 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                                   <span className="flex items-center gap-1">
                                     <Flame className="w-3 h-3" />
                                     {pm.meal.calories * (pm.servings || 1)} kcal
+                                    {(pm.meal.protein || pm.meal.carbs || pm.meal.fat) && (
+                                      <span className="ml-1">
+                                        ·{pm.meal.protein ? ` B: ${Math.round(pm.meal.protein * (pm.servings || 1))}g` : ""}
+                                        {pm.meal.carbs ? ` W: ${Math.round(pm.meal.carbs * (pm.servings || 1))}g` : ""}
+                                        {pm.meal.fat ? ` T: ${Math.round(pm.meal.fat * (pm.servings || 1))}g` : ""}
+                                      </span>
+                                    )}
                                   </span>
                                 )}
                                 {totalTime > 0 && (

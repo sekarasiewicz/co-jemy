@@ -52,6 +52,16 @@ export function MealCard({ meal }: MealCardProps) {
             )}
           </div>
 
+          {(meal.protein || meal.carbs || meal.fat) && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {meal.protein ? `B: ${meal.protein}g` : ""}
+              {meal.protein && (meal.carbs || meal.fat) ? " · " : ""}
+              {meal.carbs ? `W: ${meal.carbs}g` : ""}
+              {meal.carbs && meal.fat ? " · " : ""}
+              {meal.fat ? `T: ${meal.fat}g` : ""}
+            </p>
+          )}
+
           {meal.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-3">
               {meal.tags.slice(0, 3).map((tag) => (

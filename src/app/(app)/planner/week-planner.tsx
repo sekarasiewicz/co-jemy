@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Loader2, Plus, Shuffle, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Flame, Loader2, Plus, Shuffle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -373,6 +373,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                 </h3>
               </div>
 
+
               {/* Day cells */}
               {weekDays.map((day: Date) => {
                 const isToday = day.getTime() === today.getTime();
@@ -420,18 +421,25 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                                 <Check className="w-2.5 h-2.5 text-white" />
                               )}
                             </div>
-                            <Tooltip content={pm.meal.name}>
-                              <span
-                                className={cn(
-                                  "text-sm leading-snug line-clamp-3",
-                                  pm.completed
-                                    ? "text-emerald-600 dark:text-emerald-400 line-through opacity-70"
-                                    : "text-foreground font-medium",
-                                )}
-                              >
-                                {pm.meal.name}
-                              </span>
-                            </Tooltip>
+                            <div className="min-w-0">
+                              <Tooltip content={pm.meal.name}>
+                                <span
+                                  className={cn(
+                                    "text-sm leading-snug line-clamp-3",
+                                    pm.completed
+                                      ? "text-emerald-600 dark:text-emerald-400 line-through opacity-70"
+                                      : "text-foreground font-medium",
+                                  )}
+                                >
+                                  {pm.meal.name}
+                                </span>
+                              </Tooltip>
+                              {pm.meal.calories && (
+                                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                  {pm.meal.calories * (pm.servings || 1)} kcal
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={(e) => {
@@ -482,6 +490,42 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
               })}
             </div>
           ))}
+
+          {/* Daily totals row */}
+          <div className="grid grid-cols-[100px_repeat(7,1fr)] gap-3 pt-2 border-t border-border/50">
+            <div className="flex items-center">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <Flame className="w-3.5 h-3.5 inline mr-1" />
+                Suma
+              </h3>
+            </div>
+            {weekDays.map((day: Date) => {
+              const key = day.toISOString().split("T")[0];
+              const plan = plans.get(key);
+              const dayTotals = plan?.meals.reduce(
+                (acc, pm) => ({
+                  calories: acc.calories + (pm.meal.calories || 0) * (pm.servings || 1),
+                  protein: acc.protein + (pm.meal.protein || 0) * (pm.servings || 1),
+                  carbs: acc.carbs + (pm.meal.carbs || 0) * (pm.servings || 1),
+                  fat: acc.fat + (pm.meal.fat || 0) * (pm.servings || 1),
+                }),
+                { calories: 0, protein: 0, carbs: 0, fat: 0 },
+              ) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+              if (dayTotals.calories === 0) {
+                return <div key={day.toISOString()} className="text-center text-xs text-muted-foreground/50 py-2">—</div>;
+              }
+
+              return (
+                <div key={day.toISOString()} className="text-center py-2">
+                  <p className="text-sm font-semibold text-foreground">{Math.round(dayTotals.calories)}</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    B:{Math.round(dayTotals.protein)} W:{Math.round(dayTotals.carbs)} T:{Math.round(dayTotals.fat)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
