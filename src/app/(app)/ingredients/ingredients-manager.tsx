@@ -501,18 +501,16 @@ export function IngredientsManager({
                             )}
                           </div>
                           <div className="flex gap-1">
-                            {isIncomplete(ing) && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEnrichSingle(ing)}
-                                loading={enrichingId === ing.id}
-                                title="Uzupełnij dane AI"
-                                className="text-emerald-600 hover:text-emerald-700"
-                              >
-                                <Sparkles className="w-4 h-4" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEnrichSingle(ing)}
+                              loading={enrichingId === ing.id}
+                              title="Uzupełnij dane AI"
+                              className="text-emerald-600 hover:text-emerald-700"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -562,7 +560,7 @@ export function IngredientsManager({
             required
           />
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 items-end">
             <Select
               label="Kategoria"
               value={form.category}
