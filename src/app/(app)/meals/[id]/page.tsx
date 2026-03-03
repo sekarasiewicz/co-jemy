@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMealAction } from "@/app/actions/meals";
 import { Badge, Button, Card, CardContent } from "@/components/ui";
-import { formatAmount, formatMinutes } from "@/lib/utils";
+import { convertToGrams, formatAmount, formatMinutes } from "@/lib/utils";
 import { DeleteMealButton } from "./delete-meal-button";
 
 export default async function MealPage({
@@ -19,6 +19,38 @@ export default async function MealPage({
   }
 
   const totalTime = (meal.prepTimeMinutes || 0) + (meal.cookTimeMinutes || 0);
+
+  // Compute nutrition from ingredients
+  const ingredientNutrition = meal.ingredients.map((mi) => {
+    const g = convertToGrams(mi.amount, mi.unit);
+    const factor = g / 100;
+    return {
+      id: mi.id,
+      calories: Math.round((mi.ingredient.caloriesPer100g || 0) * factor),
+      protein: Math.round((mi.ingredient.proteinPer100g || 0) * factor * 10) / 10,
+      carbs: Math.round((mi.ingredient.carbsPer100g || 0) * factor * 10) / 10,
+      fat: Math.round((mi.ingredient.fatPer100g || 0) * factor * 10) / 10,
+    };
+  });
+
+  const computedTotal = ingredientNutrition.reduce(
+    (acc, n) => ({
+      calories: acc.calories + n.calories,
+      protein: acc.protein + n.protein,
+      carbs: acc.carbs + n.carbs,
+      fat: acc.fat + n.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+
+  const nutrition = {
+    calories: meal.calories ?? (computedTotal.calories > 0 ? Math.round(computedTotal.calories) : null),
+    protein: meal.protein ?? (computedTotal.protein > 0 ? Math.round(computedTotal.protein * 10) / 10 : null),
+    carbs: meal.carbs ?? (computedTotal.carbs > 0 ? Math.round(computedTotal.carbs * 10) / 10 : null),
+    fat: meal.fat ?? (computedTotal.fat > 0 ? Math.round(computedTotal.fat * 10) / 10 : null),
+  };
+
+  const hasNutrition = nutrition.calories || nutrition.protein || nutrition.carbs || nutrition.fat;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -84,10 +116,10 @@ export default async function MealPage({
           <Users className="w-5 h-5" />
           <span>{meal.servings} porcji</span>
         </div>
-        {meal.calories && (
+        {nutrition.calories && (
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5" />
-            <span>{meal.calories} kcal/porcję</span>
+            <span>{nutrition.calories} kcal</span>
           </div>
         )}
       </div>
@@ -96,41 +128,41 @@ export default async function MealPage({
         <p className="text-muted-foreground mb-8">{meal.description}</p>
       )}
 
-      {(meal.calories || meal.protein || meal.carbs || meal.fat) && (
+      {hasNutrition && (
         <Card className="mb-8">
           <CardContent className="pt-4">
             <h2 className="font-semibold text-foreground mb-4">
-              Wartości odżywcze (na porcję)
+              Wartości odżywcze (całe danie)
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {meal.calories && (
+              {nutrition.calories != null && (
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {meal.calories}
+                    {nutrition.calories}
                   </p>
                   <p className="text-sm text-muted-foreground">kcal</p>
                 </div>
               )}
-              {meal.protein && (
+              {nutrition.protein != null && (
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {meal.protein}g
+                    {nutrition.protein}g
                   </p>
                   <p className="text-sm text-muted-foreground">białko</p>
                 </div>
               )}
-              {meal.carbs && (
+              {nutrition.carbs != null && (
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {meal.carbs}g
+                    {nutrition.carbs}g
                   </p>
                   <p className="text-sm text-muted-foreground">węglowodany</p>
                 </div>
               )}
-              {meal.fat && (
+              {nutrition.fat != null && (
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {meal.fat}g
+                    {nutrition.fat}g
                   </p>
                   <p className="text-sm text-muted-foreground">tłuszcze</p>
                 </div>
@@ -167,20 +199,35 @@ export default async function MealPage({
               Składniki ({meal.servings} porcji)
             </h2>
             <ul className="space-y-2">
-              {meal.ingredients.map((mi) => (
-                <li
-                  key={mi.id}
-                  className="flex items-center gap-2 text-foreground"
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span>
-                    {mi.ingredient.name} -{" "}
-                    <span className="text-muted-foreground">
-                      {formatAmount(mi.amount)} {mi.unit}
-                    </span>
-                  </span>
-                </li>
-              ))}
+              {meal.ingredients.map((mi, idx) => {
+                const n = ingredientNutrition[idx];
+                return (
+                  <li
+                    key={mi.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2 text-foreground min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="truncate">
+                        {mi.ingredient.name}{" "}
+                        <span className="text-muted-foreground">
+                          — {formatAmount(mi.amount)} {mi.unit}
+                        </span>
+                      </span>
+                    </div>
+                    {n.calories > 0 && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                        {n.calories} kcal
+                        {(n.protein > 0 || n.carbs > 0 || n.fat > 0) && (
+                          <span className="ml-1 hidden sm:inline">
+                            (B:{n.protein} W:{n.carbs} T:{n.fat})
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </CardContent>
         </Card>
