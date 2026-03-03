@@ -22,3 +22,4 @@ export { Modal } from "./modal";
 export type { SelectProps } from "./select";
 export { Select } from "./select";
 export { LoadingScreen, Spinner } from "./spinner";
+export { Tooltip } from "./tooltip";

@@ -11,7 +11,7 @@ import {
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
-import { Badge, Button, Card, CardContent, Checkbox, Modal } from "@/components/ui";
+import { Badge, Button, Card, CardContent, Checkbox, Modal, Tooltip } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import { cn, formatDateShort, getTodayNoon, getWeekDays } from "@/lib/utils";
 import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
@@ -420,16 +420,18 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                                 <Check className="w-2.5 h-2.5 text-white" />
                               )}
                             </div>
-                            <span
-                              className={cn(
-                                "text-sm leading-snug line-clamp-3",
-                                pm.completed
-                                  ? "text-emerald-600 dark:text-emerald-400 line-through opacity-70"
-                                  : "text-foreground font-medium",
-                              )}
-                            >
-                              {pm.meal.name}
-                            </span>
+                            <Tooltip content={pm.meal.name}>
+                              <span
+                                className={cn(
+                                  "text-sm leading-snug line-clamp-3",
+                                  pm.completed
+                                    ? "text-emerald-600 dark:text-emerald-400 line-through opacity-70"
+                                    : "text-foreground font-medium",
+                                )}
+                              >
+                                {pm.meal.name}
+                              </span>
+                            </Tooltip>
                           </div>
                           <button
                             onClick={(e) => {
