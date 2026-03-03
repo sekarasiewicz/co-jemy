@@ -84,7 +84,17 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (tablica obiektów), bez żadnego innego
   }
 ]
 
-weightPerUnit — typowa waga w gramach 1 sztuki domyślnej jednostki (np. 1 szt jajka = 60, 1 szt cebuli = 150, 1 ząbek czosnku = 5). Ustaw null gdy defaultUnit to g, kg, ml lub l.
+WAŻNE — weightPerUnit:
+- Jeśli defaultUnit to g, kg, ml lub l → ustaw null
+- Dla KAŻDEJ innej jednostki MUSISZ podać wagę w gramach 1 sztuki tej jednostki. Przykłady:
+  - jajko (defaultUnit: szt) → weightPerUnit: 60
+  - cebula (defaultUnit: szt) → weightPerUnit: 150
+  - czosnek (defaultUnit: ząbek) → weightPerUnit: 5
+  - drożdże prasowane (defaultUnit: kostka) → weightPerUnit: 100
+  - pomidor (defaultUnit: szt) → weightPerUnit: 150
+  - puszka pomidorów (defaultUnit: puszka) → weightPerUnit: 400
+- Nigdy nie zwracaj null dla jednostek takich jak szt, kostka, puszka, ząbek, kromka, plaster, opakowanie itp.
+
 Jeśli składnik jest przyprawą/ziołem, ustaw defaultUnit na odpowiednią jednostkę (np. szczypta, łyżeczka).
 Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUnit.`;
 
