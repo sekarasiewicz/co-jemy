@@ -6,10 +6,9 @@ import type { Ingredient } from "@/types";
 
 function isIncomplete(ing: Ingredient): boolean {
   return (
-    ing.category === "Inne" ||
-    ing.caloriesPer100g == null ||
-    ing.proteinPer100g == null ||
-    ing.carbsPer100g == null ||
+    ing.caloriesPer100g == null &&
+    ing.proteinPer100g == null &&
+    ing.carbsPer100g == null &&
     ing.fatPer100g == null
   );
 }
