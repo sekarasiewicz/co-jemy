@@ -141,7 +141,9 @@ export function formatAmount(amount: number): string {
 }
 
 /**
- * Approximate conversion of common kitchen units to grams for nutrition calculation.
+ * Convert kitchen units to grams for nutrition calculation.
+ * Returns 0 for ambiguous units (szt, puszka, opakowanie etc.)
+ * where the weight depends on the specific ingredient.
  */
 export function convertToGrams(amount: number, unit: string): number {
   switch (unit) {
@@ -150,7 +152,7 @@ export function convertToGrams(amount: number, unit: string): number {
     case "kg":
       return amount * 1000;
     case "ml":
-      return amount; // ~1:1 for most liquids
+      return amount;
     case "l":
       return amount * 1000;
     case "łyżka":
@@ -161,38 +163,12 @@ export function convertToGrams(amount: number, unit: string): number {
       return amount * 250;
     case "szczypta":
       return amount * 0.5;
-    case "ząbek":
-      return amount * 5;
-    case "plaster":
-      return amount * 20;
-    case "kromka":
-      return amount * 30;
     case "garść":
       return amount * 30;
-    case "kostka":
-      return amount * 10;
-    case "puszka":
-      return amount * 400;
-    case "słoik":
-      return amount * 300;
-    case "pęczek":
-      return amount * 30;
-    case "listek":
-      return amount * 0.5;
-    case "gałązka":
-      return amount * 5;
-    case "łodyga":
-      return amount * 40;
-    case "woreczek":
-      return amount * 30;
-    case "porcja":
-      return amount * 100;
-    case "opakowanie":
-      return amount * 200;
-    case "szt":
-      return amount * 100; // rough average
     default:
-      return amount;
+      // szt, puszka, opakowanie, plaster, kromka, ząbek, etc.
+      // — weight depends on the ingredient, skip from calculation
+      return 0;
   }
 }
 
