@@ -13,6 +13,7 @@ export interface EnrichedIngredient {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  weightPerUnit: number | null;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -30,6 +31,10 @@ function validateEnriched(
     ? (raw.defaultUnit as Unit)
     : "g";
 
+  const rawWeight = Number(raw.weightPerUnit);
+  const weightPerUnit =
+    rawWeight > 0 && rawWeight <= 5000 ? rawWeight : null;
+
   return {
     name: originalName,
     category,
@@ -38,6 +43,7 @@ function validateEnriched(
     proteinPer100g: clamp(Number(raw.proteinPer100g) || 0, 0, 100),
     carbsPer100g: clamp(Number(raw.carbsPer100g) || 0, 0, 100),
     fatPer100g: clamp(Number(raw.fatPer100g) || 0, 0, 100),
+    weightPerUnit,
   };
 }
 
@@ -73,10 +79,12 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (tablica obiektów), bez żadnego innego
     "caloriesPer100g": liczba,
     "proteinPer100g": liczba,
     "carbsPer100g": liczba,
-    "fatPer100g": liczba
+    "fatPer100g": liczba,
+    "weightPerUnit": liczba lub null
   }
 ]
 
+weightPerUnit — typowa waga w gramach 1 sztuki domyślnej jednostki (np. 1 szt jajka = 60, 1 szt cebuli = 150, 1 ząbek czosnku = 5). Ustaw null gdy defaultUnit to g, kg, ml lub l.
 Jeśli składnik jest przyprawą/ziołem, ustaw defaultUnit na odpowiednią jednostkę (np. szczypta, łyżeczka).
 Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUnit.`;
 

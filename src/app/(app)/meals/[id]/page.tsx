@@ -22,7 +22,7 @@ export default async function MealPage({
 
   // Compute nutrition from ingredients
   const ingredientNutrition = meal.ingredients.map((mi) => {
-    const g = convertToGrams(mi.amount, mi.unit);
+    const g = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit);
     const factor = g / 100;
     return {
       id: mi.id,

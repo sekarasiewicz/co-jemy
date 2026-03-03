@@ -142,10 +142,9 @@ export function formatAmount(amount: number): string {
 
 /**
  * Convert kitchen units to grams for nutrition calculation.
- * Returns 0 for ambiguous units (szt, puszka, opakowanie etc.)
- * where the weight depends on the specific ingredient.
+ * Pass weightPerUnit for ingredient-specific units (szt, puszka, etc.).
  */
-export function convertToGrams(amount: number, unit: string): number {
+export function convertToGrams(amount: number, unit: string, weightPerUnit?: number | null): number {
   switch (unit) {
     case "g":
       return amount;
@@ -167,7 +166,10 @@ export function convertToGrams(amount: number, unit: string): number {
       return amount * 30;
     default:
       // szt, puszka, opakowanie, plaster, kromka, ząbek, etc.
-      // — weight depends on the ingredient, skip from calculation
+      // Use ingredient-specific weightPerUnit if available
+      if (weightPerUnit && weightPerUnit > 0) {
+        return amount * weightPerUnit;
+      }
       return 0;
   }
 }

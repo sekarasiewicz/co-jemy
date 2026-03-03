@@ -98,6 +98,7 @@ export const ingredients = pgTable("ingredients", {
   proteinPer100g: real("protein_per_100g"),
   carbsPer100g: real("carbs_per_100g"),
   fatPer100g: real("fat_per_100g"),
+  weightPerUnit: real("weight_per_unit"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -33,6 +33,7 @@ interface IngredientFormData {
   proteinPer100g: string;
   carbsPer100g: string;
   fatPer100g: string;
+  weightPerUnit: string;
 }
 
 interface DuplicateGroup {
@@ -49,6 +50,7 @@ const emptyForm: IngredientFormData = {
   proteinPer100g: "",
   carbsPer100g: "",
   fatPer100g: "",
+  weightPerUnit: "",
 };
 
 function normalizeIngredientName(name: string): string {
@@ -179,6 +181,7 @@ export function IngredientsManager({
       proteinPer100g: ingredient.proteinPer100g?.toString() || "",
       carbsPer100g: ingredient.carbsPer100g?.toString() || "",
       fatPer100g: ingredient.fatPer100g?.toString() || "",
+      weightPerUnit: ingredient.weightPerUnit?.toString() || "",
     });
     setIsModalOpen(true);
   };
@@ -214,6 +217,9 @@ export function IngredientsManager({
           ? Number(form.carbsPer100g)
           : undefined,
         fatPer100g: form.fatPer100g ? Number(form.fatPer100g) : undefined,
+        weightPerUnit: form.weightPerUnit
+          ? Number(form.weightPerUnit)
+          : null,
       };
 
       if (editingId) {
@@ -556,7 +562,7 @@ export function IngredientsManager({
             required
           />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Select
               label="Kategoria"
               value={form.category}
@@ -573,6 +579,17 @@ export function IngredientsManager({
                 setForm({ ...form, defaultUnit: e.target.value })
               }
               options={UNITS.map((u) => ({ value: u, label: u }))}
+            />
+            <Input
+              label="Waga 1 szt (g)"
+              type="number"
+              value={form.weightPerUnit}
+              onChange={(e) =>
+                setForm({ ...form, weightPerUnit: e.target.value })
+              }
+              min={0}
+              step={1}
+              placeholder="np. 60"
             />
           </div>
 

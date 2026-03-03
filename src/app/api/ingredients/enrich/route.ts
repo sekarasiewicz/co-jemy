@@ -57,6 +57,7 @@ export async function POST() {
               proteinPer100g: data.proteinPer100g,
               carbsPer100g: data.carbsPer100g,
               fatPer100g: data.fatPer100g,
+              weightPerUnit: data.weightPerUnit,
             });
           }
 

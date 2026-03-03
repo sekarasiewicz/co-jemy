@@ -40,6 +40,7 @@ export async function createIngredientAction(data: {
   proteinPer100g?: number;
   carbsPer100g?: number;
   fatPer100g?: number;
+  weightPerUnit?: number | null;
 }): Promise<Ingredient> {
   const session = await requireAuth();
   const ingredient = await createIngredient(session.user.id, data);
@@ -57,6 +58,7 @@ export async function updateIngredientAction(
     proteinPer100g?: number;
     carbsPer100g?: number;
     fatPer100g?: number;
+    weightPerUnit?: number | null;
   },
 ): Promise<Ingredient> {
   const session = await requireAuth();
@@ -106,6 +108,7 @@ export async function enrichIngredientAction(
     proteinPer100g: enriched.proteinPer100g,
     carbsPer100g: enriched.carbsPer100g,
     fatPer100g: enriched.fatPer100g,
+    weightPerUnit: enriched.weightPerUnit,
   });
 
   revalidatePath("/ingredients");

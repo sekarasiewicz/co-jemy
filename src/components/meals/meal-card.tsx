@@ -15,7 +15,7 @@ export function MealCard({ meal }: MealCardProps) {
   const computed = meal.ingredients.length > 0
     ? meal.ingredients.reduce(
         (acc, mi) => {
-          const amountG = convertToGrams(mi.amount, mi.unit);
+          const amountG = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit);
           const factor = amountG / 100;
           return {
             calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * factor,
