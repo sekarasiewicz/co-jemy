@@ -86,3 +86,28 @@ export async function mergeIngredientsAction(
   revalidatePath("/ingredients");
   revalidatePath("/meals");
 }
+
+export async function enrichIngredientAction(
+  ingredientId: string,
+): Promise<Ingredient> {
+  const session = await requireAuth();
+  const ingredient = await getIngredientById(ingredientId, session.user.id);
+  if (!ingredient) {
+    throw new Error("Składnik nie został znaleziony");
+  }
+
+  const { enrichSingleIngredient } = await import("@/lib/services/ai");
+  const enriched = await enrichSingleIngredient(ingredient.name);
+
+  const updated = await updateIngredient(ingredientId, session.user.id, {
+    category: enriched.category,
+    defaultUnit: enriched.defaultUnit,
+    caloriesPer100g: enriched.caloriesPer100g,
+    proteinPer100g: enriched.proteinPer100g,
+    carbsPer100g: enriched.carbsPer100g,
+    fatPer100g: enriched.fatPer100g,
+  });
+
+  revalidatePath("/ingredients");
+  return updated;
+}

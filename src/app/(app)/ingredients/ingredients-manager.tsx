@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, GitMerge, Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, GitMerge, Pencil, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   createIngredientAction,
   deleteIngredientAction,
+  enrichIngredientAction,
   mergeIngredientsAction,
   updateIngredientAction,
 } from "@/app/actions/ingredients";
@@ -95,6 +96,25 @@ export function IngredientsManager({
   const [loading, setLoading] = useState(false);
   const [merging, setMerging] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [bulkEnriching, setBulkEnriching] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ processed: 0, total: 0 });
+  const abortRef = useRef<AbortController | null>(null);
+
+  const isIncomplete = useCallback((ing: Ingredient) => {
+    return (
+      ing.category === "Inne" ||
+      ing.caloriesPer100g == null ||
+      ing.proteinPer100g == null ||
+      ing.carbsPer100g == null ||
+      ing.fatPer100g == null
+    );
+  }, []);
+
+  const incompleteCount = useMemo(
+    () => ingredients.filter(isIncomplete).length,
+    [ingredients, isIncomplete],
+  );
 
   const duplicateGroups = useMemo(() => {
     const groups = new Map<string, Ingredient[]>();
@@ -229,6 +249,92 @@ export function IngredientsManager({
     }
   };
 
+  const handleEnrichSingle = async (ing: Ingredient) => {
+    setEnrichingId(ing.id);
+    try {
+      const updated = await enrichIngredientAction(ing.id);
+      setIngredients((prev) =>
+        prev.map((i) => (i.id === ing.id ? updated : i)),
+      );
+      toast.success(`Uzupełniono dane: ${ing.name}`);
+    } catch {
+      toast.error("Nie udało się uzupełnić danych");
+    } finally {
+      setEnrichingId(null);
+    }
+  };
+
+  const handleBulkEnrich = async () => {
+    setBulkEnriching(true);
+    setBulkProgress({ processed: 0, total: 0 });
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const response = await fetch("/api/ingredients/enrich", {
+        method: "POST",
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error("Błąd serwera");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Brak strumienia");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let event = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            event = line.slice(7);
+          } else if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.slice(6));
+            if (event === "start") {
+              setBulkProgress({ processed: 0, total: data.total });
+            } else if (event === "progress") {
+              setBulkProgress({
+                processed: data.processed,
+                total: data.total,
+              });
+            } else if (event === "complete") {
+              setBulkProgress({
+                processed: data.processed,
+                total: data.total,
+              });
+            }
+          }
+        }
+      }
+
+      // Reload ingredients from server to get updated data
+      const { getIngredientsAction } = await import(
+        "@/app/actions/ingredients"
+      );
+      const refreshed = await getIngredientsAction();
+      setIngredients(refreshed);
+      toast.success("Uzupełniono dane składników");
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        toast.error("Wystąpił błąd podczas uzupełniania");
+      }
+    } finally {
+      setBulkEnriching(false);
+      abortRef.current = null;
+    }
+  };
+
   const handleMerge = async () => {
     setMerging(true);
     let merged = 0;
@@ -280,11 +386,45 @@ export function IngredientsManager({
             Scal duplikaty ({duplicateGroups.length})
           </Button>
         )}
+        {incompleteCount > 0 && (
+          <Button
+            variant="outline"
+            onClick={handleBulkEnrich}
+            disabled={bulkEnriching}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Uzupełnij AI ({incompleteCount})
+          </Button>
+        )}
         <Button onClick={openAddModal}>
           <Plus className="w-4 h-4 mr-2" />
           Dodaj składnik
         </Button>
       </div>
+
+      {bulkEnriching && (
+        <div className="mb-6 space-y-2">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 animate-pulse text-emerald-500" />
+              Uzupełnianie danych AI...
+            </span>
+            <span>
+              {bulkProgress.processed} / {bulkProgress.total}
+            </span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: bulkProgress.total > 0
+                  ? `${(bulkProgress.processed / bulkProgress.total) * 100}%`
+                  : "0%",
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {filteredIngredients.length === 0 ? (
         <Card>
@@ -356,6 +496,18 @@ export function IngredientsManager({
                             )}
                           </div>
                           <div className="flex gap-1">
+                            {isIncomplete(ing) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEnrichSingle(ing)}
+                                loading={enrichingId === ing.id}
+                                title="Uzupełnij dane AI"
+                                className="text-emerald-600 hover:text-emerald-700"
+                              >
+                                <Sparkles className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
