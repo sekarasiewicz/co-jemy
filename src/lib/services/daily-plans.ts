@@ -31,7 +31,13 @@ export async function getDailyPlanByDate(
       profile: true,
       dailyPlanMeals: {
         with: {
-          meal: true,
+          meal: {
+            with: {
+              mealIngredients: {
+                with: { ingredient: true },
+              },
+            },
+          },
           mealType: true,
         },
       },
@@ -66,7 +72,13 @@ export async function getDailyPlansForAllProfiles(
       profile: true,
       dailyPlanMeals: {
         with: {
-          meal: true,
+          meal: {
+            with: {
+              mealIngredients: {
+                with: { ingredient: true },
+              },
+            },
+          },
           mealType: true,
         },
       },
@@ -96,7 +108,13 @@ export async function getDailyPlansByDateRange(
       profile: true,
       dailyPlanMeals: {
         with: {
-          meal: true,
+          meal: {
+            with: {
+              mealIngredients: {
+                with: { ingredient: true },
+              },
+            },
+          },
           mealType: true,
         },
       },

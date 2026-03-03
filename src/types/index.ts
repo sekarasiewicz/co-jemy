@@ -57,7 +57,9 @@ export type MealWithRelations = Meal & {
 export type DailyPlanWithMeals = DailyPlan & {
   profile: Profile;
   meals: (DailyPlanMeal & {
-    meal: Meal;
+    meal: Meal & {
+      mealIngredients: (MealIngredient & { ingredient: Ingredient })[];
+    };
     mealType: MealType;
   })[];
 };

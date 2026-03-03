@@ -13,8 +13,36 @@ import {
 import { randomizeMealAction } from "@/app/actions/meals";
 import { Badge, Button, Card, CardContent, Checkbox, Modal, Tooltip } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatDateShort, getTodayNoon, getWeekDays } from "@/lib/utils";
-import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
+import { cn, convertToGrams, formatDateShort, getTodayNoon, getWeekDays } from "@/lib/utils";
+import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType, MealWithRelations } from "@/types";
+
+function getMealNutrition(
+  meal: Meal & { mealIngredients: (MealIngredient & { ingredient: Ingredient })[] },
+  servings: number,
+) {
+  if (meal.calories != null || meal.protein != null || meal.carbs != null || meal.fat != null) {
+    return {
+      calories: (meal.calories || 0) * servings,
+      protein: (meal.protein || 0) * servings,
+      carbs: (meal.carbs || 0) * servings,
+      fat: (meal.fat || 0) * servings,
+    };
+  }
+  if (meal.mealIngredients.length === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  const t = meal.mealIngredients.reduce(
+    (acc, mi) => {
+      const g = convertToGrams(mi.amount, mi.unit) / 100;
+      return {
+        calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * g,
+        protein: acc.protein + (mi.ingredient.proteinPer100g || 0) * g,
+        carbs: acc.carbs + (mi.ingredient.carbsPer100g || 0) * g,
+        fat: acc.fat + (mi.ingredient.fatPer100g || 0) * g,
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+  return { calories: t.calories * servings, protein: t.protein * servings, carbs: t.carbs * servings, fat: t.fat * servings };
+}
 
 type FillRange = "week" | "next-week" | "2weeks" | "month";
 
@@ -434,11 +462,14 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                                   {pm.meal.name}
                                 </span>
                               </Tooltip>
-                              {pm.meal.calories && (
-                                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                                  {pm.meal.calories * (pm.servings || 1)} kcal
-                                </p>
-                              )}
+                              {(() => {
+                                const n = getMealNutrition(pm.meal, pm.servings || 1);
+                                return n.calories > 0 ? (
+                                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                    {Math.round(n.calories)} kcal
+                                  </p>
+                                ) : null;
+                              })()}
                             </div>
                           </div>
                           <button
@@ -503,12 +534,15 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
               const key = day.toISOString().split("T")[0];
               const plan = plans.get(key);
               const dayTotals = plan?.meals.reduce(
-                (acc, pm) => ({
-                  calories: acc.calories + (pm.meal.calories || 0) * (pm.servings || 1),
-                  protein: acc.protein + (pm.meal.protein || 0) * (pm.servings || 1),
-                  carbs: acc.carbs + (pm.meal.carbs || 0) * (pm.servings || 1),
-                  fat: acc.fat + (pm.meal.fat || 0) * (pm.servings || 1),
-                }),
+                (acc, pm) => {
+                  const n = getMealNutrition(pm.meal, pm.servings || 1);
+                  return {
+                    calories: acc.calories + n.calories,
+                    protein: acc.protein + n.protein,
+                    carbs: acc.carbs + n.carbs,
+                    fat: acc.fat + n.fat,
+                  };
+                },
                 { calories: 0, protein: 0, carbs: 0, fat: 0 },
               ) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
 

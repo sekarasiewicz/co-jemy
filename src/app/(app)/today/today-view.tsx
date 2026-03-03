@@ -25,8 +25,47 @@ import { randomizeMealAction } from "@/app/actions/meals";
 import { generateShoppingListAction } from "@/app/actions/shopping";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatAmount, formatMinutes, getTodayNoon } from "@/lib/utils";
-import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
+import { cn, convertToGrams, formatAmount, formatMinutes, getTodayNoon } from "@/lib/utils";
+import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType, MealWithRelations } from "@/types";
+
+type MealNutrition = { calories: number; protein: number; carbs: number; fat: number };
+
+function getMealNutrition(
+  meal: Meal & { mealIngredients: (MealIngredient & { ingredient: Ingredient })[] },
+  servings: number,
+): MealNutrition {
+  // Use meal-level values if available
+  if (meal.calories != null || meal.protein != null || meal.carbs != null || meal.fat != null) {
+    return {
+      calories: (meal.calories || 0) * servings,
+      protein: (meal.protein || 0) * servings,
+      carbs: (meal.carbs || 0) * servings,
+      fat: (meal.fat || 0) * servings,
+    };
+  }
+  // Compute from ingredients
+  if (meal.mealIngredients.length === 0) {
+    return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  }
+  const totals = meal.mealIngredients.reduce(
+    (acc, mi) => {
+      const g = convertToGrams(mi.amount, mi.unit) / 100;
+      return {
+        calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * g,
+        protein: acc.protein + (mi.ingredient.proteinPer100g || 0) * g,
+        carbs: acc.carbs + (mi.ingredient.carbsPer100g || 0) * g,
+        fat: acc.fat + (mi.ingredient.fatPer100g || 0) * g,
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+  return {
+    calories: totals.calories * servings,
+    protein: totals.protein * servings,
+    carbs: totals.carbs * servings,
+    fat: totals.fat * servings,
+  };
+}
 
 interface TodayViewProps {
   mealTypes: MealType[];
@@ -203,12 +242,15 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
   // Calculate totals for the day
   const totals = plan?.meals.reduce(
-    (acc, pm) => ({
-      calories: acc.calories + (pm.meal.calories || 0) * (pm.servings || 1),
-      protein: acc.protein + (pm.meal.protein || 0) * (pm.servings || 1),
-      carbs: acc.carbs + (pm.meal.carbs || 0) * (pm.servings || 1),
-      fat: acc.fat + (pm.meal.fat || 0) * (pm.servings || 1),
-    }),
+    (acc, pm) => {
+      const n = getMealNutrition(pm.meal, pm.servings || 1);
+      return {
+        calories: acc.calories + n.calories,
+        protein: acc.protein + n.protein,
+        carbs: acc.carbs + n.carbs,
+        fat: acc.fat + n.fat,
+      };
+    },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   ) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
 
@@ -386,19 +428,22 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                                 {pm.meal.name}
                               </p>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                                {pm.meal.calories && (
-                                  <span className="flex items-center gap-1">
-                                    <Flame className="w-3 h-3" />
-                                    {pm.meal.calories * (pm.servings || 1)} kcal
-                                    {(pm.meal.protein || pm.meal.carbs || pm.meal.fat) && (
-                                      <span className="ml-1">
-                                        ·{pm.meal.protein ? ` B: ${Math.round(pm.meal.protein * (pm.servings || 1))}g` : ""}
-                                        {pm.meal.carbs ? ` W: ${Math.round(pm.meal.carbs * (pm.servings || 1))}g` : ""}
-                                        {pm.meal.fat ? ` T: ${Math.round(pm.meal.fat * (pm.servings || 1))}g` : ""}
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const n = getMealNutrition(pm.meal, pm.servings || 1);
+                                  return n.calories > 0 ? (
+                                    <span className="flex items-center gap-1">
+                                      <Flame className="w-3 h-3" />
+                                      {Math.round(n.calories)} kcal
+                                      {(n.protein > 0 || n.carbs > 0 || n.fat > 0) && (
+                                        <span className="ml-1">
+                                          ·{n.protein > 0 ? ` B: ${Math.round(n.protein)}g` : ""}
+                                          {n.carbs > 0 ? ` W: ${Math.round(n.carbs)}g` : ""}
+                                          {n.fat > 0 ? ` T: ${Math.round(n.fat)}g` : ""}
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {totalTime > 0 && (
                                   <span className="flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
