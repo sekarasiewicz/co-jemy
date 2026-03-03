@@ -53,7 +53,7 @@ export async function enrichIngredients(
   if (names.length === 0) return [];
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
   const categoriesList = INGREDIENT_CATEGORIES.join(", ");
   const unitsList = UNITS.join(", ");
 
