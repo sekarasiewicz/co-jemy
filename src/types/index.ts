@@ -97,6 +97,7 @@ export const INGREDIENT_CATEGORIES = [
   "Konserwy",
   "Mrożonki",
   "Napoje",
+  "Nasiona i orzechy",
   "Słodycze",
   "Inne",
 ] as const;
