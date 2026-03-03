@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   createIngredientAction,
   deleteIngredientAction,
+  enrichByNameAction,
   enrichIngredientAction,
   mergeIngredientsAction,
   updateIngredientAction,
@@ -543,13 +544,48 @@ export function IngredientsManager({
             <h2 className="text-lg font-semibold text-foreground">
               {editingId ? "Edytuj składnik" : "Nowy składnik"}
             </h2>
-            <button
-              type="button"
-              onClick={closeModal}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {form.name.trim() && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const enriched = await enrichByNameAction(form.name.trim());
+                      setForm({
+                        ...form,
+                        category: enriched.category,
+                        defaultUnit: enriched.defaultUnit,
+                        caloriesPer100g: enriched.caloriesPer100g?.toString() || "",
+                        proteinPer100g: enriched.proteinPer100g?.toString() || "",
+                        carbsPer100g: enriched.carbsPer100g?.toString() || "",
+                        fatPer100g: enriched.fatPer100g?.toString() || "",
+                        weightPerUnit: enriched.weightPerUnit?.toString() || "",
+                      });
+                      toast.success("Uzupełniono dane AI");
+                    } catch {
+                      toast.error("Nie udało się uzupełnić danych");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  loading={loading}
+                  title="Uzupełnij dane AI"
+                  className="text-emerald-600 hover:text-emerald-700"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={closeModal}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <Input

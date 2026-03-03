@@ -89,6 +89,22 @@ export async function mergeIngredientsAction(
   revalidatePath("/meals");
 }
 
+export async function enrichByNameAction(
+  name: string,
+): Promise<{
+  category: string;
+  defaultUnit: string;
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+  weightPerUnit: number | null;
+}> {
+  await requireAuth();
+  const { enrichSingleIngredient } = await import("@/lib/services/ai");
+  return enrichSingleIngredient(name);
+}
+
 export async function enrichIngredientAction(
   ingredientId: string,
 ): Promise<Ingredient> {
