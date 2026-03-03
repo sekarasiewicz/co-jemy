@@ -1,7 +1,7 @@
 import { Clock, Flame, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge, Card, CardContent } from "@/components/ui";
-import { formatMinutes } from "@/lib/utils";
+import { convertToGrams, formatMinutes } from "@/lib/utils";
 import type { MealWithRelations } from "@/types";
 
 interface MealCardProps {
@@ -10,6 +10,28 @@ interface MealCardProps {
 
 export function MealCard({ meal }: MealCardProps) {
   const totalTime = (meal.prepTimeMinutes || 0) + (meal.cookTimeMinutes || 0);
+
+  // Calculate nutritional values from ingredients if meal-level values are missing
+  const computed = meal.ingredients.length > 0
+    ? meal.ingredients.reduce(
+        (acc, mi) => {
+          const amountG = convertToGrams(mi.amount, mi.unit);
+          const factor = amountG / 100;
+          return {
+            calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * factor,
+            protein: acc.protein + (mi.ingredient.proteinPer100g || 0) * factor,
+            carbs: acc.carbs + (mi.ingredient.carbsPer100g || 0) * factor,
+            fat: acc.fat + (mi.ingredient.fatPer100g || 0) * factor,
+          };
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      )
+    : null;
+
+  const calories = meal.calories ?? (computed && computed.calories > 0 ? Math.round(computed.calories) : null);
+  const protein = meal.protein ?? (computed && computed.protein > 0 ? Math.round(computed.protein * 10) / 10 : null);
+  const carbs = meal.carbs ?? (computed && computed.carbs > 0 ? Math.round(computed.carbs * 10) / 10 : null);
+  const fat = meal.fat ?? (computed && computed.fat > 0 ? Math.round(computed.fat * 10) / 10 : null);
 
   return (
     <Link href={`/meals/${meal.id}`}>
@@ -44,21 +66,21 @@ export function MealCard({ meal }: MealCardProps) {
               <Users className="w-4 h-4" />
               <span>{meal.servings} porcji</span>
             </div>
-            {meal.calories && (
+            {calories && (
               <div className="flex items-center gap-1">
                 <Flame className="w-4 h-4" />
-                <span>{meal.calories} kcal</span>
+                <span>{calories} kcal</span>
               </div>
             )}
           </div>
 
-          {(meal.protein || meal.carbs || meal.fat) && (
+          {(protein || carbs || fat) && (
             <p className="text-xs text-muted-foreground mt-1">
-              {meal.protein ? `B: ${meal.protein}g` : ""}
-              {meal.protein && (meal.carbs || meal.fat) ? " · " : ""}
-              {meal.carbs ? `W: ${meal.carbs}g` : ""}
-              {meal.carbs && meal.fat ? " · " : ""}
-              {meal.fat ? `T: ${meal.fat}g` : ""}
+              {protein ? `B: ${protein}g` : ""}
+              {protein && (carbs || fat) ? " · " : ""}
+              {carbs ? `W: ${carbs}g` : ""}
+              {carbs && fat ? " · " : ""}
+              {fat ? `T: ${fat}g` : ""}
             </p>
           )}
 

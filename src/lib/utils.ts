@@ -140,6 +140,62 @@ export function formatAmount(amount: number): string {
   return parseFloat(amount.toFixed(2)).toString();
 }
 
+/**
+ * Approximate conversion of common kitchen units to grams for nutrition calculation.
+ */
+export function convertToGrams(amount: number, unit: string): number {
+  switch (unit) {
+    case "g":
+      return amount;
+    case "kg":
+      return amount * 1000;
+    case "ml":
+      return amount; // ~1:1 for most liquids
+    case "l":
+      return amount * 1000;
+    case "łyżka":
+      return amount * 15;
+    case "łyżeczka":
+      return amount * 5;
+    case "szklanka":
+      return amount * 250;
+    case "szczypta":
+      return amount * 0.5;
+    case "ząbek":
+      return amount * 5;
+    case "plaster":
+      return amount * 20;
+    case "kromka":
+      return amount * 30;
+    case "garść":
+      return amount * 30;
+    case "kostka":
+      return amount * 10;
+    case "puszka":
+      return amount * 400;
+    case "słoik":
+      return amount * 300;
+    case "pęczek":
+      return amount * 30;
+    case "listek":
+      return amount * 0.5;
+    case "gałązka":
+      return amount * 5;
+    case "łodyga":
+      return amount * 40;
+    case "woreczek":
+      return amount * 30;
+    case "porcja":
+      return amount * 100;
+    case "opakowanie":
+      return amount * 200;
+    case "szt":
+      return amount * 100; // rough average
+    default:
+      return amount;
+  }
+}
+
 export function generateId(): string {
   return crypto.randomUUID();
 }
