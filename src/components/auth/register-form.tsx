@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
 import { signUp } from "@/lib/auth-client";
+import { validateInviteCode } from "@/app/actions/auth";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +34,12 @@ export function RegisterForm() {
     setLoading(true);
 
     try {
+      const { valid } = await validateInviteCode(inviteCode);
+      if (!valid) {
+        setError("Nieprawidłowy kod zaproszenia");
+        return;
+      }
+
       const result = await signUp.email({
         email,
         password,
@@ -76,6 +84,15 @@ export function RegisterForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="twoj@email.pl"
+            required
+          />
+
+          <Input
+            label="Kod zaproszenia"
+            type="text"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            placeholder="Wpisz kod zaproszenia"
             required
           />
 

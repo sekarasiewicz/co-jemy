@@ -10,6 +10,14 @@ export async function getSession() {
   return session;
 }
 
+export async function validateInviteCode(code: string) {
+  const inviteCode = process.env.INVITE_CODE;
+  if (!inviteCode) {
+    return { valid: false };
+  }
+  return { valid: code === inviteCode };
+}
+
 export async function requireAuth() {
   const session = await getSession();
   if (!session?.user) {
