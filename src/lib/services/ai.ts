@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { INGREDIENT_CATEGORIES, UNITS } from "@/types";
 import type { IngredientCategory, Unit } from "@/types";
 
@@ -41,8 +41,10 @@ function validateEnriched(
   };
 }
 
-function getClient(): Anthropic {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+  return new GoogleGenerativeAI(apiKey);
 }
 
 export async function enrichIngredients(
@@ -51,16 +53,11 @@ export async function enrichIngredients(
   if (names.length === 0) return [];
 
   const client = getClient();
+  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
   const categoriesList = INGREDIENT_CATEGORIES.join(", ");
   const unitsList = UNITS.join(", ");
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: `Jesteś ekspertem od żywności i dietetyki. Dla każdego składnika podaj dane odżywcze na 100g, kategorię i domyślną jednostkę.
+  const prompt = `Jesteś ekspertem od żywności i dietetyki. Dla każdego składnika podaj dane odżywcze na 100g, kategorię i domyślną jednostkę.
 
 Składniki: ${JSON.stringify(names)}
 
@@ -81,13 +78,10 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (tablica obiektów), bez żadnego innego
 ]
 
 Jeśli składnik jest przyprawą/ziołem, ustaw defaultUnit na odpowiednią jednostkę (np. szczypta, łyżeczka).
-Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUnit.`,
-      },
-    ],
-  });
+Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUnit.`;
 
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
 
   // Extract JSON array from response (handle markdown code blocks)
   const jsonMatch = text.match(/\[[\s\S]*\]/);
