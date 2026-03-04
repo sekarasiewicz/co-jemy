@@ -210,14 +210,14 @@ export function IngredientsManager({
         defaultUnit: form.defaultUnit,
         caloriesPer100g: form.caloriesPer100g
           ? Number(form.caloriesPer100g)
-          : undefined,
+          : null,
         proteinPer100g: form.proteinPer100g
           ? Number(form.proteinPer100g)
-          : undefined,
+          : null,
         carbsPer100g: form.carbsPer100g
           ? Number(form.carbsPer100g)
-          : undefined,
-        fatPer100g: form.fatPer100g ? Number(form.fatPer100g) : undefined,
+          : null,
+        fatPer100g: form.fatPer100g ? Number(form.fatPer100g) : null,
         weightPerUnit: form.weightPerUnit
           ? Number(form.weightPerUnit)
           : null,

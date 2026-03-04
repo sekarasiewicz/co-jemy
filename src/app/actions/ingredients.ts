@@ -36,10 +36,10 @@ export async function createIngredientAction(data: {
   name: string;
   category: string;
   defaultUnit?: string;
-  caloriesPer100g?: number;
-  proteinPer100g?: number;
-  carbsPer100g?: number;
-  fatPer100g?: number;
+  caloriesPer100g?: number | null;
+  proteinPer100g?: number | null;
+  carbsPer100g?: number | null;
+  fatPer100g?: number | null;
   weightPerUnit?: number | null;
 }): Promise<Ingredient> {
   const session = await requireAuth();
@@ -54,10 +54,10 @@ export async function updateIngredientAction(
     name?: string;
     category?: string;
     defaultUnit?: string;
-    caloriesPer100g?: number;
-    proteinPer100g?: number;
-    carbsPer100g?: number;
-    fatPer100g?: number;
+    caloriesPer100g?: number | null;
+    proteinPer100g?: number | null;
+    carbsPer100g?: number | null;
+    fatPer100g?: number | null;
     weightPerUnit?: number | null;
   },
 ): Promise<Ingredient> {
