@@ -31,7 +31,7 @@ function getMealNutrition(
   if (meal.mealIngredients.length === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
   const t = meal.mealIngredients.reduce(
     (acc, mi) => {
-      const g = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit) / 100;
+      const g = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit, mi.ingredient.defaultUnit) / 100;
       return {
         calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * g,
         protein: acc.protein + (mi.ingredient.proteinPer100g || 0) * g,
