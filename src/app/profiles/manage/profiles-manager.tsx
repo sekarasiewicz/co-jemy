@@ -1,9 +1,21 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Copy,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  clearAllDataAction,
+  deleteAccountAction,
+} from "@/app/actions/account";
 import {
   createProfileAction,
   deleteProfileAction,
@@ -11,9 +23,12 @@ import {
 } from "@/app/actions/profiles";
 import { ProfileAvatar } from "@/components/profiles/profile-avatar";
 import { ProfileForm } from "@/components/profiles/profile-form";
-import { Button, Card, CardContent, Modal } from "@/components/ui";
+import { Button, Card, CardContent, Input, Modal } from "@/components/ui";
 import { useProfile } from "@/contexts/profile-context";
+import { signOut } from "@/lib/auth-client";
 import type { Profile } from "@/types";
+
+const DELETE_CONFIRM_WORD = "USUŃ";
 
 interface ProfilesManagerProps {
   initialProfiles: Profile[];
@@ -33,6 +48,11 @@ export function ProfilesManager({
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [deletingProfile, setDeletingProfile] = useState<Profile | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleCreate = async (
     data: Parameters<typeof createProfileAction>[0],
@@ -65,6 +85,40 @@ export function ProfilesManager({
     setProfiles(updated);
     setDeletingProfile(null);
     router.refresh();
+  };
+
+  const handleClearData = async () => {
+    setIsProcessing(true);
+    try {
+      await clearAllDataAction();
+      setIsClearingData(false);
+      router.refresh();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== DELETE_CONFIRM_WORD) return;
+    setIsProcessing(true);
+    try {
+      await deleteAccountAction();
+      // Session row is gone via cascade; clear the cookie best-effort.
+      try {
+        await signOut();
+      } catch {
+        // ignore — account already deleted
+      }
+      window.location.href = "/auth/login";
+    } catch {
+      setIsProcessing(false);
+    }
+  };
+
+  const closeDeleteAccount = () => {
+    setIsDeletingAccount(false);
+    setConfirmDeleteAccount(false);
+    setDeleteConfirmText("");
   };
 
   return (
@@ -183,6 +237,150 @@ export function ProfilesManager({
             Usuń
           </Button>
         </div>
+      </Modal>
+
+      {/* Danger Zone */}
+      <Card className="border-destructive/40">
+        <CardContent className="py-4 space-y-4">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="w-4 h-4" />
+            <h2 className="font-medium">Strefa zagrożenia</h2>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Wyczyść wszystkie dane
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Usuwa dania, składniki, tagi, typy posiłków, plany dnia i listy
+                zakupów. Konto i profile pozostają.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsClearingData(true)}
+              className="shrink-0"
+            >
+              Wyczyść dane
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Usuń konto</p>
+              <p className="text-sm text-muted-foreground">
+                Trwale usuwa konto wraz ze wszystkimi profilami i danymi. Tej
+                operacji nie można cofnąć.
+              </p>
+            </div>
+            <Button
+              variant="danger"
+              onClick={() => setIsDeletingAccount(true)}
+              className="shrink-0"
+            >
+              Usuń konto
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Clear Data Confirmation */}
+      <Modal
+        isOpen={isClearingData}
+        onClose={() => !isProcessing && setIsClearingData(false)}
+        title="Wyczyść wszystkie dane"
+      >
+        <p className="text-muted-foreground mb-6">
+          Czy na pewno chcesz usunąć wszystkie dania, składniki, tagi, typy
+          posiłków, plany dnia i listy zakupów? Konto i profile pozostaną. Tej
+          operacji nie można cofnąć.
+        </p>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setIsClearingData(false)}
+            disabled={isProcessing}
+            className="flex-1"
+          >
+            Anuluj
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleClearData}
+            disabled={isProcessing}
+            className="flex-1"
+          >
+            {isProcessing ? "Usuwanie..." : "Wyczyść dane"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Delete Account Confirmation */}
+      <Modal
+        isOpen={isDeletingAccount}
+        onClose={() => !isProcessing && closeDeleteAccount()}
+        title="Usuń konto"
+      >
+        {!confirmDeleteAccount ? (
+          <>
+            <p className="text-muted-foreground mb-6">
+              To trwale usunie Twoje konto, wszystkie profile i wszystkie dane.
+              Tej operacji nie można cofnąć.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={closeDeleteAccount}
+                className="flex-1"
+              >
+                Anuluj
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => setConfirmDeleteAccount(true)}
+                className="flex-1"
+              >
+                Kontynuuj
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-muted-foreground mb-4">
+              Wpisz{" "}
+              <strong className="text-foreground">{DELETE_CONFIRM_WORD}</strong>,
+              aby potwierdzić trwałe usunięcie konta.
+            </p>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={DELETE_CONFIRM_WORD}
+              className="mb-6"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={closeDeleteAccount}
+                disabled={isProcessing}
+                className="flex-1"
+              >
+                Anuluj
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDeleteAccount}
+                disabled={
+                  isProcessing || deleteConfirmText !== DELETE_CONFIRM_WORD
+                }
+                className="flex-1"
+              >
+                {isProcessing ? "Usuwanie..." : "Usuń konto na zawsze"}
+              </Button>
+            </div>
+          </>
+        )}
       </Modal>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground pt-4">
