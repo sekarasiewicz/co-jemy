@@ -187,7 +187,16 @@ export async function extractDietFromPdf(
   mimeType = "application/pdf",
 ): Promise<ExtractedDiet> {
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = client.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      // Force valid JSON and allow a large response so big weekly diets
+      // (many meals + 7 days) are never truncated mid-object.
+      responseMimeType: "application/json",
+      maxOutputTokens: 32768,
+      temperature: 0.1,
+    },
+  });
   const unitsList = UNITS.join(", ");
   const mealTypesList = MEAL_TYPE_NAMES.join(", ");
 
