@@ -188,7 +188,7 @@ export async function extractDietFromPdf(
 ): Promise<ExtractedDiet> {
   const client = getClient();
   const model = client.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-pro",
     generationConfig: {
       // Force valid JSON and allow a large response so big weekly diets
       // (many meals + 7 days) are never truncated mid-object.
