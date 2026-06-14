@@ -1,4 +1,4 @@
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { getMealsAction } from "@/app/actions/meals";
 import { getMealTypesAction, getTagsAction } from "@/app/actions/tags";
@@ -19,6 +19,12 @@ export default async function MealsPage() {
           <h1 className="text-2xl font-bold text-foreground">Dania</h1>
         </div>
         <div className="flex gap-2">
+          <Link href="/meals/import-diet">
+            <Button variant="outline">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Dieta z PDF
+            </Button>
+          </Link>
           <Link href="/meals/import">
             <Button variant="outline">
               <FileText className="w-4 h-4 mr-2" />

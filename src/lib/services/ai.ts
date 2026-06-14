@@ -129,3 +129,160 @@ export async function enrichSingleIngredient(
   const results = await enrichIngredients([name], currentUnit);
   return results[0];
 }
+
+// ============================================
+// Diet PDF import
+// ============================================
+
+export interface ExtractedDietIngredient {
+  name: string;
+  amount: number;
+  unit: Unit;
+}
+
+export interface ExtractedDietMeal {
+  name: string;
+  mealTypeName: string;
+  instructions: string;
+  ingredients: ExtractedDietIngredient[];
+}
+
+export interface ExtractedDietPlanItem {
+  mealTypeName: string;
+  mealName: string;
+}
+
+export interface ExtractedDietPlanDay {
+  dayIndex: number; // 0 = Monday
+  meals: ExtractedDietPlanItem[];
+}
+
+export interface ExtractedDiet {
+  meals: ExtractedDietMeal[];
+  plan: ExtractedDietPlanDay[];
+}
+
+const MEAL_TYPE_NAMES = [
+  "Śniadanie",
+  "II śniadanie",
+  "Obiad",
+  "Kolacja",
+  "Przekąska",
+];
+
+function normalizeMealTypeName(raw: unknown): string {
+  const value = String(raw || "").trim().toLowerCase();
+  const match = MEAL_TYPE_NAMES.find((n) => n.toLowerCase() === value);
+  return match ?? "Przekąska";
+}
+
+function normalizeUnit(raw: unknown): Unit {
+  const value = String(raw || "").trim().toLowerCase();
+  const match = UNITS.find((u) => u.toLowerCase() === value);
+  return (match as Unit) ?? "g";
+}
+
+export async function extractDietFromPdf(
+  base64Pdf: string,
+  mimeType = "application/pdf",
+): Promise<ExtractedDiet> {
+  const client = getClient();
+  const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const unitsList = UNITS.join(", ");
+  const mealTypesList = MEAL_TYPE_NAMES.join(", ");
+
+  const prompt = `Jesteś ekspertem od analizy jadłospisów dietetycznych. Otrzymujesz PDF z planem żywieniowym (dni tygodnia, posiłki o określonych porach oraz przepisy "PRZEPIS" ze składnikami i sposobem przygotowania).
+
+Wyodrębnij WSZYSTKIE dania oraz pełny plan tygodnia.
+
+ZASADY:
+- "meals" to lista UNIKALNYCH dań (po nazwie). Każde danie referowane w planie MUSI tu wystąpić.
+- Jeśli danie ma blok PRZEPIS — użyj jego składników (nazwa, ilość, jednostka) oraz sposobu przygotowania jako "instructions".
+- Jeśli danie nie ma przepisu (np. "Jabłko 1 sztuka", "Mandarynki", gotowy produkt) — utwórz danie z JEDNYM składnikiem (sam produkt z podaną ilością) i pustym "instructions".
+- Ilości zamień na liczby (np. "1 i 1/2" → 1.5, "3/4" → 0.75, "1/3" → 0.33).
+- Jeśli w nawiasie jest gramatura (np. "(120g)"), NIE używaj jej jako jednostki — użyj jednostki głównej (sztuka→szt, łyżka, garść itp.).
+- "plan" to lista dni (dayIndex: 0=poniedziałek, 1=wtorek, ... 6=niedziela). Dla każdego dnia lista posiłków z typem i nazwą dania (mealName musi dokładnie odpowiadać nazwie z "meals").
+
+Dozwolone jednostki: ${unitsList}
+Dozwolone typy posiłków: ${mealTypesList}
+
+Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
+{
+  "meals": [
+    {
+      "name": "nazwa dania",
+      "mealTypeName": "jeden z dozwolonych typów",
+      "instructions": "sposób przygotowania lub pusty string",
+      "ingredients": [
+        { "name": "nazwa składnika", "amount": liczba, "unit": "jedna z dozwolonych jednostek" }
+      ]
+    }
+  ],
+  "plan": [
+    {
+      "dayIndex": liczba 0-6,
+      "meals": [
+        { "mealTypeName": "jeden z dozwolonych typów", "mealName": "nazwa dania z listy meals" }
+      ]
+    }
+  ]
+}`;
+
+  const result = await model.generateContent([
+    { inlineData: { data: base64Pdf, mimeType } },
+    { text: prompt },
+  ]);
+  const text = result.response.text();
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Nie udało się sparsować odpowiedzi AI z PDF");
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]) as {
+    meals?: unknown[];
+    plan?: unknown[];
+  };
+
+  const meals: ExtractedDietMeal[] = (parsed.meals ?? []).map((m) => {
+    const raw = m as Record<string, unknown>;
+    const ingredients = Array.isArray(raw.ingredients) ? raw.ingredients : [];
+    return {
+      name: String(raw.name || "").trim(),
+      mealTypeName: normalizeMealTypeName(raw.mealTypeName),
+      instructions: String(raw.instructions || "").trim(),
+      ingredients: ingredients
+        .map((i) => {
+          const ri = i as Record<string, unknown>;
+          return {
+            name: String(ri.name || "").trim(),
+            amount: Number(ri.amount) || 0,
+            unit: normalizeUnit(ri.unit),
+          };
+        })
+        .filter((i) => i.name.length > 0),
+    };
+  });
+
+  const plan: ExtractedDietPlanDay[] = (parsed.plan ?? []).map((d) => {
+    const raw = d as Record<string, unknown>;
+    const dayMeals = Array.isArray(raw.meals) ? raw.meals : [];
+    return {
+      dayIndex: clamp(Number(raw.dayIndex) || 0, 0, 6),
+      meals: dayMeals
+        .map((i) => {
+          const ri = i as Record<string, unknown>;
+          return {
+            mealTypeName: normalizeMealTypeName(ri.mealTypeName),
+            mealName: String(ri.mealName || "").trim(),
+          };
+        })
+        .filter((i) => i.mealName.length > 0),
+    };
+  });
+
+  return {
+    meals: meals.filter((m) => m.name.length > 0),
+    plan,
+  };
+}
