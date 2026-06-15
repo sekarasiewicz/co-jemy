@@ -26,6 +26,7 @@ export default async function MealPage({
     const factor = g / 100;
     return {
       id: mi.id,
+      grams: Math.round(g),
       calories: Math.round((mi.ingredient.caloriesPer100g || 0) * factor),
       protein: Math.round((mi.ingredient.proteinPer100g || 0) * factor * 10) / 10,
       carbs: Math.round((mi.ingredient.carbsPer100g || 0) * factor * 10) / 10,
@@ -212,6 +213,9 @@ export default async function MealPage({
                         {mi.ingredient.name}{" "}
                         <span className="text-muted-foreground">
                           — {formatAmount(mi.amount)} {mi.unit}
+                          {n.grams > 0 &&
+                            !["g", "kg", "ml", "l"].includes(mi.unit) &&
+                            ` (${n.grams} g)`}
                         </span>
                       </span>
                     </div>

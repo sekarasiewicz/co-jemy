@@ -138,6 +138,7 @@ export interface ExtractedDietIngredient {
   name: string;
   amount: number;
   unit: Unit;
+  grams: number; // total grams for this line, from the "(Ng)" hint; 0 if absent
 }
 
 export interface ExtractedDietMeal {
@@ -223,7 +224,7 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
       "mealTypeName": "jeden z dozwolonych typów",
       "instructions": "sposób przygotowania lub pusty string",
       "ingredients": [
-        { "name": "nazwa składnika", "amount": liczba, "unit": "jedna z dozwolonych jednostek" }
+        { "name": "nazwa składnika", "amount": liczba, "unit": "jedna z dozwolonych jednostek", "grams": liczba gramów z nawiasu np. "(75g)" → 75, lub 0 gdy brak }
       ]
     }
   ],
@@ -267,6 +268,7 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
             name: String(ri.name || "").trim(),
             amount: Number(ri.amount) || 0,
             unit: normalizeUnit(ri.unit),
+            grams: Math.max(0, Number(ri.grams) || 0),
           };
         })
         .filter((i) => i.name.length > 0),

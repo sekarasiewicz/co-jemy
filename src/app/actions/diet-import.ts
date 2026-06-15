@@ -24,6 +24,25 @@ function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+// Units where convertToGrams resolves grams via weightPerUnit (i.e. NOT the
+// fixed-gram units g/kg/ml/l/łyżka/łyżeczka/szklanka/szczypta/garść).
+const WEIGHT_PER_UNIT_UNITS = new Set([
+  "szt",
+  "opakowanie",
+  "pęczek",
+  "ząbek",
+  "plaster",
+  "kromka",
+  "kostka",
+  "listek",
+  "gałązka",
+  "łodyga",
+  "puszka",
+  "słoik",
+  "woreczek",
+  "porcja",
+]);
+
 export async function importDietFromPdfAction(
   base64Pdf: string,
   profileId: string,
@@ -52,12 +71,20 @@ export async function importDietFromPdfAction(
   // 1. Enrich + create missing ingredients. Enrich forcing the unit the
   //    recipe uses (grouped per unit), so the ingredient's defaultUnit matches
   //    the recipe unit and weightPerUnit is correct for macro conversion.
-  const neededByName = new Map<string, { name: string; unit: string }>();
+  const neededByName = new Map<
+    string,
+    { name: string; unit: string; amount: number; grams: number }
+  >();
   for (const meal of diet.meals) {
     for (const ing of meal.ingredients) {
       const key = ing.name.toLowerCase();
       if (!ingredientByName.has(key) && !neededByName.has(key)) {
-        neededByName.set(key, { name: ing.name, unit: ing.unit });
+        neededByName.set(key, {
+          name: ing.name,
+          unit: ing.unit,
+          amount: ing.amount,
+          grams: ing.grams,
+        });
       }
     }
   }
@@ -89,17 +116,25 @@ export async function importDietFromPdfAction(
       }
     }
 
-    for (const { name, unit } of neededByName.values()) {
+    for (const { name, unit, amount, grams } of neededByName.values()) {
       const e = enrichedByName.get(name.toLowerCase());
+      // Prefer the exact per-unit weight from the PDF ("(75g)") over the AI
+      // estimate, for piece-like units where convertToGrams uses weightPerUnit.
+      const pdfWeightPerUnit =
+        grams > 0 && amount > 0 && WEIGHT_PER_UNIT_UNITS.has(unit)
+          ? round(grams / amount)
+          : null;
       const created = await createIngredient(userId, {
         name,
         category: e?.category ?? "Inne",
-        defaultUnit: e?.defaultUnit ?? unit,
+        // Ensure defaultUnit matches the recipe unit so convertToGrams applies
+        // weightPerUnit (it only does when unit === defaultUnit).
+        defaultUnit: pdfWeightPerUnit ? unit : (e?.defaultUnit ?? unit),
         caloriesPer100g: e?.caloriesPer100g ?? null,
         proteinPer100g: e?.proteinPer100g ?? null,
         carbsPer100g: e?.carbsPer100g ?? null,
         fatPer100g: e?.fatPer100g ?? null,
-        weightPerUnit: e?.weightPerUnit ?? null,
+        weightPerUnit: pdfWeightPerUnit ?? e?.weightPerUnit ?? null,
       });
       ingredientByName.set(name.toLowerCase(), created);
       ingredientsCreated++;
