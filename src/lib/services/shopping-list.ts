@@ -50,13 +50,20 @@ export async function generateShoppingListFromDateRange(
   dateTo: Date,
   name: string,
 ): Promise<ShoppingListWithItems> {
+  // Normalize to full-day bounds — plan dates are stored at midnight, but the
+  // caller may pass a time-of-day (e.g. "today" = now), which would exclude them.
+  const rangeStart = new Date(dateFrom);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(dateTo);
+  rangeEnd.setHours(23, 59, 59, 999);
+
   // Get all daily plans for selected profiles in date range
   const plans = await db.query.dailyPlans.findMany({
     where: and(
       eq(dailyPlans.userId, userId),
       inArray(dailyPlans.profileId, profileIds),
-      gte(dailyPlans.date, dateFrom),
-      lte(dailyPlans.date, dateTo),
+      gte(dailyPlans.date, rangeStart),
+      lte(dailyPlans.date, rangeEnd),
     ),
     with: {
       dailyPlanMeals: {
