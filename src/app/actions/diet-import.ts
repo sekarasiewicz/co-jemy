@@ -9,6 +9,7 @@ import {
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import { createMeal } from "@/lib/services/meals";
 import { enrichIngredients, extractDietFromPdf } from "@/lib/services/ai";
+import { convertToGrams } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "./auth";
 
@@ -17,20 +18,6 @@ export interface DietImportResult {
   ingredientsCreated: number;
   daysPlanned: number;
   errors: string[];
-}
-
-/** Convert an amount in a given unit to grams, using the ingredient's weightPerUnit. */
-function toGrams(amount: number, unit: string, weightPerUnit: number | null) {
-  switch (unit) {
-    case "g":
-    case "ml":
-      return amount;
-    case "kg":
-    case "l":
-      return amount * 1000;
-    default:
-      return weightPerUnit ? amount * weightPerUnit : 0;
-  }
 }
 
 function round(value: number): number {
@@ -62,36 +49,52 @@ export async function importDietFromPdfAction(
     ingredients.map((i) => [i.name.toLowerCase(), i]),
   );
 
-  // 1. Enrich + create all missing ingredients in one batch.
-  const neededNames = new Map<string, string>(); // lower -> original
+  // 1. Enrich + create missing ingredients. Enrich forcing the unit the
+  //    recipe uses (grouped per unit), so the ingredient's defaultUnit matches
+  //    the recipe unit and weightPerUnit is correct for macro conversion.
+  const neededByName = new Map<string, { name: string; unit: string }>();
   for (const meal of diet.meals) {
     for (const ing of meal.ingredients) {
       const key = ing.name.toLowerCase();
-      if (!ingredientByName.has(key) && !neededNames.has(key)) {
-        neededNames.set(key, ing.name);
+      if (!ingredientByName.has(key) && !neededByName.has(key)) {
+        neededByName.set(key, { name: ing.name, unit: ing.unit });
       }
     }
   }
 
   let ingredientsCreated = 0;
-  if (neededNames.size > 0) {
-    const names = [...neededNames.values()];
-    let enriched: Awaited<ReturnType<typeof enrichIngredients>> = [];
-    try {
-      enriched = await enrichIngredients(names);
-    } catch {
-      errors.push("Nie udało się wzbogacić składników — utworzono bez makr");
+  if (neededByName.size > 0) {
+    // Group needed names by their recipe unit for batched, unit-forced enrich.
+    const byUnit = new Map<string, string[]>();
+    for (const { name, unit } of neededByName.values()) {
+      const list = byUnit.get(unit) ?? [];
+      list.push(name);
+      byUnit.set(unit, list);
     }
-    const enrichedByName = new Map(
-      enriched.map((e) => [e.name.toLowerCase(), e]),
-    );
 
-    for (const name of names) {
+    const enrichedByName = new Map<
+      string,
+      Awaited<ReturnType<typeof enrichIngredients>>[number]
+    >();
+    for (const [unit, names] of byUnit) {
+      try {
+        const enriched = await enrichIngredients(names, unit);
+        for (const e of enriched) {
+          enrichedByName.set(e.name.toLowerCase(), e);
+        }
+      } catch {
+        errors.push(
+          `Nie udało się wzbogacić składników (${unit}) — utworzono bez makr`,
+        );
+      }
+    }
+
+    for (const { name, unit } of neededByName.values()) {
       const e = enrichedByName.get(name.toLowerCase());
       const created = await createIngredient(userId, {
         name,
         category: e?.category ?? "Inne",
-        defaultUnit: e?.defaultUnit ?? "g",
+        defaultUnit: e?.defaultUnit ?? unit,
         caloriesPer100g: e?.caloriesPer100g ?? null,
         proteinPer100g: e?.proteinPer100g ?? null,
         carbsPer100g: e?.carbsPer100g ?? null,
@@ -135,7 +138,12 @@ export async function importDietFromPdfAction(
           amount: ing.amount,
           unit: ing.unit,
         });
-        const grams = toGrams(ing.amount, ing.unit, ingredient.weightPerUnit);
+        const grams = convertToGrams(
+          ing.amount,
+          ing.unit,
+          ingredient.weightPerUnit,
+          ingredient.defaultUnit,
+        );
         const factor = grams / 100;
         calories += (ingredient.caloriesPer100g ?? 0) * factor;
         protein += (ingredient.proteinPer100g ?? 0) * factor;
