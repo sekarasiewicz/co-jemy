@@ -95,66 +95,64 @@ export async function importDietFromPdfAction(
 
   let ingredientsCreated = 0;
   if (neededByName.size > 0) {
-    // Group needed names by their recipe unit for batched, unit-forced enrich.
-    const byUnit = new Map<string, string[]>();
-    for (const { name, unit } of neededByName.values()) {
-      const list = byUnit.get(unit) ?? [];
-      list.push(name);
-      byUnit.set(unit, list);
-    }
-
+    // Single enrich call for macros + category. weightPerUnit comes from the
+    // PDF gram hints (authoritative), so no per-unit forced enrich is needed.
     const enrichedByName = new Map<
       string,
       Awaited<ReturnType<typeof enrichIngredients>>[number]
     >();
-    for (const [unit, names] of byUnit) {
-      try {
-        const enriched = await enrichIngredients(names, unit);
-        for (const e of enriched) {
-          enrichedByName.set(e.name.toLowerCase(), e);
-        }
-      } catch {
-        errors.push(
-          `Nie udało się wzbogacić składników (${unit}) — utworzono bez makr`,
-        );
+    try {
+      const enriched = await enrichIngredients(
+        [...neededByName.values()].map((n) => n.name),
+      );
+      for (const e of enriched) {
+        enrichedByName.set(e.name.toLowerCase(), e);
       }
+    } catch {
+      errors.push("Nie udało się wzbogacić składników — utworzono bez makr");
     }
 
-    for (const { name, unit, amount, grams } of neededByName.values()) {
-      const e = enrichedByName.get(name.toLowerCase());
-      // Prefer the exact per-unit weight from the PDF ("(75g)") over the AI
-      // estimate, for piece-like units where convertToGrams uses weightPerUnit.
-      const pdfWeightPerUnit =
-        grams > 0 && amount > 0 && WEIGHT_PER_UNIT_UNITS.has(unit)
-          ? round(grams / amount)
-          : null;
-      const created = await createIngredient(userId, {
-        name,
-        category: e?.category ?? "Inne",
-        // Ensure defaultUnit matches the recipe unit so convertToGrams applies
-        // weightPerUnit (it only does when unit === defaultUnit).
-        defaultUnit: pdfWeightPerUnit ? unit : (e?.defaultUnit ?? unit),
-        caloriesPer100g: e?.caloriesPer100g ?? null,
-        proteinPer100g: e?.proteinPer100g ?? null,
-        carbsPer100g: e?.carbsPer100g ?? null,
-        fatPer100g: e?.fatPer100g ?? null,
-        weightPerUnit: pdfWeightPerUnit ?? e?.weightPerUnit ?? null,
-      });
-      ingredientByName.set(name.toLowerCase(), created);
-      ingredientsCreated++;
+    // Create all missing ingredients concurrently.
+    const created = await Promise.all(
+      [...neededByName.values()].map(({ name, unit, amount, grams }) => {
+        const e = enrichedByName.get(name.toLowerCase());
+        // Prefer the exact per-unit weight from the PDF ("(75g)") over the AI
+        // estimate, for piece-like units where convertToGrams uses weightPerUnit.
+        const pdfWeightPerUnit =
+          grams > 0 && amount > 0 && WEIGHT_PER_UNIT_UNITS.has(unit)
+            ? round(grams / amount)
+            : null;
+        return createIngredient(userId, {
+          name,
+          category: e?.category ?? "Inne",
+          // defaultUnit must match the recipe unit so convertToGrams applies
+          // weightPerUnit (it only does when unit === defaultUnit).
+          defaultUnit: pdfWeightPerUnit ? unit : (e?.defaultUnit ?? unit),
+          caloriesPer100g: e?.caloriesPer100g ?? null,
+          proteinPer100g: e?.proteinPer100g ?? null,
+          carbsPer100g: e?.carbsPer100g ?? null,
+          fatPer100g: e?.fatPer100g ?? null,
+          weightPerUnit: pdfWeightPerUnit ?? e?.weightPerUnit ?? null,
+        });
+      }),
+    );
+    for (const ing of created) {
+      ingredientByName.set(ing.name.toLowerCase(), ing);
     }
+    ingredientsCreated = created.length;
     ingredients = [...ingredients];
   }
 
   // 2. Create meals (dedup by name), computing macros from ingredient gramature.
   const mealIdByName = new Map<string, string>();
-  let mealsCreated = 0;
-
+  const uniqueMeals = new Map<string, (typeof diet.meals)[number]>();
   for (const meal of diet.meals) {
     const key = meal.name.toLowerCase();
-    if (mealIdByName.has(key)) continue;
+    if (!uniqueMeals.has(key)) uniqueMeals.set(key, meal);
+  }
 
-    try {
+  const createdMeals = await Promise.all(
+    [...uniqueMeals.entries()].map(async ([key, meal]) => {
       const mealType = mealTypes.find(
         (mt) => mt.name.toLowerCase() === meal.mealTypeName.toLowerCase(),
       );
@@ -190,47 +188,58 @@ export async function importDietFromPdfAction(
         fat += (ingredient.fatPer100g ?? 0) * factor;
       }
 
-      const created = await createMeal(userId, {
-        name: meal.name,
-        instructions: meal.instructions || null,
-        servings: 1,
-        calories: Math.round(calories),
-        protein: round(protein),
-        carbs: round(carbs),
-        fat: round(fat),
-        mealTypeIds: mealType ? [mealType.id] : [],
-        ingredientsList,
-      });
-      mealIdByName.set(key, created.id);
-      mealsCreated++;
-    } catch {
-      errors.push(`Nie udało się utworzyć dania: ${meal.name}`);
-    }
-  }
-
-  // 3. Build the weekly plan for the chosen profile.
-  const startDate = new Date(startDateIso);
-  const plannedDays = new Set<number>();
-
-  for (const day of diet.plan) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + day.dayIndex);
-
-    try {
-      const plan = await getOrCreateDailyPlan(userId, profileId, date);
-      for (const item of day.meals) {
-        const mealId = mealIdByName.get(item.mealName.toLowerCase());
-        const mealType = mealTypes.find(
-          (mt) => mt.name.toLowerCase() === item.mealTypeName.toLowerCase(),
-        );
-        if (!mealId || !mealType) continue;
-        await addMealToPlan(plan.id, mealId, mealType.id, 1);
+      try {
+        const created = await createMeal(userId, {
+          name: meal.name,
+          instructions: meal.instructions || null,
+          servings: 1,
+          calories: Math.round(calories),
+          protein: round(protein),
+          carbs: round(carbs),
+          fat: round(fat),
+          mealTypeIds: mealType ? [mealType.id] : [],
+          ingredientsList,
+        });
+        return { key, id: created.id };
+      } catch {
+        errors.push(`Nie udało się utworzyć dania: ${meal.name}`);
+        return null;
       }
-      plannedDays.add(day.dayIndex);
-    } catch {
-      errors.push(`Nie udało się zaplanować dnia ${day.dayIndex + 1}`);
-    }
+    }),
+  );
+
+  for (const m of createdMeals) {
+    if (m) mealIdByName.set(m.key, m.id);
   }
+  const mealsCreated = mealIdByName.size;
+
+  // 3. Build the weekly plan for the chosen profile (days run concurrently;
+  //    each day has a distinct date so getOrCreateDailyPlan can't collide).
+  const startDate = new Date(startDateIso);
+  const plannedResults = await Promise.all(
+    diet.plan.map(async (day) => {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + day.dayIndex);
+      try {
+        const plan = await getOrCreateDailyPlan(userId, profileId, date);
+        await Promise.all(
+          day.meals.map((item) => {
+            const mealId = mealIdByName.get(item.mealName.toLowerCase());
+            const mealType = mealTypes.find(
+              (mt) => mt.name.toLowerCase() === item.mealTypeName.toLowerCase(),
+            );
+            if (!mealId || !mealType) return Promise.resolve();
+            return addMealToPlan(plan.id, mealId, mealType.id, 1);
+          }),
+        );
+        return true;
+      } catch {
+        errors.push(`Nie udało się zaplanować dnia ${day.dayIndex + 1}`);
+        return false;
+      }
+    }),
+  );
+  const plannedDays = plannedResults.filter(Boolean).length;
 
   revalidatePath("/meals");
   revalidatePath("/planner");
@@ -239,7 +248,7 @@ export async function importDietFromPdfAction(
   return {
     mealsCreated,
     ingredientsCreated,
-    daysPlanned: plannedDays.size,
+    daysPlanned: plannedDays,
     errors,
   };
 }

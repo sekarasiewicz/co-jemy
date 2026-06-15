@@ -3,6 +3,9 @@ import { getSession } from "@/app/actions/auth";
 import { getProfilesByUserId } from "@/lib/services/profiles";
 import { ImportDietForm } from "./import-diet-form";
 
+// PDF extraction + enrichment can take a while; use the max function budget.
+export const maxDuration = 300;
+
 export default async function ImportDietPage() {
   const session = await getSession();
   if (!session?.user) {
