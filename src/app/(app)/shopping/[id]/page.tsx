@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getShoppingListAction } from "@/app/actions/shopping";
+import { DeleteListButton } from "../delete-list-button";
 import { ShoppingListView } from "./shopping-list-view";
 
 export default async function ShoppingListPage({
@@ -26,7 +27,14 @@ export default async function ShoppingListPage({
         Powrót do list
       </Link>
 
-      <h1 className="text-2xl font-bold text-foreground mb-6">{list.name}</h1>
+      <div className="flex items-center justify-between gap-2 mb-6">
+        <h1 className="text-2xl font-bold text-foreground">{list.name}</h1>
+        <DeleteListButton
+          listId={list.id}
+          name={list.name}
+          redirectTo="/shopping"
+        />
+      </div>
 
       <ShoppingListView list={list} />
     </div>
