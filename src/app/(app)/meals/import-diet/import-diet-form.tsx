@@ -9,7 +9,7 @@ import {
   type DietImportResult,
   importDietFromPdfAction,
 } from "@/app/actions/diet-import";
-import { Button, Card, CardContent, Input, Select } from "@/components/ui";
+import { Button, Card, CardContent, DatePicker, Select } from "@/components/ui";
 
 interface ImportDietFormProps {
   profiles: { id: string; name: string }[];
@@ -142,11 +142,10 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
             placeholder="Wybierz profil"
           />
 
-          <Input
+          <DatePicker
             label="Początek tygodnia"
-            type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={setStartDate}
           />
         </CardContent>
       </Card>

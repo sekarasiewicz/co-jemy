@@ -2,6 +2,7 @@ export { Badge } from "./badge";
 export type { ButtonProps } from "./button";
 export { Button } from "./button";
 export { Card, CardContent, CardFooter, CardHeader } from "./card";
+export { DatePicker } from "./date-picker";
 export type { CheckboxProps } from "./checkbox";
 export { Checkbox } from "./checkbox";
 export { Combobox } from "./combobox";
