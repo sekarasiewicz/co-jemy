@@ -78,7 +78,11 @@ export async function importDietFromPdfAction(
   for (const meal of diet.meals) {
     for (const ing of meal.ingredients) {
       const key = ing.name.toLowerCase();
-      if (!ingredientByName.has(key) && !neededByName.has(key)) {
+      if (ingredientByName.has(key)) continue;
+      const existing = neededByName.get(key);
+      // Capture first occurrence, but prefer one that carries a "(Ng)" gram
+      // hint so weightPerUnit can be derived even if another meal omits it.
+      if (!existing || (existing.grams <= 0 && ing.grams > 0)) {
         neededByName.set(key, {
           name: ing.name,
           unit: ing.unit,
