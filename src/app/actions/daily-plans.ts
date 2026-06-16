@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import {
   addMealToPlan,
+  duplicateDayShiftForward,
   getDailyPlanByDate,
   getDailyPlansByDateRange,
   getDailyPlansForAllProfiles,
   getOrCreateDailyPlan,
   removeMealFromPlan,
+  swapDailyPlans,
   toggleMealCompleted,
   updatePlanMealServings,
 } from "@/lib/services/daily-plans";
@@ -91,6 +93,32 @@ export async function updatePlanMealServingsAction(
   const planMeal = await updatePlanMealServings(planMealId, servings);
   revalidatePath("/planner");
   return planMeal;
+}
+
+export async function swapDailyPlansAction(data: {
+  profileId: string;
+  dateA: Date;
+  dateB: Date;
+}): Promise<void> {
+  const session = await requireAuth();
+  await swapDailyPlans(
+    session.user.id,
+    data.profileId,
+    data.dateA,
+    data.dateB,
+  );
+  revalidatePath("/today");
+  revalidatePath("/planner");
+}
+
+export async function duplicateDayShiftForwardAction(data: {
+  profileId: string;
+  date: Date;
+}): Promise<void> {
+  const session = await requireAuth();
+  await duplicateDayShiftForward(session.user.id, data.profileId, data.date);
+  revalidatePath("/today");
+  revalidatePath("/planner");
 }
 
 export async function fillPlannerAction(data: {

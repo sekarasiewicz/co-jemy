@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  ArrowLeftRight,
   Calendar,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   Flame,
   Plus,
   ShoppingCart,
@@ -19,13 +21,22 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   addMealToPlanAction,
+  duplicateDayShiftForwardAction,
   getDailyPlanAction,
   removeMealFromPlanAction,
+  swapDailyPlansAction,
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
 import { generateShoppingListAction } from "@/app/actions/shopping";
-import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DatePicker,
+  Modal,
+} from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import { cn, convertToGrams, formatAmount, formatMinutes, getTodayNoon } from "@/lib/utils";
 import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType, MealWithRelations } from "@/types";
@@ -108,6 +119,63 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   };
 
   const isToday = selectedDate.toDateString() === getTodayNoon().toDateString();
+
+  const [showSwap, setShowSwap] = useState(false);
+  const [swapDate, setSwapDate] = useState("");
+  const [dayActionLoading, setDayActionLoading] = useState(false);
+
+  const reloadPlan = async () => {
+    if (!activeProfile) return;
+    const updated = await getDailyPlanAction(activeProfile.id, selectedDate);
+    setPlan(updated || null);
+  };
+
+  const handleDuplicateDay = async () => {
+    if (!activeProfile) return;
+    setDayActionLoading(true);
+    try {
+      await duplicateDayShiftForwardAction({
+        profileId: activeProfile.id,
+        date: selectedDate,
+      });
+      toast.success("Skopiowano dzień, kolejne przesunięto");
+      await reloadPlan();
+    } catch {
+      toast.error("Nie udało się skopiować dnia");
+    } finally {
+      setDayActionLoading(false);
+    }
+  };
+
+  const handleSwap = async () => {
+    if (!activeProfile || !swapDate) return;
+    setDayActionLoading(true);
+    try {
+      const [y, m, d] = swapDate.split("-").map(Number);
+      const target = new Date(y, m - 1, d, 12, 0, 0, 0);
+      await swapDailyPlansAction({
+        profileId: activeProfile.id,
+        dateA: selectedDate,
+        dateB: target,
+      });
+      toast.success("Zamieniono dni");
+      setShowSwap(false);
+      await reloadPlan();
+    } catch {
+      toast.error("Nie udało się zamienić dni");
+    } finally {
+      setDayActionLoading(false);
+    }
+  };
+
+  const openSwap = () => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    setSwapDate(
+      `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`,
+    );
+    setShowSwap(true);
+  };
 
   const handleAddMeal = async (mealId: string) => {
     if (!addingMealType || !activeProfile) return;
@@ -377,6 +445,30 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
         </div>
       )}
 
+      {/* Day operations */}
+      {!loading && (plan?.meals.length ?? 0) > 0 && (
+        <div className="mb-4 flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleDuplicateDay}
+            disabled={dayActionLoading}
+          >
+            <Copy className="w-4 h-4 mr-2" />
+            Kopiuj dzień →
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={openSwap}
+            disabled={dayActionLoading}
+          >
+            <ArrowLeftRight className="w-4 h-4 mr-2" />
+            Zamień z…
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">
           Ładowanie...
@@ -603,6 +695,41 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Swap day Modal */}
+      <Modal
+        isOpen={showSwap}
+        onClose={() => !dayActionLoading && setShowSwap(false)}
+        title="Zamień dzień"
+      >
+        <p className="text-muted-foreground mb-4">
+          Plan z <strong className="text-foreground">{formatDate(selectedDate)}</strong>{" "}
+          zostanie zamieniony miejscami z wybranym dniem.
+        </p>
+        <DatePicker
+          label="Zamień z dniem"
+          value={swapDate}
+          onChange={setSwapDate}
+          className="mb-6"
+        />
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowSwap(false)}
+            disabled={dayActionLoading}
+            className="flex-1"
+          >
+            Anuluj
+          </Button>
+          <Button
+            onClick={handleSwap}
+            disabled={dayActionLoading || !swapDate}
+            className="flex-1"
+          >
+            {dayActionLoading ? "Zamiana..." : "Zamień"}
+          </Button>
+        </div>
       </Modal>
     </div>
   );
