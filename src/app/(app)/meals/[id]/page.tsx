@@ -205,30 +205,30 @@ export default async function MealPage({
                 return (
                   <li
                     key={mi.id}
-                    className="flex items-center justify-between gap-2"
+                    className="flex items-center justify-between gap-3"
                   >
-                    <div className="flex items-center gap-2 text-foreground min-w-0">
+                    <div className="flex items-center gap-2 text-foreground min-w-0 flex-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                      <span className="truncate">
-                        {mi.ingredient.name}{" "}
-                        <span className="text-muted-foreground">
-                          — {formatAmount(mi.amount)} {mi.unit}
-                          {n.grams > 0 &&
-                            !["g", "kg", "ml", "l"].includes(mi.unit) &&
-                            ` (${n.grams} g)`}
-                        </span>
-                      </span>
+                      <span className="truncate">{mi.ingredient.name}</span>
                     </div>
-                    {n.calories > 0 && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                        {n.calories} kcal
-                        {(n.protein > 0 || n.carbs > 0 || n.fat > 0) && (
-                          <span className="ml-1 hidden sm:inline">
-                            (B:{n.protein} W:{n.carbs} T:{n.fat})
-                          </span>
-                        )}
+                    <div className="flex items-center gap-2 flex-shrink-0 text-sm">
+                      <span className="text-muted-foreground whitespace-nowrap">
+                        {formatAmount(mi.amount)} {mi.unit}
+                        {n.grams > 0 &&
+                          !["g", "kg", "ml", "l"].includes(mi.unit) &&
+                          ` (${n.grams} g)`}
                       </span>
-                    )}
+                      {n.calories > 0 && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          · {n.calories} kcal
+                          {(n.protein > 0 || n.carbs > 0 || n.fat > 0) && (
+                            <span className="ml-1 hidden sm:inline">
+                              (B:{n.protein} W:{n.carbs} T:{n.fat})
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 );
               })}
