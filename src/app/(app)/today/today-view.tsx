@@ -3,6 +3,8 @@
 import {
   Calendar,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Flame,
   Plus,
@@ -82,20 +84,30 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   const [randomizingMealType, setRandomizingMealType] = useState<string | null>(null);
   const [randomizingAll, setRandomizingAll] = useState(false);
 
-  const today = getTodayNoon();
+  const [selectedDate, setSelectedDate] = useState(getTodayNoon());
 
   useEffect(() => {
     if (!activeProfile) return;
 
     const loadPlan = async () => {
       setLoading(true);
-      const dailyPlan = await getDailyPlanAction(activeProfile.id, today);
+      const dailyPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
       setPlan(dailyPlan || null);
       setLoading(false);
     };
 
     loadPlan();
-  }, [activeProfile]);
+  }, [activeProfile, selectedDate]);
+
+  const shiftDay = (delta: number) => {
+    setSelectedDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(next.getDate() + delta);
+      return next;
+    });
+  };
+
+  const isToday = selectedDate.toDateString() === getTodayNoon().toDateString();
 
   const handleAddMeal = async (mealId: string) => {
     if (!addingMealType || !activeProfile) return;
@@ -103,12 +115,12 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
     try {
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date: today,
+        date: selectedDate,
         mealId,
         mealTypeId: addingMealType.id,
       });
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
       setPlan(updatedPlan || null);
       setAddingMealType(null);
       toast.success("Dodano do planu");
@@ -122,7 +134,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
     try {
       await removeMealFromPlanAction(planMealId);
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
       setPlan(updatedPlan || null);
       toast.success("Usunięto z planu");
     } catch {
@@ -138,7 +150,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
     await toggleMealCompletedAction(planMealId, !completed);
 
-    const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+    const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
     setPlan(updatedPlan || null);
   };
 
@@ -157,14 +169,14 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
     if (!activeProfile) return;
     setGeneratingList(true);
     try {
-      const dateStr = today.toLocaleDateString("pl-PL", {
+      const dateStr = selectedDate.toLocaleDateString("pl-PL", {
         day: "numeric",
         month: "long",
       });
       const list = await generateShoppingListAction({
         profileIds: [activeProfile.id],
-        dateFrom: today,
-        dateTo: today,
+        dateFrom: selectedDate,
+        dateTo: selectedDate,
         name: `Zakupy - ${dateStr}`,
       });
       router.push(`/shopping/${list.id}`);
@@ -187,12 +199,12 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date: today,
+        date: selectedDate,
         mealId: meal.id,
         mealTypeId: mealType.id,
       });
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
       setPlan(updatedPlan || null);
       toast.success(`Wylosowano: ${meal.name}`);
     } catch {
@@ -218,14 +230,14 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
         await addMealToPlanAction({
           profileId: activeProfile.id,
-          date: today,
+          date: selectedDate,
           mealId: meal.id,
           mealTypeId: mealType.id,
         });
         count++;
       }
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, today);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
       setPlan(updatedPlan || null);
 
       if (count > 0) {
@@ -276,9 +288,36 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="text-center mb-8">
-        <p className="text-muted-foreground mb-1">
-          {formatDate(today)}
-        </p>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <button
+            type="button"
+            onClick={() => shiftDay(-1)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Poprzedni dzień"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <p className="text-muted-foreground capitalize min-w-[12rem]">
+            {formatDate(selectedDate)}
+          </p>
+          <button
+            type="button"
+            onClick={() => shiftDay(1)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Następny dzień"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+        {!isToday && (
+          <button
+            type="button"
+            onClick={() => setSelectedDate(getTodayNoon())}
+            className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mb-1"
+          >
+            Wróć do dziś
+          </button>
+        )}
         <h1 className="text-3xl font-bold text-foreground">
           Cześć, {activeProfile.name}!
         </h1>
