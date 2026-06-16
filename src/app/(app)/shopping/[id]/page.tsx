@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getShoppingListAction } from "@/app/actions/shopping";
 import { DeleteListButton } from "../delete-list-button";
 import { ShoppingListView } from "./shopping-list-view";
@@ -13,8 +13,10 @@ export default async function ShoppingListPage({
   const { id } = await params;
   const list = await getShoppingListAction(id);
 
+  // List was deleted or never existed — send the user back to the overview
+  // instead of a dead-end 404 (e.g. opening a stale/deleted list link).
   if (!list) {
-    notFound();
+    redirect("/shopping");
   }
 
   return (
