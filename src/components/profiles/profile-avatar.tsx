@@ -29,6 +29,25 @@ export function ProfileAvatar({
     .toUpperCase()
     .slice(0, 2);
 
+  const isImage =
+    !!avatar && (avatar.startsWith("http") || avatar.startsWith("/"));
+
+  if (isImage) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatar as string}
+        alt={name}
+        className={cn(
+          "rounded-full object-cover",
+          sizes[size],
+          className,
+        )}
+        style={{ backgroundColor: color }}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox, Input } from "@/components/ui";
+import { Button, Checkbox, ImageUpload, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/types";
 import { PROFILE_COLORS } from "@/types";
@@ -80,9 +80,22 @@ export function ProfileForm({ profile, onSubmit, onCancel }: ProfileFormProps) {
         required
       />
 
+      <ImageUpload
+        label="Zdjęcie profilu"
+        value={
+          avatar && (avatar.startsWith("http") || avatar.startsWith("/"))
+            ? avatar
+            : ""
+        }
+        onChange={setAvatar}
+        folder="profiles"
+        aspect="square"
+        className="max-w-48"
+      />
+
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
-          Avatar
+          lub wybierz emoji
         </label>
         <div className="flex flex-wrap gap-2">
           {AVATARS.map((emoji) => (

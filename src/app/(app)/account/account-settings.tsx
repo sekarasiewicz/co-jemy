@@ -12,6 +12,7 @@ import {
   ImageUpload,
   Input,
 } from "@/components/ui";
+import { syncAvatarToMatchingProfileAction } from "@/app/actions/profiles";
 import { authClient } from "@/lib/auth-client";
 
 interface AccountSettingsProps {
@@ -33,11 +34,14 @@ export function AccountSettings({ user }: AccountSettingsProps) {
   const saveProfile = async (nextImage?: string) => {
     setSavingProfile(true);
     try {
+      const finalImage = nextImage ?? image;
       const { error } = await authClient.updateUser({
         name: name.trim() || undefined,
-        image: nextImage ?? image,
+        image: finalImage,
       });
       if (error) throw new Error(error.message);
+      // Mirror the avatar onto the matching family profile.
+      await syncAvatarToMatchingProfileAction(finalImage);
       toast.success("Zapisano profil");
       router.refresh();
     } catch (e) {
