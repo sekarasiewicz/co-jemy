@@ -15,6 +15,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -577,10 +578,11 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                                 href={`/meals/${pm.meal.id}`}
                                 className="flex-shrink-0"
                               >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <Image
                                   src={pm.meal.imageUrl}
                                   alt={pm.meal.name}
+                                  width={48}
+                                  height={48}
                                   className="h-12 w-12 rounded-lg border border-border object-cover"
                                 />
                               </Link>

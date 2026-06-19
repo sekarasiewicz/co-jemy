@@ -1,4 +1,5 @@
 import { ArrowLeft, Clock, Flame, Pencil, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMealAction } from "@/app/actions/meals";
@@ -64,11 +65,14 @@ export default async function MealPage({
       </Link>
 
       {meal.imageUrl && (
-        <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted mb-6">
-          <img
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted mb-6">
+          <Image
             src={meal.imageUrl}
             alt={meal.name}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            priority
+            className="object-cover"
           />
         </div>
       )}

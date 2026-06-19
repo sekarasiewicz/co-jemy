@@ -1,6 +1,7 @@
 "use client";
 
 import { Calendar, CalendarRange, Check, Clock, Flame, Plus, Shuffle, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -501,11 +502,13 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
           )}
         >
           {result.imageUrl && (
-            <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-muted">
-              <img
+            <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-muted">
+              <Image
                 src={result.imageUrl}
                 alt={result.name}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 768px"
+                className="object-cover"
               />
             </div>
           )}

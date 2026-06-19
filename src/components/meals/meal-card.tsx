@@ -1,4 +1,5 @@
 import { Clock, Flame, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Badge, Card, CardContent } from "@/components/ui";
 import { convertToGrams, formatMinutes } from "@/lib/utils";
@@ -37,11 +38,13 @@ export function MealCard({ meal }: MealCardProps) {
     <Link href={`/meals/${meal.id}`} className="group block h-full">
       <Card className="h-full cursor-pointer overflow-hidden transition-all duration-200 group-hover:-translate-y-1 group-hover:border-primary/30 group-hover:shadow-warm">
         {meal.imageUrl && (
-          <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-muted">
-            <img
+          <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-muted">
+            <Image
               src={meal.imageUrl}
               alt={meal.name}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 20vw"
+              className="object-cover"
             />
           </div>
         )}
