@@ -412,7 +412,7 @@ export function IngredientsManager({
         <div className="mb-6 space-y-2">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 animate-pulse text-emerald-500" />
+              <Sparkles className="w-4 h-4 animate-pulse text-orange-500" />
               Uzupełnianie danych AI...
             </span>
             <span>
@@ -421,7 +421,7 @@ export function IngredientsManager({
           </div>
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
             <div
-              className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+              className="bg-orange-500 h-2 rounded-full transition-all duration-300"
               style={{
                 width: bulkProgress.total > 0
                   ? `${(bulkProgress.processed / bulkProgress.total) * 100}%`
@@ -508,7 +508,7 @@ export function IngredientsManager({
                               onClick={() => handleEnrichSingle(ing)}
                               loading={enrichingId === ing.id}
                               title="Uzupełnij dane AI"
-                              className="text-emerald-600 hover:text-emerald-700"
+                              className="text-orange-600 hover:text-orange-700"
                             >
                               <Sparkles className="w-4 h-4" />
                             </Button>
@@ -571,7 +571,7 @@ export function IngredientsManager({
                   }}
                   loading={loading}
                   title="Uzupełnij dane AI"
-                  className="text-emerald-600 hover:text-emerald-700"
+                  className="text-orange-600 hover:text-orange-700"
                 >
                   <Sparkles className="w-4 h-4" />
                 </Button>
@@ -738,7 +738,7 @@ export function IngredientsManager({
                                 [group.normalizedName]: ing.id,
                               })
                             }
-                            className="accent-emerald-600"
+                            className="accent-orange-600"
                           />
                           <span className="text-foreground">{ing.name}</span>
                           <span className="text-xs text-muted-foreground">

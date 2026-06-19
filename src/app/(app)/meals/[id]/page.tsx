@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Flame, Pencil, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Clock, Flame, Pencil, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMealAction } from "@/app/actions/meals";
@@ -81,14 +81,14 @@ export default async function MealPage({
             {meal.mealTypes.map((mt) => (
               <span
                 key={mt.id}
-                className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium"
+                className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-sm font-medium"
               >
                 {mt.name}
               </span>
             ))}
             {meal.isChildFriendly && <Badge variant="info">Dla dzieci</Badge>}
-            {meal.isVegetarian && <Badge variant="success">Wege</Badge>}
-            {meal.isVegan && <Badge variant="success">Vegan</Badge>}
+            {meal.isVegetarian && <Badge variant="fit">Wege</Badge>}
+            {meal.isVegan && <Badge variant="fit">Vegan</Badge>}
             {meal.isGlutenFree && <Badge>Bezglutenowe</Badge>}
             {meal.isLactoseFree && <Badge>Bez laktozy</Badge>}
             {meal.isQuick && <Badge>Szybkie</Badge>}
@@ -135,37 +135,45 @@ export default async function MealPage({
             <h2 className="font-semibold text-foreground mb-4">
               Wartości odżywcze (całe danie)
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {nutrition.calories != null && (
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+                <div className="rounded-xl bg-primary/10 p-3 text-center">
+                  <p className="text-2xl font-extrabold text-primary">
                     {nutrition.calories}
                   </p>
-                  <p className="text-sm text-muted-foreground">kcal</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    kcal
+                  </p>
                 </div>
               )}
               {nutrition.protein != null && (
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+                <div className="rounded-xl bg-fit/15 p-3 text-center">
+                  <p className="text-2xl font-extrabold text-lime-700 dark:text-lime-400">
                     {nutrition.protein}g
                   </p>
-                  <p className="text-sm text-muted-foreground">białko</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    białko
+                  </p>
                 </div>
               )}
               {nutrition.carbs != null && (
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+                <div className="rounded-xl bg-amber-500/12 p-3 text-center">
+                  <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
                     {nutrition.carbs}g
                   </p>
-                  <p className="text-sm text-muted-foreground">węglowodany</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    węglowodany
+                  </p>
                 </div>
               )}
               {nutrition.fat != null && (
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+                <div className="rounded-xl bg-sky-500/12 p-3 text-center">
+                  <p className="text-2xl font-extrabold text-sky-600 dark:text-sky-400">
                     {nutrition.fat}g
                   </p>
-                  <p className="text-sm text-muted-foreground">tłuszcze</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    tłuszcze
+                  </p>
                 </div>
               )}
             </div>
@@ -208,7 +216,7 @@ export default async function MealPage({
                     className="flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-2 text-foreground min-w-0 flex-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="w-2 h-2 rounded-full bg-fit flex-shrink-0" />
                       <span className="truncate">{mi.ingredient.name}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 text-sm">

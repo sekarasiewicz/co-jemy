@@ -78,7 +78,7 @@ export function LoginForm() {
           Nie masz konta?{" "}
           <Link
             href="/auth/register"
-            className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium"
+            className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 font-medium"
           >
             Zarejestruj się
           </Link>

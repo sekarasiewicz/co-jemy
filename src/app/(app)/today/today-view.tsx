@@ -381,13 +381,13 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
           <button
             type="button"
             onClick={() => setSelectedDate(getTodayNoon())}
-            className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mb-1"
+            className="text-xs text-orange-600 dark:text-orange-400 hover:underline mb-1"
           >
             Wróć do dziś
           </button>
         )}
-        <h1 className="text-3xl font-bold text-foreground">
-          Cześć, {activeProfile.name}!
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+          Cześć, <span className="text-gradient-brand">{activeProfile.name}</span>!
         </h1>
         {totalMeals > 0 && (
           <p className="text-muted-foreground mt-2">
@@ -400,30 +400,34 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
       {totals.calories > 0 && (
         <Card className="mb-6">
           <CardContent className="py-4">
-            <div className="grid grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold text-foreground">
+            <div className="grid grid-cols-4 gap-3 text-center">
+              <div className="rounded-xl bg-primary/10 py-2">
+                <p className="text-2xl font-extrabold text-primary">
                   {Math.round(totals.calories)}
                 </p>
-                <p className="text-xs text-muted-foreground">kcal</p>
+                <p className="text-xs font-medium text-muted-foreground">kcal</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
+              <div className="rounded-xl bg-fit/15 py-2">
+                <p className="text-2xl font-extrabold text-lime-700 dark:text-lime-400">
                   {Math.round(totals.protein)}g
                 </p>
-                <p className="text-xs text-muted-foreground">białko</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  białko
+                </p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
+              <div className="rounded-xl bg-amber-500/12 py-2">
+                <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
                   {Math.round(totals.carbs)}g
                 </p>
-                <p className="text-xs text-muted-foreground">węgle</p>
+                <p className="text-xs font-medium text-muted-foreground">węgle</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
+              <div className="rounded-xl bg-sky-500/12 py-2">
+                <p className="text-2xl font-extrabold text-sky-600 dark:text-sky-400">
                   {Math.round(totals.fat)}g
                 </p>
-                <p className="text-xs text-muted-foreground">tłuszcze</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  tłuszcze
+                </p>
               </div>
             </div>
           </CardContent>
@@ -508,7 +512,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                   {planMeals.length === 0 ? (
                     <button
                       onClick={() => setAddingMealType(mealType)}
-                      className="w-full py-6 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      className="w-full py-6 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                       <Plus className="w-5 h-5 mx-auto mb-1" />
                       <span className="text-sm">Dodaj {mealType.name.toLowerCase()}</span>
@@ -524,9 +528,9 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                           <div
                             key={pm.id}
                             className={cn(
-                              "flex flex-wrap items-center gap-3 p-3 rounded-lg border transition-colors",
+                              "flex flex-wrap items-center gap-3 p-3 rounded-xl border transition-colors",
                               pm.completed
-                                ? "bg-emerald-500/10 border-emerald-500/30"
+                                ? "bg-fit/10 border-fit/30"
                                 : "bg-card border-border"
                             )}
                           >
@@ -537,8 +541,8 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                               className={cn(
                                 "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
                                 pm.completed
-                                  ? "bg-emerald-500 border-emerald-500 text-white"
-                                  : "border-muted-foreground hover:border-emerald-500"
+                                  ? "bg-fit border-fit text-white"
+                                  : "border-muted-foreground hover:border-fit"
                               )}
                             >
                               {pm.completed && <Check className="w-4 h-4" />}
@@ -552,7 +556,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                                 className={cn(
                                   "font-medium truncate",
                                   pm.completed
-                                    ? "text-emerald-600 dark:text-emerald-400 line-through"
+                                    ? "text-lime-700 dark:text-lime-400 line-through"
                                     : "text-foreground"
                                 )}
                               >
@@ -668,7 +672,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                 <button
                   key={meal.id}
                   onClick={() => handleAddMeal(meal.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-emerald-500 hover:bg-emerald-500/10 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-orange-500 hover:bg-orange-500/10 transition-colors text-left"
                 >
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{meal.name}</p>
@@ -679,7 +683,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                         </span>
                       )}
                       {meal.isVegetarian && (
-                        <Badge size="sm" variant="success">
+                        <Badge size="sm" variant="fit">
                           Wege
                         </Badge>
                       )}

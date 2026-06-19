@@ -159,7 +159,7 @@ export function MealsList({ meals, mealTypes, tags }: MealsListProps) {
                     className={cn(
                       "px-3 py-1 rounded-full text-sm transition-colors",
                       selectedMealTypeIds.includes(mt.id)
-                        ? "bg-emerald-600 text-white"
+                        ? "bg-orange-600 text-white"
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     )}
                   >

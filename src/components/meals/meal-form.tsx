@@ -493,7 +493,7 @@ export function MealForm({
                 className={cn(
                   "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                   selectedMealTypeIds.includes(mt.id)
-                    ? "bg-emerald-600 text-white dark:bg-emerald-500"
+                    ? "bg-orange-600 text-white dark:bg-orange-500"
                     : "bg-muted text-muted-foreground hover:bg-muted/80",
                 )}
               >

@@ -3,6 +3,7 @@
 import {
   Apple,
   Calendar,
+  ChefHat,
   Home,
   LogOut,
   ShoppingCart,
@@ -37,14 +38,16 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-background border-b border-border">
+    <nav className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-2xl">🍽️</span>
-              <span className="font-bold text-xl text-foreground">
-                co jemy?
+            <Link href="/" className="group flex items-center gap-2.5">
+              <span className="bg-brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-warm transition-transform duration-200 group-hover:scale-105 group-hover:-rotate-6">
+                <ChefHat className="h-5 w-5" />
+              </span>
+              <span className="text-xl font-extrabold tracking-tight text-foreground">
+                co <span className="text-gradient-brand">jemy?</span>
               </span>
             </Link>
 
@@ -58,10 +61,10 @@ export function Navbar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold transition-all duration-200",
                       isActive
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                        ? "bg-primary/12 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_30%,transparent)]"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     <Icon className="w-4 h-4" />
@@ -72,21 +75,22 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {activeProfile && <ProfileSwitcher />}
 
             <ModeToggle />
 
             <Link
               href="/profiles/manage"
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+              className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <User className="w-5 h-5" />
             </Link>
 
             <button
+              type="button"
               onClick={handleLogout}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+              className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -95,8 +99,8 @@ export function Navbar() {
       </div>
 
       {/* Mobile nav */}
-      <div className="md:hidden border-t border-border">
-        <div className="flex justify-around py-2">
+      <div className="md:hidden border-t border-border/70 bg-background/80 backdrop-blur-xl">
+        <div className="flex justify-around py-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
@@ -106,13 +110,20 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium",
+                  "flex flex-col items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold transition-colors",
                   isActive
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground",
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className="w-5 h-5" />
+                <span
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+                    isActive && "bg-primary/12",
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                </span>
                 {item.label}
               </Link>
             );

@@ -34,10 +34,10 @@ export function MealCard({ meal }: MealCardProps) {
   const fat = meal.fat ?? (computed && computed.fat > 0 ? Math.round(computed.fat * 10) / 10 : null);
 
   return (
-    <Link href={`/meals/${meal.id}`}>
-      <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+    <Link href={`/meals/${meal.id}`} className="group block h-full">
+      <Card className="h-full cursor-pointer overflow-hidden transition-all duration-200 group-hover:-translate-y-1 group-hover:border-primary/30 group-hover:shadow-warm">
         {meal.imageUrl && (
-          <div className="aspect-video w-full overflow-hidden rounded-t-xl bg-muted">
+          <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-muted">
             <img
               src={meal.imageUrl}
               alt={meal.name}
@@ -46,12 +46,14 @@ export function MealCard({ meal }: MealCardProps) {
           </div>
         )}
         <CardContent className={meal.imageUrl ? "pt-3" : ""}>
-          <h3 className="font-semibold text-foreground mb-2">{meal.name}</h3>
+          <h3 className="font-semibold text-foreground mb-2 transition-colors group-hover:text-primary">
+            {meal.name}
+          </h3>
 
           <div className="flex flex-wrap gap-2 mb-3">
             {meal.isChildFriendly && <Badge variant="info">Dla dzieci</Badge>}
-            {meal.isVegetarian && <Badge variant="success">Wege</Badge>}
-            {meal.isVegan && <Badge variant="success">Vegan</Badge>}
+            {meal.isVegetarian && <Badge variant="fit">Wege</Badge>}
+            {meal.isVegan && <Badge variant="fit">Vegan</Badge>}
             {meal.isQuick && <Badge>Szybkie</Badge>}
           </div>
 
@@ -67,7 +69,7 @@ export function MealCard({ meal }: MealCardProps) {
               <span>{meal.servings} porcji</span>
             </div>
             {calories && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 font-medium text-primary">
                 <Flame className="w-4 h-4" />
                 <span>{calories} kcal</span>
               </div>

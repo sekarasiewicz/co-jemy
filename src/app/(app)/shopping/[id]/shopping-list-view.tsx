@@ -75,7 +75,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
         </span>
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1">
-            <Check className="w-4 h-4 text-emerald-500" />
+            <Check className="w-4 h-4 text-orange-500" />
             Kupione
           </span>
           <span className="flex items-center gap-1">
@@ -110,7 +110,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                     key={item.id}
                     className={cn(
                       "flex items-center gap-3 p-2 rounded-lg transition-colors",
-                      item.checked && "bg-emerald-500/10",
+                      item.checked && "bg-orange-500/10",
                       item.inPantry && "bg-blue-500/10",
                     )}
                   >
@@ -119,8 +119,8 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                       className={cn(
                         "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
                         item.checked
-                          ? "bg-emerald-500 border-emerald-500"
-                          : "border-border hover:border-emerald-500",
+                          ? "bg-orange-500 border-orange-500"
+                          : "border-border hover:border-orange-500",
                       )}
                     >
                       {item.checked && <Check className="w-4 h-4 text-white" />}

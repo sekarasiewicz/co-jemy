@@ -84,8 +84,8 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-          <Sparkles className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+          <Sparkles className="w-6 h-6 text-orange-600 dark:text-orange-400" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -107,9 +107,9 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
             className="hidden"
           />
           {fileName ? (
-            <div className="border-2 border-emerald-500/30 bg-emerald-500/5 rounded-lg p-6 flex items-center justify-between">
+            <div className="border-2 border-orange-500/30 bg-orange-500/5 rounded-lg p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 <span className="font-medium text-foreground">{fileName}</span>
               </div>
               <button
@@ -124,7 +124,7 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-12 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              className="w-full py-12 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
             >
               <FileUp className="w-8 h-8 mx-auto mb-2" />
               <span className="text-sm font-medium block">
@@ -153,7 +153,7 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
       {result && (
         <Card className="mb-6">
           <CardContent className="pt-6 space-y-1">
-            <p className="text-emerald-600 dark:text-emerald-400 font-medium">
+            <p className="text-orange-600 dark:text-orange-400 font-medium">
               Dania: {result.mealsCreated} · Składniki:{" "}
               {result.ingredientsCreated} · Dni: {result.daysPlanned}
             </p>

@@ -63,7 +63,7 @@ export function ProfileSwitcher() {
               }}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50",
-                profile.id === activeProfile.id && "bg-emerald-500/10",
+                profile.id === activeProfile.id && "bg-orange-500/10",
               )}
             >
               <ProfileAvatar

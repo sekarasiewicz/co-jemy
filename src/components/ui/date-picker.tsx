@@ -208,7 +208,7 @@ export function DatePicker({
                     className={cn(
                       "h-9 rounded-md text-sm transition-colors",
                       isSelected
-                        ? "bg-emerald-500 text-white font-medium hover:bg-emerald-600"
+                        ? "bg-orange-500 text-white font-medium hover:bg-orange-600"
                         : "text-foreground hover:bg-muted",
                     )}
                   >

@@ -34,7 +34,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
               "w-5 h-5 border-2 rounded flex items-center justify-center transition-colors",
               "peer-focus:ring-2 peer-focus:ring-ring peer-focus:ring-offset-1 peer-focus:ring-offset-background",
               checked
-                ? "bg-emerald-600 border-emerald-600 dark:bg-emerald-500 dark:border-emerald-500"
+                ? "bg-orange-600 border-orange-600 dark:bg-orange-500 dark:border-orange-500"
                 : "bg-background border-input",
             )}
           >

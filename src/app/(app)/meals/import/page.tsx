@@ -121,8 +121,8 @@ export default function ImportMealsPage() {
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-          <FileText className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+          <FileText className="w-6 h-6 text-orange-600 dark:text-orange-400" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Import z Markdown</h1>
@@ -201,10 +201,10 @@ export default function ImportMealsPage() {
                 className="hidden"
               />
               {fileName ? (
-                <div className="border-2 border-emerald-500/30 bg-emerald-500/5 rounded-lg p-6">
+                <div className="border-2 border-orange-500/30 bg-orange-500/5 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                       <span className="font-medium text-foreground">{fileName}</span>
                     </div>
                     <button
@@ -223,7 +223,7 @@ export default function ImportMealsPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-12 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  className="w-full py-12 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                 >
                   <FileUp className="w-8 h-8 mx-auto mb-2" />
                   <span className="text-sm font-medium block">Kliknij, aby wybrać plik</span>
@@ -239,7 +239,7 @@ export default function ImportMealsPage() {
         <Card className="mb-6">
           <CardContent className="pt-6">
             {result.imported > 0 && (
-              <p className="text-emerald-600 dark:text-emerald-400 font-medium mb-2">
+              <p className="text-orange-600 dark:text-orange-400 font-medium mb-2">
                 Zaimportowano {result.imported}{" "}
                 {result.imported === 1
                   ? "przepis"

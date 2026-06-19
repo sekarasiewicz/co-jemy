@@ -93,7 +93,7 @@ export function ProfileForm({ profile, onSubmit, onCancel }: ProfileFormProps) {
               className={cn(
                 "w-10 h-10 text-xl rounded-lg border-2 transition-colors",
                 avatar === emoji
-                  ? "border-emerald-500 bg-emerald-500/10"
+                  ? "border-orange-500 bg-orange-500/10"
                   : "border-border hover:border-muted-foreground",
               )}
             >

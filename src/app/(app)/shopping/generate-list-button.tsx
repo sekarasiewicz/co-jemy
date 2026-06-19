@@ -96,7 +96,7 @@ export function GenerateListButton({ profiles }: GenerateListButtonProps) {
                   onClick={() => toggleProfile(profile.id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                     selectedProfileIds.includes(profile.id)
-                      ? "border-emerald-500 bg-emerald-500/10"
+                      ? "border-orange-500 bg-orange-500/10"
                       : "border-border hover:border-muted-foreground"
                   }`}
                 >

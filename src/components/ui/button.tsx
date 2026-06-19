@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "fit";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
 }
@@ -22,19 +22,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-medium rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed focus:ring-offset-background";
+      "inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed focus:ring-offset-background";
 
     const variants = {
       primary:
-        "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-600",
+        "bg-brand-gradient text-white shadow-warm hover:shadow-warm-lg hover:brightness-105 focus:ring-orange-500",
       secondary:
         "bg-secondary text-secondary-foreground hover:bg-secondary/80 focus:ring-secondary",
       outline:
-        "border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground focus:ring-ring",
+        "border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground hover:border-primary/40 focus:ring-ring",
       ghost:
         "text-foreground hover:bg-accent hover:text-accent-foreground focus:ring-ring",
       danger:
         "bg-destructive text-white hover:bg-destructive/90 focus:ring-destructive",
+      fit: "bg-fit text-fit-foreground shadow-sm hover:brightness-110 focus:ring-lime-500",
     };
 
     const sizes = {

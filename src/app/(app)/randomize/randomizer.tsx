@@ -447,7 +447,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
           className="w-full"
         >
           <Shuffle
-            className={cn("w-5 h-5 mr-2", isAnimating && "animate-spin")}
+            className={cn("w-5 h-5", isAnimating && "animate-spin-slow")}
           />
           {result ? "Losuj ponownie" : "Losuj danie"}
         </Button>
@@ -496,12 +496,12 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
       {result && (
         <Card
           className={cn(
-            "transition-all duration-300",
-            isAnimating && "opacity-50 scale-95",
+            "overflow-hidden shadow-warm-lg ring-1 ring-primary/15 transition-all duration-300",
+            isAnimating ? "opacity-50 scale-95" : "animate-pop-in",
           )}
         >
           {result.imageUrl && (
-            <div className="aspect-video w-full overflow-hidden rounded-t-xl bg-muted">
+            <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-muted">
               <img
                 src={result.imageUrl}
                 alt={result.name}
@@ -518,8 +518,8 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
               {result.isChildFriendly && (
                 <Badge variant="info">Dla dzieci</Badge>
               )}
-              {result.isVegetarian && <Badge variant="success">Wege</Badge>}
-              {result.isVegan && <Badge variant="success">Vegan</Badge>}
+              {result.isVegetarian && <Badge variant="fit">Wege</Badge>}
+              {result.isVegan && <Badge variant="fit">Vegan</Badge>}
               {result.isQuick && <Badge>Szybkie</Badge>}
             </div>
 
@@ -554,7 +554,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
               </Link>
               {addedToPlan ? (
                 <Button variant="outline" className="flex-1" disabled>
-                  <Check className="w-4 h-4 mr-2 text-emerald-500" />
+                  <Check className="w-4 h-4 mr-2 text-orange-500" />
                   Dodano do planu
                 </Button>
               ) : (
@@ -581,7 +581,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
               Wylosowane posiłki
             </h2>
             {addedDayToPlan ? (
-              <span className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
                 <Check className="w-4 h-4" />
                 Dodano do planu
               </span>
@@ -618,7 +618,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
                     <div className="flex-1 min-w-0">
                       <Link
                         href={`/meals/${dm.meal.id}`}
-                        className="font-medium text-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                        className="font-medium text-foreground hover:text-orange-600 dark:hover:text-orange-400"
                       >
                         {dm.meal.name}
                       </Link>
@@ -644,7 +644,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
                     </div>
 
                     {addedDayToPlan && (
-                      <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
+                      <span className="flex items-center gap-1 text-sm text-orange-600 dark:text-orange-400">
                         <Check className="w-4 h-4" />
                       </span>
                     )}
@@ -673,8 +673,8 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
               onClick={() => handleAddToPlan(date)}
               className={cn(
                 "w-full p-3 rounded-lg border text-left transition-colors",
-                "hover:border-emerald-500 hover:bg-emerald-500/10",
-                index === 0 && "border-emerald-500 bg-emerald-500/10"
+                "hover:border-orange-500 hover:bg-orange-500/10",
+                index === 0 && "border-orange-500 bg-orange-500/10"
               )}
             >
               <span className="font-medium text-foreground capitalize">
@@ -703,8 +703,8 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
               onClick={() => handleAddAllToPlan(date)}
               className={cn(
                 "w-full p-3 rounded-lg border text-left transition-colors",
-                "hover:border-emerald-500 hover:bg-emerald-500/10",
-                index === 0 && "border-emerald-500 bg-emerald-500/10"
+                "hover:border-orange-500 hover:bg-orange-500/10",
+                index === 0 && "border-orange-500 bg-orange-500/10"
               )}
             >
               <span className="font-medium text-foreground capitalize">
@@ -727,8 +727,8 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
       >
         {fillResult ? (
           <div className="space-y-4 text-center">
-            <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-emerald-500/10">
-              <Check className="w-6 h-6 text-emerald-500" />
+            <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-orange-500/10">
+              <Check className="w-6 h-6 text-orange-500" />
             </div>
             <div>
               <p className="text-lg font-semibold text-foreground">
@@ -771,8 +771,8 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
                       className={cn(
                         "p-3 rounded-lg border text-sm text-left transition-colors",
                         fillRange === value
-                          ? "border-emerald-500 bg-emerald-500/10 text-foreground"
-                          : "border-border text-muted-foreground hover:border-emerald-500/50"
+                          ? "border-orange-500 bg-orange-500/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-orange-500/50"
                       )}
                     >
                       {label}

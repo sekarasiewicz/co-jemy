@@ -164,7 +164,7 @@ export function Combobox({
               )}
             >
               {option.value === value && (
-                <Check className="w-4 h-4 text-emerald-500" />
+                <Check className="w-4 h-4 text-orange-500" />
               )}
               <span className={option.value === value ? "ml-0" : "ml-6"}>
                 {option.label}
@@ -177,7 +177,7 @@ export function Combobox({
               type="button"
               onClick={handleCreateNew}
               disabled={creating}
-              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 text-emerald-600 dark:text-emerald-400 border-t border-border"
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 text-orange-600 dark:text-orange-400 border-t border-border"
             >
               <Plus className="w-4 h-4" />
               {creating ? "Tworzenie..." : `Dodaj "${search.trim()}"`}

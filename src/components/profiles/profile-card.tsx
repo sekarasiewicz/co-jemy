@@ -16,8 +16,8 @@ export function ProfileCard({ profile, onClick, selected }: ProfileCardProps) {
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-3 p-4 rounded-xl transition-all",
-        "hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-500",
-        selected && "ring-2 ring-emerald-500",
+        "hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500",
+        selected && "ring-2 ring-orange-500",
       )}
     >
       <ProfileAvatar

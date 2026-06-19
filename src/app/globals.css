@@ -19,6 +19,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-fit: var(--fit);
+  --color-fit-foreground: var(--fit-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -31,46 +33,52 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: #ffffff;
-  --foreground: #0f172a;
+  /* Warm Appetite — orange brand, lime fit accent, warm stone neutrals */
+  --radius: 0.875rem;
+  --background: #fafaf9;
+  --foreground: #1c1917;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #1c1917;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #059669;
+  --popover-foreground: #1c1917;
+  --primary: #f97316;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1c1917;
+  --muted: #f5f5f4;
+  --muted-foreground: #78716c;
+  --accent: #fff7ed;
+  --accent-foreground: #9a3412;
   --destructive: #dc2626;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #059669;
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #f97316;
+  /* fit / nutrition accent */
+  --fit: #65a30d;
+  --fit-foreground: #ffffff;
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --card: #1e293b;
-  --card-foreground: #f8fafc;
-  --popover: #1e293b;
-  --popover-foreground: #f8fafc;
-  --primary: #10b981;
-  --primary-foreground: #0f172a;
-  --secondary: #334155;
-  --secondary-foreground: #f8fafc;
-  --muted: #334155;
-  --muted-foreground: #94a3b8;
-  --accent: #334155;
-  --accent-foreground: #f8fafc;
+  --background: #0c0a09;
+  --foreground: #fafaf9;
+  --card: #1c1917;
+  --card-foreground: #fafaf9;
+  --popover: #1c1917;
+  --popover-foreground: #fafaf9;
+  --primary: #fb923c;
+  --primary-foreground: #1c1917;
+  --secondary: #292524;
+  --secondary-foreground: #fafaf9;
+  --muted: #292524;
+  --muted-foreground: #a8a29e;
+  --accent: #2a2018;
+  --accent-foreground: #fdba74;
   --destructive: #ef4444;
-  --border: #334155;
-  --input: #334155;
-  --ring: #10b981;
+  --border: #292524;
+  --input: #292524;
+  --ring: #fb923c;
+  --fit: #a3e635;
+  --fit-foreground: #1a2e05;
 }
 
 @layer base {
@@ -79,5 +87,59 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* subtle warm kitchen glow */
+    background-image:
+      radial-gradient(
+        ellipse 80% 50% at 50% -10%,
+        color-mix(in oklab, var(--primary) 9%, transparent),
+        transparent
+      );
+    background-attachment: fixed;
   }
+}
+
+@layer utilities {
+  /* warm appetite brand gradient */
+  .bg-brand-gradient {
+    background-image: linear-gradient(135deg, #f97316 0%, #f59e0b 55%, #facc15 100%);
+  }
+  .text-gradient-brand {
+    background-image: linear-gradient(135deg, #fb923c 0%, #f59e0b 60%, #facc15 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .shadow-warm {
+    box-shadow:
+      0 1px 2px -1px color-mix(in oklab, var(--primary) 22%, transparent),
+      0 8px 24px -12px color-mix(in oklab, var(--primary) 30%, transparent);
+  }
+  .shadow-warm-lg {
+    box-shadow:
+      0 2px 4px -2px color-mix(in oklab, var(--primary) 25%, transparent),
+      0 20px 50px -16px color-mix(in oklab, var(--primary) 38%, transparent);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  animation: spin-slow 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }

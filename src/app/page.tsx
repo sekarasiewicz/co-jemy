@@ -1,4 +1,4 @@
-import { Calendar, ShoppingCart, Shuffle, Users } from "lucide-react";
+import { Calendar, ChefHat, ShoppingCart, Shuffle, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/app/actions/auth";
@@ -12,13 +12,14 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-background dark:from-emerald-950/20">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 via-background to-background dark:from-orange-950/25">
       <div className="max-w-5xl mx-auto px-4 py-16">
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-foreground mb-4">
-            <span className="text-6xl">🍽️</span>
-            <br />
-            co jemy?
+          <span className="bg-brand-gradient mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl text-white shadow-warm-lg">
+            <ChefHat className="h-10 w-10" />
+          </span>
+          <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-foreground mb-4">
+            co <span className="text-gradient-brand">jemy?</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             Planuj posiłki dla całej rodziny. Losuj dania, twórz jadłospisy i
@@ -39,8 +40,8 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
           <Card>
             <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-4">
-                <Shuffle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="bg-brand-gradient w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-white shadow-warm">
+                <Shuffle className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-2">
                 Losuj dania

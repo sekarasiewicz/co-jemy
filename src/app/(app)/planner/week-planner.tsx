@@ -371,14 +371,14 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
               className={cn(
                 "text-center py-2 rounded-xl font-medium",
                 isToday
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30"
+                  ? "bg-orange-500/15 text-orange-600 dark:text-orange-400 ring-1 ring-orange-500/30"
                   : "text-muted-foreground",
               )}
             >
               <div className="text-xs uppercase tracking-wide">
                 {day.toLocaleDateString("pl-PL", { weekday: "short" })}
               </div>
-              <div className={cn("text-xl font-bold", isToday && "text-emerald-600 dark:text-emerald-400")}>
+              <div className={cn("text-xl font-bold", isToday && "text-orange-600 dark:text-orange-400")}>
                 {day.getDate()}
               </div>
             </div>
@@ -418,7 +418,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                     className={cn(
                       "min-h-[80px] rounded-xl p-2 transition-colors",
                       isToday
-                        ? "bg-emerald-500/5 ring-1 ring-emerald-500/20"
+                        ? "bg-orange-500/5 ring-1 ring-orange-500/20"
                         : "bg-muted/30",
                     )}
                   >
@@ -429,8 +429,8 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                           className={cn(
                             "group relative rounded-lg p-2 cursor-pointer transition-all",
                             pm.completed
-                              ? "bg-emerald-500/10 border border-emerald-500/20"
-                              : "bg-card border border-border shadow-sm hover:shadow-md hover:border-emerald-500/40",
+                              ? "bg-orange-500/10 border border-orange-500/20"
+                              : "bg-card border border-border shadow-sm hover:shadow-md hover:border-orange-500/40",
                           )}
                           onClick={() =>
                             handleToggleCompleted(pm.id, pm.completed, day)
@@ -441,8 +441,8 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                               className={cn(
                                 "mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
                                 pm.completed
-                                  ? "bg-emerald-500 border-emerald-500"
-                                  : "border-border group-hover:border-emerald-400",
+                                  ? "bg-orange-500 border-orange-500"
+                                  : "border-border group-hover:border-orange-400",
                               )}
                             >
                               {pm.completed && (
@@ -455,7 +455,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                                   className={cn(
                                     "text-sm leading-snug line-clamp-3",
                                     pm.completed
-                                      ? "text-emerald-600 dark:text-emerald-400 line-through opacity-70"
+                                      ? "text-orange-600 dark:text-orange-400 line-through opacity-70"
                                       : "text-foreground font-medium",
                                   )}
                                 >
@@ -495,7 +495,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                         }
                         className={cn(
                           "flex-1 py-1.5 rounded-lg border border-dashed transition-all flex items-center justify-center",
-                          "border-transparent text-muted-foreground/50 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/5",
+                          "border-transparent text-muted-foreground/50 hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/5",
                         )}
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -505,7 +505,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                         disabled={randomizingCell?.date === key && randomizingCell?.mealTypeId === mealType.id}
                         className={cn(
                           "flex-1 py-1.5 rounded-lg border border-dashed transition-all flex items-center justify-center",
-                          "border-transparent text-muted-foreground/50 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/5",
+                          "border-transparent text-muted-foreground/50 hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/5",
                           "disabled:opacity-50",
                         )}
                       >
@@ -585,7 +585,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                 <button
                   key={meal.id}
                   onClick={() => handleAddMeal(meal.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-emerald-500 hover:bg-emerald-500/10 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-orange-500 hover:bg-orange-500/10 transition-colors text-left"
                 >
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{meal.name}</p>
@@ -617,8 +617,8 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
       >
         {fillResult ? (
           <div className="space-y-4 text-center">
-            <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-emerald-500/10">
-              <Check className="w-6 h-6 text-emerald-500" />
+            <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-orange-500/10">
+              <Check className="w-6 h-6 text-orange-500" />
             </div>
             <div>
               <p className="text-lg font-semibold text-foreground">
@@ -654,8 +654,8 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                       className={cn(
                         "p-3 rounded-lg border text-sm text-left transition-colors",
                         fillRange === value
-                          ? "border-emerald-500 bg-emerald-500/10 text-foreground"
-                          : "border-border text-muted-foreground hover:border-emerald-500/50",
+                          ? "border-orange-500 bg-orange-500/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-orange-500/50",
                       )}
                     >
                       {label}
