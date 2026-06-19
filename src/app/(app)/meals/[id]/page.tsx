@@ -54,7 +54,7 @@ export default async function MealPage({
   const hasNutrition = nutrition.calories || nutrition.protein || nutrition.carbs || nutrition.fat;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       <Link
         href="/meals"
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"

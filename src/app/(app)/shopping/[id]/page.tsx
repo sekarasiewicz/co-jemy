@@ -20,7 +20,7 @@ export default async function ShoppingListPage({
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="w-full">
       <Link
         href="/shopping"
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"

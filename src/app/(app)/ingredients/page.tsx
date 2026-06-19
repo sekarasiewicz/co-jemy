@@ -5,7 +5,7 @@ export default async function IngredientsPage() {
   const ingredients = await getIngredientsAction();
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Składniki</h1>
         <p className="text-muted-foreground">

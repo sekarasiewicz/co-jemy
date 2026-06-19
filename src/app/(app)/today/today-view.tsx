@@ -354,7 +354,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-1">
           <button
@@ -478,7 +478,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
           Ładowanie...
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-start">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 items-start">
           {mealTypes.map((mealType) => {
             const planMeals =
               plan?.meals.filter((pm) => pm.mealType.id === mealType.id) || [];
