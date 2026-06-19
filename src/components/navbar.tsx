@@ -97,8 +97,14 @@ export function Navbar({ isAdmin = false }: { isAdmin?: boolean }) {
             )}
 
             <Link
-              href="/profiles/manage"
-              className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              href="/account"
+              title="Twoje konto"
+              className={cn(
+                "rounded-full p-2 transition-colors",
+                pathname.startsWith("/account")
+                  ? "bg-primary/12 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
             >
               <User className="w-5 h-5" />
             </Link>
