@@ -1,3 +1,4 @@
+export { BackButton } from "./back-button";
 export { Badge } from "./badge";
 export type { ButtonProps } from "./button";
 export { Button } from "./button";

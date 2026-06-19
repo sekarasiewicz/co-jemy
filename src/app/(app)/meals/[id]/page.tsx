@@ -1,9 +1,9 @@
-import { ArrowLeft, Clock, Flame, Pencil, Users } from "lucide-react";
+import { Clock, Flame, Pencil, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMealAction } from "@/app/actions/meals";
 import { MealImage } from "@/components/meals/meal-image";
-import { Badge, Button, Card, CardContent } from "@/components/ui";
+import { BackButton, Badge, Button, Card, CardContent } from "@/components/ui";
 import { convertToGrams, formatAmount, formatMinutes } from "@/lib/utils";
 import { DeleteMealButton } from "./delete-meal-button";
 
@@ -56,13 +56,7 @@ export default async function MealPage({
 
   return (
     <div className="w-full">
-      <Link
-        href="/meals"
-        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Powrót do dań
-      </Link>
+      <BackButton fallback="/meals" label="Powrót" />
 
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start">
         {meal.imageUrl && <MealImage src={meal.imageUrl} alt={meal.name} />}
