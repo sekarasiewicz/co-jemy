@@ -61,33 +61,6 @@ export async function updateProfileAction(
   return profile;
 }
 
-// Propagate the account avatar to the family profile that matches the
-// account name (e.g. the owner's own profile), so it's not just initials.
-export async function syncAvatarToMatchingProfileAction(
-  imageUrl: string,
-): Promise<void> {
-  const session = await requireAuth();
-  const name = session.user.name;
-  if (!name) return;
-
-  const { and, eq, sql } = await import("drizzle-orm");
-  const { db } = await import("@/db");
-  const { profiles } = await import("@/db/schema");
-
-  await db
-    .update(profiles)
-    .set({ avatar: imageUrl })
-    .where(
-      and(
-        eq(profiles.userId, session.user.id),
-        sql`lower(${profiles.name}) = lower(${name})`,
-      ),
-    );
-
-  revalidatePath("/profiles");
-  revalidatePath("/today");
-}
-
 export async function deleteProfileAction(profileId: string): Promise<void> {
   const session = await requireAuth();
   await deleteProfile(profileId, session.user.id);

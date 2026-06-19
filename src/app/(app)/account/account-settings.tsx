@@ -5,25 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  Button,
-  Card,
-  CardContent,
-  ImageUpload,
-  Input,
-} from "@/components/ui";
-import { syncAvatarToMatchingProfileAction } from "@/app/actions/profiles";
+import { Button, Card, CardContent, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
 interface AccountSettingsProps {
-  user: { name: string; email: string; image: string };
+  user: { name: string; email: string };
 }
 
 export function AccountSettings({ user }: AccountSettingsProps) {
   const router = useRouter();
 
   const [name, setName] = useState(user.name);
-  const [image, setImage] = useState(user.image);
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -31,30 +23,20 @@ export function AccountSettings({ user }: AccountSettingsProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const saveProfile = async (nextImage?: string) => {
+  const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      const finalImage = nextImage ?? image;
       const { error } = await authClient.updateUser({
         name: name.trim() || undefined,
-        image: finalImage,
       });
       if (error) throw new Error(error.message);
-      // Mirror the avatar onto the matching family profile.
-      await syncAvatarToMatchingProfileAction(finalImage);
-      toast.success("Zapisano profil");
+      toast.success("Zapisano");
       router.refresh();
     } catch (e) {
       toast.error((e as Error).message || "Nie udało się zapisać");
     } finally {
       setSavingProfile(false);
     }
-  };
-
-  const handleAvatarChange = (url: string) => {
-    setImage(url);
-    // persist immediately on upload/remove
-    saveProfile(url);
   };
 
   const changePassword = async (e: React.FormEvent) => {
@@ -93,37 +75,29 @@ export function AccountSettings({ user }: AccountSettingsProps) {
         <CardContent className="space-y-4 pt-6">
           <h2 className="font-semibold text-foreground">Profil konta</h2>
 
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <ImageUpload
-              label="Avatar"
-              value={image}
-              onChange={handleAvatarChange}
-              folder="avatars"
-              aspect="square"
-              className="sm:w-48"
+          <div className="space-y-4">
+            <Input
+              label="Imię"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Twoje imię"
             />
-
-            <div className="flex-1 space-y-4">
-              <Input
-                label="Imię"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Twoje imię"
-              />
-              <Input
-                label="Email"
-                value={user.email}
-                disabled
-                title="Adres email nie może być zmieniony"
-              />
-              <Button
-                onClick={() => saveProfile()}
-                loading={savingProfile}
-                className="w-full sm:w-auto"
-              >
-                Zapisz profil
-              </Button>
-            </div>
+            <Input
+              label="Email"
+              value={user.email}
+              disabled
+              title="Adres email nie może być zmieniony"
+            />
+            <p className="text-xs text-muted-foreground">
+              Zdjęcie ustawiasz osobno dla każdego profilu rodziny.
+            </p>
+            <Button
+              onClick={() => saveProfile()}
+              loading={savingProfile}
+              className="w-full sm:w-auto"
+            >
+              Zapisz
+            </Button>
           </div>
         </CardContent>
       </Card>
