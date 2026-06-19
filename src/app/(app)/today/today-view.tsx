@@ -354,7 +354,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-1">
           <button
@@ -398,7 +398,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
       {/* Quick stats */}
       {totals.calories > 0 && (
-        <Card className="mb-6">
+        <Card className="mb-6 max-w-3xl mx-auto">
           <CardContent className="py-4">
             <div className="grid grid-cols-4 gap-3 text-center">
               <div className="rounded-xl bg-primary/10 py-2">
@@ -436,7 +436,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
       {/* Randomize full day */}
       {!loading && (
-        <div className="mb-4">
+        <div className="mb-4 max-w-3xl mx-auto">
           <Button
             variant="outline"
             className="w-full"
@@ -451,7 +451,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
 
       {/* Day operations */}
       {!loading && (plan?.meals.length ?? 0) > 0 && (
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex gap-2 max-w-3xl mx-auto">
           <Button
             variant="outline"
             className="flex-1"
@@ -478,7 +478,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
           Ładowanie...
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 items-start">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-start">
           {mealTypes.map((mealType) => {
             const planMeals =
               plan?.meals.filter((pm) => pm.mealType.id === mealType.id) || [];
@@ -626,7 +626,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
       )}
 
       {/* Quick actions */}
-      <div className="mt-8 grid grid-cols-2 gap-4">
+      <div className="mt-8 grid grid-cols-2 gap-4 max-w-3xl mx-auto">
         <Link href="/planner">
           <Button variant="outline" className="w-full">
             <Calendar className="w-4 h-4 mr-2" />

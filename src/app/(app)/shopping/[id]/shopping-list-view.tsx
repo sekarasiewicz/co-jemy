@@ -100,7 +100,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="columns-1 gap-6 lg:columns-2">
+        <div className="columns-1 gap-6 sm:columns-2 xl:columns-3">
         {Array.from(groupedItems.entries()).map(([category, items]) => (
           <Card key={category} className="mb-6 break-inside-avoid">
             <CardContent className="py-4">
