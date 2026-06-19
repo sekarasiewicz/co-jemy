@@ -578,7 +578,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                             >
                               <p
                                 className={cn(
-                                  "font-medium truncate",
+                                  "font-medium line-clamp-2 leading-snug",
                                   pm.completed
                                     ? "text-lime-700 dark:text-lime-400 line-through"
                                     : "text-foreground"
