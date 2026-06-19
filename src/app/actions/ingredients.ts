@@ -103,9 +103,9 @@ export async function enrichByNameAction(
   fatPer100g: number;
   weightPerUnit: number | null;
 }> {
-  await requireAuth();
+  const session = await requireAuth();
   const { enrichSingleIngredient } = await import("@/lib/services/ai");
-  return enrichSingleIngredient(name, currentUnit);
+  return enrichSingleIngredient(name, currentUnit, session.user.id);
 }
 
 export async function enrichIngredientAction(
@@ -118,7 +118,11 @@ export async function enrichIngredientAction(
   }
 
   const { enrichSingleIngredient } = await import("@/lib/services/ai");
-  const enriched = await enrichSingleIngredient(ingredient.name);
+  const enriched = await enrichSingleIngredient(
+    ingredient.name,
+    undefined,
+    session.user.id,
+  );
 
   const updated = await updateIngredient(ingredientId, session.user.id, {
     category: enriched.category,

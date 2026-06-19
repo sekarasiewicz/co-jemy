@@ -6,6 +6,7 @@ import {
   ChefHat,
   Home,
   LogOut,
+  Shield,
   ShoppingCart,
   Shuffle,
   User,
@@ -28,7 +29,7 @@ const navItems = [
   { href: "/shopping", label: "Zakupy", icon: ShoppingCart },
 ];
 
-export function Navbar() {
+export function Navbar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const { activeProfile } = useProfile();
 
@@ -79,6 +80,21 @@ export function Navbar() {
             {activeProfile && <ProfileSwitcher />}
 
             <ModeToggle />
+
+            {isAdmin && (
+              <Link
+                href="/admin"
+                title="Panel admina"
+                className={cn(
+                  "rounded-full p-2 transition-colors",
+                  pathname.startsWith("/admin")
+                    ? "bg-primary/12 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <Shield className="w-5 h-5" />
+              </Link>
+            )}
 
             <Link
               href="/profiles/manage"

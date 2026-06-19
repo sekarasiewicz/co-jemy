@@ -45,7 +45,7 @@ export async function POST() {
         const names = batch.map((ing) => ing.name);
 
         try {
-          const enriched = await enrichIngredients(names);
+          const enriched = await enrichIngredients(names, undefined, userId);
 
           for (let j = 0; j < batch.length; j++) {
             const ing = batch[j];

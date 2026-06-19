@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { INGREDIENT_CATEGORIES, UNITS } from "@/types";
 import type { IngredientCategory, Unit } from "@/types";
+import { recordAiUsage } from "./ai-usage";
 
 const validCategories = new Set<string>(INGREDIENT_CATEGORIES);
 const validUnits = new Set<string>(UNITS);
@@ -56,11 +57,13 @@ function getClient() {
 export async function enrichIngredients(
   names: string[],
   forceUnit?: string,
+  userId?: string | null,
 ): Promise<EnrichedIngredient[]> {
   if (names.length === 0) return [];
 
+  const modelName = "gemini-2.5-flash";
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = client.getGenerativeModel({ model: modelName });
   const categoriesList = INGREDIENT_CATEGORIES.join(", ");
   const unitsList = UNITS.join(", ");
 
@@ -102,6 +105,13 @@ Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUn
   const result = await model.generateContent(prompt);
   const text = result.response.text();
 
+  await recordAiUsage({
+    userId,
+    operation: "enrich_ingredients",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
+
   // Extract JSON array from response (handle markdown code blocks)
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
@@ -125,8 +135,9 @@ Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUn
 export async function enrichSingleIngredient(
   name: string,
   currentUnit?: string,
+  userId?: string | null,
 ): Promise<EnrichedIngredient> {
-  const results = await enrichIngredients([name], currentUnit);
+  const results = await enrichIngredients([name], currentUnit, userId);
   return results[0];
 }
 
@@ -186,10 +197,12 @@ function normalizeUnit(raw: unknown): Unit {
 export async function extractDietFromPdf(
   base64Pdf: string,
   mimeType = "application/pdf",
+  userId?: string | null,
 ): Promise<ExtractedDiet> {
+  const modelName = "gemini-2.5-pro";
   const client = getClient();
   const model = client.getGenerativeModel({
-    model: "gemini-2.5-pro",
+    model: modelName,
     generationConfig: {
       // Force valid JSON and allow a large response so big weekly diets
       // (many meals + 7 days) are never truncated mid-object.
@@ -243,6 +256,13 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
     { text: prompt },
   ]);
   const text = result.response.text();
+
+  await recordAiUsage({
+    userId,
+    operation: "extract_diet",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {

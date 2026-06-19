@@ -52,7 +52,7 @@ export async function importDietFromPdfAction(
   const userId = session.user.id;
   const errors: string[] = [];
 
-  const diet = await extractDietFromPdf(base64Pdf);
+  const diet = await extractDietFromPdf(base64Pdf, undefined, userId);
   if (diet.meals.length === 0) {
     return {
       mealsCreated: 0,
@@ -104,6 +104,8 @@ export async function importDietFromPdfAction(
     try {
       const enriched = await enrichIngredients(
         [...neededByName.values()].map((n) => n.name),
+        undefined,
+        userId,
       );
       for (const e of enriched) {
         enrichedByName.set(e.name.toLowerCase(), e);

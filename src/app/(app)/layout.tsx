@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/app/actions/auth";
+import { getIsAdmin, getSession } from "@/app/actions/auth";
 import { getProfilesAction } from "@/app/actions/profiles";
 import { Navbar } from "@/components/navbar";
 import { AppLayoutClient } from "./layout-client";
@@ -15,7 +15,10 @@ export default async function AppLayout({
     redirect("/auth/login");
   }
 
-  const profiles = await getProfilesAction();
+  const [profiles, isAdmin] = await Promise.all([
+    getProfilesAction(),
+    getIsAdmin(),
+  ]);
 
   if (profiles.length === 0) {
     redirect("/profiles?new=true");
@@ -23,7 +26,7 @@ export default async function AppLayout({
 
   return (
     <AppLayoutClient profiles={profiles}>
-      <Navbar />
+      <Navbar isAdmin={isAdmin} />
       <main className="w-full px-4 sm:px-6 lg:px-10 py-6">
         {children}
       </main>

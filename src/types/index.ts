@@ -1,5 +1,6 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type {
+  aiUsage,
   dailyPlanMeals,
   dailyPlans,
   ingredients,
@@ -16,6 +17,9 @@ import type {
 // Base types
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
+
+export type AiUsage = InferSelectModel<typeof aiUsage>;
+export type NewAiUsage = InferInsertModel<typeof aiUsage>;
 
 export type Profile = InferSelectModel<typeof profiles>;
 export type NewProfile = InferInsertModel<typeof profiles>;

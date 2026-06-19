@@ -19,6 +19,7 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   name: text("name"),
   image: text("image"),
+  role: text("role").notNull().default("user"), // "user" | "admin"
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -100,6 +101,22 @@ export const ingredients = pgTable("ingredients", {
   carbsPer100g: real("carbs_per_100g"),
   fatPer100g: real("fat_per_100g"),
   weightPerUnit: real("weight_per_unit"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// AI usage log - for admin cost tracking
+export const aiUsage = pgTable("ai_usage", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  operation: text("operation").notNull(), // e.g. "enrich_ingredients", "extract_diet"
+  model: text("model").notNull(),
+  promptTokens: integer("prompt_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  costUsd: real("cost_usd").notNull().default(0),
+  success: boolean("success").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
