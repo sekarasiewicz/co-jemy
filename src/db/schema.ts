@@ -93,6 +93,7 @@ export const ingredients = pgTable("ingredients", {
     .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   category: text("category").notNull(), // e.g., "Nabiał", "Warzywa", "Mięso"
+  image: text("image"),
   defaultUnit: text("default_unit").notNull().default("g"),
   caloriesPer100g: real("calories_per_100g"),
   proteinPer100g: real("protein_per_100g"),

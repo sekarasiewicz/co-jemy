@@ -35,6 +35,7 @@ export async function searchIngredientsAction(
 export async function createIngredientAction(data: {
   name: string;
   category: string;
+  image?: string | null;
   defaultUnit?: string;
   caloriesPer100g?: number | null;
   proteinPer100g?: number | null;
@@ -53,6 +54,7 @@ export async function updateIngredientAction(
   data: {
     name?: string;
     category?: string;
+    image?: string | null;
     defaultUnit?: string;
     caloriesPer100g?: number | null;
     proteinPer100g?: number | null;

@@ -16,6 +16,7 @@ export {
   FormMessage,
   useFormField,
 } from "./form";
+export { ImageUpload } from "./image-upload";
 export type { InputProps, TextareaProps } from "./input";
 export { Input, Textarea } from "./input";
 export { Label } from "./label";

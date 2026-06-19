@@ -10,6 +10,7 @@ import {
   CardContent,
   Checkbox,
   Combobox,
+  ImageUpload,
   Input,
   Select,
   Textarea,
@@ -314,11 +315,12 @@ export function MealForm({
             rows={2}
           />
 
-          <Input
-            label="URL zdjęcia"
+          <ImageUpload
+            label="Zdjęcie dania"
             value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
+            onChange={setImageUrl}
+            folder="meals"
+            aspect="video"
           />
 
           <div className="grid grid-cols-3 gap-4">

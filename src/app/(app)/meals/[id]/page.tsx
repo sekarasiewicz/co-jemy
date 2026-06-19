@@ -217,8 +217,17 @@ export default async function MealPage({
                     key={mi.id}
                     className="flex items-center justify-between gap-3"
                   >
-                    <div className="flex items-center gap-2 text-foreground min-w-0 flex-1">
-                      <span className="w-2 h-2 rounded-full bg-fit flex-shrink-0" />
+                    <div className="flex items-center gap-2.5 text-foreground min-w-0 flex-1">
+                      {mi.ingredient.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mi.ingredient.image}
+                          alt={mi.ingredient.name}
+                          className="h-8 w-8 flex-shrink-0 rounded-md object-cover border border-border"
+                        />
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-fit flex-shrink-0" />
+                      )}
                       <span className="truncate">{mi.ingredient.name}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 text-sm">

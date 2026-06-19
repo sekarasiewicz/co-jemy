@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, GitMerge, Pencil, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, GitMerge, ImageIcon, Pencil, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
   Button,
   Card,
   CardContent,
+  ImageUpload,
   Input,
   Modal,
   Select,
@@ -29,6 +30,7 @@ interface IngredientsManagerProps {
 interface IngredientFormData {
   name: string;
   category: string;
+  image: string;
   defaultUnit: string;
   caloriesPer100g: string;
   proteinPer100g: string;
@@ -46,6 +48,7 @@ interface DuplicateGroup {
 const emptyForm: IngredientFormData = {
   name: "",
   category: "Inne",
+  image: "",
   defaultUnit: "g",
   caloriesPer100g: "",
   proteinPer100g: "",
@@ -177,6 +180,7 @@ export function IngredientsManager({
     setForm({
       name: ingredient.name,
       category: ingredient.category,
+      image: ingredient.image || "",
       defaultUnit: ingredient.defaultUnit || "g",
       caloriesPer100g: ingredient.caloriesPer100g?.toString() || "",
       proteinPer100g: ingredient.proteinPer100g?.toString() || "",
@@ -207,6 +211,7 @@ export function IngredientsManager({
       const data = {
         name: form.name.trim(),
         category: form.category,
+        image: form.image || null,
         defaultUnit: form.defaultUnit,
         caloriesPer100g: form.caloriesPer100g
           ? Number(form.caloriesPer100g)
@@ -463,6 +468,18 @@ export function IngredientsManager({
                           key={ing.id}
                           className="flex items-center gap-4 py-3"
                         >
+                          {ing.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={ing.image}
+                              alt={ing.name}
+                              className="h-11 w-11 flex-shrink-0 rounded-lg object-cover border border-border"
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground/50">
+                              <ImageIcon className="h-5 w-5" />
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-foreground truncate">
                               {ing.name}
@@ -592,6 +609,14 @@ export function IngredientsManager({
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="np. Pierś kurczaka"
             required
+          />
+
+          <ImageUpload
+            label="Zdjęcie"
+            value={form.image}
+            onChange={(url) => setForm({ ...form, image: url })}
+            folder="ingredients"
+            aspect="square"
           />
 
           <div className="grid grid-cols-3 gap-4 items-end">
