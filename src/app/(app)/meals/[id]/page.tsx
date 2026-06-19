@@ -54,7 +54,7 @@ export default async function MealPage({
   const hasNutrition = nutrition.calories || nutrition.protein || nutrition.carbs || nutrition.fat;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <Link
         href="/meals"
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
@@ -181,8 +181,10 @@ export default async function MealPage({
         </Card>
       )}
 
+      <div className="grid gap-6 lg:grid-cols-5 items-start">
+        <div className="space-y-6 lg:col-span-2">
       {meal.tags.length > 0 && (
-        <div className="mb-8">
+        <div>
           <h2 className="font-semibold text-foreground mb-3">Tagi</h2>
           <div className="flex flex-wrap gap-2">
             {meal.tags.map((tag) => (
@@ -202,7 +204,7 @@ export default async function MealPage({
       )}
 
       {meal.ingredients.length > 0 && (
-        <Card className="mb-8">
+        <Card>
           <CardContent className="pt-4">
             <h2 className="font-semibold text-foreground mb-4">
               Składniki ({meal.servings} porcji)
@@ -244,17 +246,19 @@ export default async function MealPage({
           </CardContent>
         </Card>
       )}
+        </div>
 
-      {meal.instructions && (
-        <Card>
-          <CardContent className="pt-4">
-            <h2 className="font-semibold text-foreground mb-4">Przepis</h2>
-            <div className="prose prose-slate dark:prose-invert max-w-none whitespace-pre-wrap">
-              {meal.instructions}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        {meal.instructions && (
+          <Card className="lg:col-span-3">
+            <CardContent className="pt-4">
+              <h2 className="font-semibold text-foreground mb-4">Przepis</h2>
+              <div className="prose prose-stone dark:prose-invert max-w-none whitespace-pre-wrap">
+                {meal.instructions}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

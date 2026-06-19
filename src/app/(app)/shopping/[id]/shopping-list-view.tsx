@@ -75,7 +75,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
         </span>
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1">
-            <Check className="w-4 h-4 text-orange-500" />
+            <Check className="w-4 h-4 text-fit" />
             Kupione
           </span>
           <span className="flex items-center gap-1">
@@ -100,8 +100,9 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
           </CardContent>
         </Card>
       ) : (
-        Array.from(groupedItems.entries()).map(([category, items]) => (
-          <Card key={category}>
+        <div className="columns-1 gap-6 lg:columns-2">
+        {Array.from(groupedItems.entries()).map(([category, items]) => (
+          <Card key={category} className="mb-6 break-inside-avoid">
             <CardContent className="py-4">
               <h3 className="font-semibold text-foreground mb-3">{category}</h3>
               <div className="space-y-2">
@@ -110,7 +111,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                     key={item.id}
                     className={cn(
                       "flex items-center gap-3 p-2 rounded-lg transition-colors",
-                      item.checked && "bg-orange-500/10",
+                      item.checked && "bg-fit/10",
                       item.inPantry && "bg-blue-500/10",
                     )}
                   >
@@ -119,8 +120,8 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                       className={cn(
                         "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
                         item.checked
-                          ? "bg-orange-500 border-orange-500"
-                          : "border-border hover:border-orange-500",
+                          ? "bg-fit border-fit"
+                          : "border-border hover:border-fit",
                       )}
                     >
                       {item.checked && <Check className="w-4 h-4 text-white" />}
@@ -160,7 +161,8 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
               </div>
             </CardContent>
           </Card>
-        ))
+        ))}
+        </div>
       )}
     </div>
   );

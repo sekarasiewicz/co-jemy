@@ -9,7 +9,7 @@ export default async function RandomizePage() {
   ]);
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <div className="text-center mb-8">
         <span className="bg-brand-gradient mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl text-white shadow-warm-lg">
           <Shuffle className="h-8 w-8" />
