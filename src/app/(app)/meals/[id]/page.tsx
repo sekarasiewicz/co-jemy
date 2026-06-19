@@ -64,24 +64,34 @@ export default async function MealPage({
         Powrót do dań
       </Link>
 
-      {meal.imageUrl && (
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted mb-6">
-          <Image
-            src={meal.imageUrl}
-            alt={meal.name}
-            fill
-            sizes="(max-width: 768px) 100vw, 768px"
-            priority
-            className="object-cover"
-          />
-        </div>
-      )}
+      <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start">
+        {meal.imageUrl && (
+          <div className="relative aspect-square w-full flex-shrink-0 overflow-hidden rounded-2xl bg-muted sm:h-52 sm:w-52">
+            <Image
+              src={meal.imageUrl}
+              alt={meal.name}
+              fill
+              sizes="(max-width: 640px) 100vw, 208px"
+              priority
+              className="object-cover"
+            />
+          </div>
+        )}
 
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">{meal.name}</h1>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl font-bold text-foreground">{meal.name}</h1>
+            <div className="flex flex-shrink-0 gap-2">
+              <Link href={`/meals/${meal.id}/edit`}>
+                <Button variant="outline" size="sm">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </Link>
+              <DeleteMealButton mealId={meal.id} mealName={meal.name} />
+            </div>
+          </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {meal.mealTypes.map((mt) => (
               <span
                 key={mt.id}
@@ -98,35 +108,26 @@ export default async function MealPage({
             {meal.isQuick && <Badge>Szybkie</Badge>}
             {meal.isMealPrep && <Badge>Meal prep</Badge>}
           </div>
-        </div>
 
-        <div className="flex gap-2">
-          <Link href={`/meals/${meal.id}/edit`}>
-            <Button variant="outline" size="sm">
-              <Pencil className="w-4 h-4" />
-            </Button>
-          </Link>
-          <DeleteMealButton mealId={meal.id} mealName={meal.name} />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-6 mb-8 text-muted-foreground">
-        {totalTime > 0 && (
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            <span>{formatMinutes(totalTime)}</span>
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground">
+            {totalTime > 0 && (
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                <span>{formatMinutes(totalTime)}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              <span>{meal.servings} porcji</span>
+            </div>
+            {nutrition.calories && (
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5" />
+                <span>{nutrition.calories} kcal</span>
+              </div>
+            )}
           </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          <span>{meal.servings} porcji</span>
         </div>
-        {nutrition.calories && (
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5" />
-            <span>{nutrition.calories} kcal</span>
-          </div>
-        )}
       </div>
 
       {meal.description && (
