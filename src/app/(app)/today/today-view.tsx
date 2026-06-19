@@ -572,6 +572,20 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                               {pm.completed && <Check className="w-4 h-4" />}
                             </button>
 
+                            {pm.meal.imageUrl && (
+                              <Link
+                                href={`/meals/${pm.meal.id}`}
+                                className="flex-shrink-0"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={pm.meal.imageUrl}
+                                  alt={pm.meal.name}
+                                  className="h-12 w-12 rounded-lg border border-border object-cover"
+                                />
+                              </Link>
+                            )}
+
                             <Link
                               href={`/meals/${pm.meal.id}`}
                               className="flex-1 min-w-0"
