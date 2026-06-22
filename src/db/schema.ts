@@ -77,6 +77,13 @@ export const profiles = pgTable("profiles", {
   name: text("name").notNull(),
   avatar: text("avatar"), // emoji or image url
   color: text("color").notNull().default("#10b981"), // emerald-500
+  // Body metrics (for BMR / calorie goal calculation)
+  height: integer("height"), // cm
+  weight: integer("weight"), // kg
+  age: integer("age"), // years
+  sex: text("sex"), // "male" | "female"
+  activityLevel: text("activity_level").default("moderate"), // sedentary|light|moderate|active|very_active
+  autoCalorieGoal: boolean("auto_calorie_goal").notNull().default(false),
   dailyCalorieGoal: integer("daily_calorie_goal").default(2000),
   dailyProteinGoal: integer("daily_protein_goal").default(50),
   dailyCarbsGoal: integer("daily_carbs_goal").default(250),

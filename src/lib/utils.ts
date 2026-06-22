@@ -45,6 +45,60 @@ export function calculateTotalNutrition(
   );
 }
 
+export const ACTIVITY_LEVELS = [
+  { value: "sedentary", label: "Siedzący (brak ćwiczeń)", factor: 1.2 },
+  { value: "light", label: "Lekko aktywny (1-3 dni/tydzień)", factor: 1.375 },
+  { value: "moderate", label: "Umiarkowanie aktywny (3-5 dni/tydzień)", factor: 1.55 },
+  { value: "active", label: "Bardzo aktywny (6-7 dni/tydzień)", factor: 1.725 },
+  { value: "very_active", label: "Wyczynowo aktywny (2x dziennie)", factor: 1.9 },
+] as const;
+
+/**
+ * Daily calorie goal (TDEE) via Mifflin-St Jeor BMR × activity factor.
+ * Returns null when required inputs (height/weight/age/sex) are missing.
+ */
+export function calculateCalorieGoal(input: {
+  height?: number | null;
+  weight?: number | null;
+  age?: number | null;
+  sex?: string | null;
+  activityLevel?: string | null;
+}): number | null {
+  const { height, weight, age, sex, activityLevel } = input;
+  if (!height || !weight || !age || !sex) return null;
+
+  // Mifflin-St Jeor
+  const base = 10 * weight + 6.25 * height - 5 * age;
+  const bmr = sex === "female" ? base - 161 : base + 5;
+
+  const factor =
+    ACTIVITY_LEVELS.find((l) => l.value === activityLevel)?.factor ?? 1.55;
+
+  return Math.round((bmr * factor) / 10) * 10; // round to nearest 10 kcal
+}
+
+/**
+ * Daily calorie + macro goals derived from body metrics.
+ * Protein 1.8 g/kg, fat 25% kcal, carbs remainder. Null if inputs missing.
+ */
+export function calculateNutritionGoals(input: {
+  height?: number | null;
+  weight?: number | null;
+  age?: number | null;
+  sex?: string | null;
+  activityLevel?: string | null;
+}): { calories: number; protein: number; carbs: number; fat: number } | null {
+  const calories = calculateCalorieGoal(input);
+  if (calories === null || !input.weight) return null;
+
+  const protein = Math.round(1.8 * input.weight);
+  const fat = Math.round((calories * 0.25) / 9);
+  const carbsKcal = calories - protein * 4 - fat * 9;
+  const carbs = Math.max(0, Math.round(carbsKcal / 4));
+
+  return { calories, protein, carbs, fat };
+}
+
 type AggregatedIngredient = {
   ingredientId: string | null;
   customName: string | null;

@@ -29,6 +29,12 @@ export async function createProfileAction(data: {
   name: string;
   avatar?: string;
   color?: string;
+  height?: number | null;
+  weight?: number | null;
+  age?: number | null;
+  sex?: string | null;
+  activityLevel?: string | null;
+  autoCalorieGoal?: boolean;
   dailyCalorieGoal?: number;
   dailyProteinGoal?: number;
   dailyCarbsGoal?: number;
@@ -47,6 +53,12 @@ export async function updateProfileAction(
     name?: string;
     avatar?: string;
     color?: string;
+    height?: number | null;
+    weight?: number | null;
+    age?: number | null;
+    sex?: string | null;
+    activityLevel?: string | null;
+    autoCalorieGoal?: boolean;
     dailyCalorieGoal?: number;
     dailyProteinGoal?: number;
     dailyCarbsGoal?: number;
