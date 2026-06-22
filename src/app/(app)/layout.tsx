@@ -27,7 +27,7 @@ export default async function AppLayout({
   return (
     <AppLayoutClient profiles={profiles}>
       <Navbar isAdmin={isAdmin} />
-      <main className="w-full px-4 sm:px-6 lg:px-10 py-6">
+      <main className="w-full overflow-x-hidden px-4 sm:px-6 lg:px-10 py-6">
         {children}
       </main>
     </AppLayoutClient>

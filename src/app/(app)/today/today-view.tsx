@@ -240,10 +240,27 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
   ) => {
     if (!activeProfile) return;
 
-    await toggleMealCompletedAction(planMealId, !completed);
+    // Optimistic: flip just this meal locally, no full refetch (avoids screen flash)
+    const setCompleted = (value: boolean) =>
+      setPlan((prev) =>
+        prev
+          ? {
+              ...prev,
+              meals: prev.meals.map((pm) =>
+                pm.id === planMealId ? { ...pm, completed: value } : pm
+              ),
+            }
+          : prev
+      );
 
-    const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
-    setPlan(updatedPlan || null);
+    setCompleted(!completed);
+
+    try {
+      await toggleMealCompletedAction(planMealId, !completed);
+    } catch {
+      setCompleted(completed); // revert on failure
+      toast.error("Nie udało się zaktualizować posiłku");
+    }
   };
 
   const getMealsForType = (mealTypeId: string) => {
@@ -389,7 +406,7 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <p className="text-muted-foreground capitalize min-w-[12rem]">
+          <p className="text-muted-foreground capitalize text-center min-w-0 flex-1 sm:flex-none sm:min-w-[12rem]">
             {formatDate(selectedDate)}
           </p>
           <button
