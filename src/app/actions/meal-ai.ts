@@ -4,8 +4,10 @@ import { put } from "@vercel/blob";
 import {
   type ExtractedMeal,
   enrichIngredients,
+  extractBarcodeFromImage,
   extractMealFromImage,
   extractMealFromText,
+  extractProductFromImage,
   generateMealImage,
 } from "@/lib/services/ai";
 import {
@@ -13,6 +15,7 @@ import {
   getIngredientsByUserId,
 } from "@/lib/services/ingredients";
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
+import { fetchProductByBarcode } from "@/lib/services/open-food-facts";
 import { convertToGrams, generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "./auth";
@@ -223,6 +226,123 @@ export async function createMealDraftFromImageAction(input: {
   );
   if (!extracted.name) throw new Error("AI nie rozpoznało dania ze zdjęcia");
   return buildMealDraft(session.user.id, extracted);
+}
+
+// A packaged product (from a barcode lookup or a label photo). Same shape
+// for both sources.
+interface ProductInfo {
+  name: string;
+  brand: string | null;
+  servingGrams: number | null;
+  caloriesPer100g: number | null;
+  proteinPer100g: number | null;
+  carbsPer100g: number | null;
+  fatPer100g: number | null;
+}
+
+async function buildProductDraft(
+  userId: string,
+  product: ProductInfo,
+): Promise<MealDraft> {
+  const existing = await getIngredientsByUserId(userId);
+  const key = product.name.toLowerCase();
+  let ingredient = existing.find((i) => i.name.toLowerCase() === key);
+  const newIngredients: Ingredient[] = [];
+
+  if (!ingredient) {
+    ingredient = await createIngredient(userId, {
+      name: product.name,
+      category: "Inne",
+      defaultUnit: "g",
+      caloriesPer100g: product.caloriesPer100g,
+      proteinPer100g: product.proteinPer100g,
+      carbsPer100g: product.carbsPer100g,
+      fatPer100g: product.fatPer100g,
+      weightPerUnit: null,
+    });
+    newIngredients.push(ingredient);
+  }
+
+  // One serving of the product. Default to 100 g when the serving is unknown.
+  const amount =
+    product.servingGrams && product.servingGrams > 0
+      ? product.servingGrams
+      : 100;
+  const factor = amount / 100;
+
+  const displayName =
+    product.brand && !key.includes(product.brand.toLowerCase())
+      ? `${product.brand} ${product.name}`
+      : product.name;
+
+  return {
+    name: displayName,
+    description: "",
+    instructions: "",
+    servings: 1,
+    prepTimeMinutes: null,
+    cookTimeMinutes: null,
+    calories: Math.round((product.caloriesPer100g ?? 0) * factor),
+    protein: round((product.proteinPer100g ?? 0) * factor),
+    carbs: round((product.carbsPer100g ?? 0) * factor),
+    fat: round((product.fatPer100g ?? 0) * factor),
+    isVegetarian: false,
+    isVegan: false,
+    isGlutenFree: false,
+    isLactoseFree: false,
+    isQuick: false,
+    isMealPrep: false,
+    isChildFriendly: false,
+    mealTypeIds: [],
+    ingredients: [{ ingredientId: ingredient.id, amount, unit: "g" }],
+    newIngredients,
+  };
+}
+
+export async function createMealDraftFromBarcodeAction(input: {
+  base64: string;
+  mimeType: string;
+}): Promise<MealDraft> {
+  const session = await requireAuth();
+  if (!input.base64) throw new Error("Brak zdjęcia");
+
+  const barcode = await extractBarcodeFromImage(
+    input.base64,
+    input.mimeType,
+    session.user.id,
+  );
+
+  if (barcode.length >= 8) {
+    const product = await fetchProductByBarcode(barcode);
+    if (product) return buildProductDraft(session.user.id, product);
+  }
+
+  // No code read or product not in Open Food Facts — fall back to reading the
+  // packaging/label directly from the same photo.
+  const fromLabel = await extractProductFromImage(
+    input.base64,
+    input.mimeType,
+    session.user.id,
+  );
+  if (!fromLabel.name) {
+    throw new Error("Nie rozpoznano produktu — spróbuj zdjęcia etykiety");
+  }
+  return buildProductDraft(session.user.id, fromLabel);
+}
+
+export async function createMealDraftFromProductImageAction(input: {
+  base64: string;
+  mimeType: string;
+}): Promise<MealDraft> {
+  const session = await requireAuth();
+  if (!input.base64) throw new Error("Brak zdjęcia");
+  const product = await extractProductFromImage(
+    input.base64,
+    input.mimeType,
+    session.user.id,
+  );
+  if (!product.name) throw new Error("Nie rozpoznano produktu ze zdjęcia");
+  return buildProductDraft(session.user.id, product);
 }
 
 export async function generateMealImageAction(input: {

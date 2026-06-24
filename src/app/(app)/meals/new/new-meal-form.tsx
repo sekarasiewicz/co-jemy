@@ -8,6 +8,7 @@ import { createMealAction } from "@/app/actions/meals";
 import { MealForm, type MealFormData } from "@/components/meals/meal-form";
 import type { Ingredient, Meal, MealIngredient, MealType, Tag } from "@/types";
 import { AiMealGenerator } from "./ai-meal-generator";
+import { ProductImporter } from "./product-importer";
 
 interface NewMealFormProps {
   mealTypes: MealType[];
@@ -106,6 +107,7 @@ export function NewMealForm({
   return (
     <div className="space-y-6">
       <AiMealGenerator onDraft={handleDraft} />
+      <ProductImporter onDraft={handleDraft} />
       <MealForm
         key={draftKey}
         meal={draft}

@@ -489,6 +489,107 @@ export async function extractMealFromImage(
 }
 
 // ============================================
+// Packaged product extraction (label photo / barcode photo)
+// ============================================
+
+export interface ExtractedProduct {
+  name: string;
+  brand: string | null;
+  servingGrams: number | null;
+  caloriesPer100g: number | null;
+  proteinPer100g: number | null;
+  carbsPer100g: number | null;
+  fatPer100g: number | null;
+}
+
+export async function extractBarcodeFromImage(
+  base64Image: string,
+  mimeType: string,
+  userId?: string | null,
+): Promise<string> {
+  const { model, modelName } = getMealModel();
+  const prompt = `Na zdjęciu znajduje się kod kreskowy produktu spożywczego. Odczytaj numer kodu (EAN-13, EAN-8 lub UPC) — cyfry wydrukowane pod kreskami. Odpowiedz WYŁĄCZNIE JSON-em: {"barcode": "same cyfry bez spacji, lub pusty string gdy nie widać"}`;
+
+  const result = await model.generateContent([
+    { inlineData: { data: base64Image, mimeType } },
+    { text: prompt },
+  ]);
+
+  await recordAiUsage({
+    userId,
+    operation: "read_barcode_image",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
+
+  const match = result.response.text().match(/\{[\s\S]*\}/);
+  if (!match) return "";
+  try {
+    const parsed = JSON.parse(match[0]) as { barcode?: unknown };
+    return String(parsed.barcode || "").replace(/\D/g, "");
+  } catch {
+    return "";
+  }
+}
+
+export async function extractProductFromImage(
+  base64Image: string,
+  mimeType: string,
+  userId?: string | null,
+): Promise<ExtractedProduct> {
+  const { model, modelName } = getMealModel();
+  const prompt = `Na zdjęciu jest gotowy produkt spożywczy (opakowanie / tabela wartości odżywczych). Wyodrębnij dane produktu.
+
+ZASADY:
+- "name" — nazwa produktu (np. "Baton proteinowy czekoladowy").
+- Wartości odżywcze podaj PRZELICZONE NA 100 g produktu. Jeśli tabela podaje tylko "na porcję", przelicz na 100 g używając podanej gramatury porcji.
+- "servingGrams" — gramatura jednej porcji/sztuki produktu (np. baton 45 g), lub null gdy nieznana.
+- Gdy czegoś nie widać — wpisz null.
+
+Odpowiedz WYŁĄCZNIE poprawnym JSON-em:
+{
+  "name": "nazwa produktu",
+  "brand": "marka lub null",
+  "servingGrams": liczba lub null,
+  "caloriesPer100g": liczba lub null,
+  "proteinPer100g": liczba lub null,
+  "carbsPer100g": liczba lub null,
+  "fatPer100g": liczba lub null
+}`;
+
+  const result = await model.generateContent([
+    { inlineData: { data: base64Image, mimeType } },
+    { text: prompt },
+  ]);
+
+  await recordAiUsage({
+    userId,
+    operation: "read_product_label",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
+
+  const match = result.response.text().match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Nie udało się odczytać produktu ze zdjęcia");
+  const raw = JSON.parse(match[0]) as Record<string, unknown>;
+
+  const numOrNull = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+
+  return {
+    name: String(raw.name || "").trim(),
+    brand: raw.brand ? String(raw.brand).trim() : null,
+    servingGrams: numOrNull(raw.servingGrams),
+    caloriesPer100g: numOrNull(raw.caloriesPer100g),
+    proteinPer100g: numOrNull(raw.proteinPer100g),
+    carbsPer100g: numOrNull(raw.carbsPer100g),
+    fatPer100g: numOrNull(raw.fatPer100g),
+  };
+}
+
+// ============================================
 // Meal image generation
 // ============================================
 

@@ -9,6 +9,8 @@ const OPERATION_LABELS: Record<string, string> = {
   create_meal_from_text: "Danie z tekstu (AI)",
   create_meal_from_image: "Danie ze zdjęcia (AI)",
   generate_meal_image: "Generowanie zdjęcia dania (AI)",
+  read_barcode_image: "Odczyt kodu kreskowego (AI)",
+  read_product_label: "Odczyt etykiety produktu (AI)",
 };
 
 export default async function AdminAiPage() {
