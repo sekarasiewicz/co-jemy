@@ -1,12 +1,8 @@
-import { getMealsAction } from "@/app/actions/meals";
 import { getMealTypesAction } from "@/app/actions/tags";
 import { TodayView } from "./today-view";
 
 export default async function TodayPage() {
-  const [mealTypes, meals] = await Promise.all([
-    getMealTypesAction(),
-    getMealsAction(),
-  ]);
+  const mealTypes = await getMealTypesAction();
 
-  return <TodayView mealTypes={mealTypes} meals={meals} />;
+  return <TodayView mealTypes={mealTypes} />;
 }

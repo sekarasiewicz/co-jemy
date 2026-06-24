@@ -10,7 +10,9 @@ import {
   getFilteredMeals,
   getMealById,
   getMealsByUserId,
+  type MealSummary,
   randomizeSingleMeal,
+  searchMealsForType,
   updateMeal,
 } from "@/lib/services/meals";
 import { createTag, getTagsByUserId } from "@/lib/services/tags";
@@ -20,6 +22,16 @@ import { requireAuth } from "./auth";
 export async function getMealsAction(): Promise<MealWithRelations[]> {
   const session = await requireAuth();
   return getMealsByUserId(session.user.id);
+}
+
+export async function searchMealsForTypeAction(params: {
+  mealTypeId: string;
+  query?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<MealSummary[]> {
+  const session = await requireAuth();
+  return searchMealsForType(session.user.id, params);
 }
 
 export async function getMealAction(

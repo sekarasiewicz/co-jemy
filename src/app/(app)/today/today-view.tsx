@@ -31,7 +31,6 @@ import {
 import { randomizeMealAction } from "@/app/actions/meals";
 import { generateShoppingListAction } from "@/app/actions/shopping";
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -40,7 +39,8 @@ import {
 } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import { cn, convertToGrams, formatAmount, formatMinutes, getTodayNoon } from "@/lib/utils";
-import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType, MealWithRelations } from "@/types";
+import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType } from "@/types";
+import { AddMealModal } from "./add-meal-modal";
 
 type MealNutrition = { calories: number; protein: number; carbs: number; fat: number };
 
@@ -106,10 +106,9 @@ function getMealTypeAccent(name: string, index: number) {
 
 interface TodayViewProps {
   mealTypes: MealType[];
-  meals: MealWithRelations[];
 }
 
-export function TodayView({ mealTypes, meals }: TodayViewProps) {
+export function TodayView({ mealTypes }: TodayViewProps) {
   const activeProfile = useActiveProfile();
   const router = useRouter();
   const [plan, setPlan] = useState<DailyPlanWithMeals | null>(null);
@@ -261,17 +260,6 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
       setCompleted(completed); // revert on failure
       toast.error("Nie udało się zaktualizować posiłku");
     }
-  };
-
-  const getMealsForType = (mealTypeId: string) => {
-    return meals.filter((meal) =>
-      meal.mealTypes.some((mt) => mt.id === mealTypeId)
-    );
-  };
-
-  const getMealIngredients = (mealId: string) => {
-    const meal = meals.find((m) => m.id === mealId);
-    return meal?.ingredients || [];
   };
 
   const handleGenerateShoppingList = async () => {
@@ -659,10 +647,10 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
                             </button>
 
                             {/* Ingredients list */}
-                            {getMealIngredients(pm.meal.id).length > 0 && (
+                            {pm.meal.mealIngredients.length > 0 && (
                               <div className="w-full border-t border-border/50 pt-2">
                                 <ul className="text-xs text-muted-foreground space-y-0.5">
-                                  {getMealIngredients(pm.meal.id).map((mi) => (
+                                  {pm.meal.mealIngredients.map((mi) => (
                                     <li key={mi.id}>
                                       {formatAmount(mi.amount)} {mi.unit} {mi.ingredient.name}
                                     </li>
@@ -704,59 +692,12 @@ export function TodayView({ mealTypes, meals }: TodayViewProps) {
       </div>
 
       {/* Add Meal Modal */}
-      <Modal
+      <AddMealModal
+        mealType={addingMealType}
         isOpen={!!addingMealType}
         onClose={() => setAddingMealType(null)}
-        title={`Dodaj ${addingMealType?.name || ""}`}
-        size="lg"
-      >
-        {addingMealType && (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {getMealsForType(addingMealType.id).length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">
-                  Brak dań dla tego typu posiłku
-                </p>
-                <Link href="/meals/new">
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Dodaj nowe danie
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              getMealsForType(addingMealType.id).map((meal) => (
-                <button
-                  key={meal.id}
-                  onClick={() => handleAddMeal(meal.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-orange-500 hover:bg-orange-500/10 transition-colors text-left"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{meal.name}</p>
-                    <div className="flex gap-2 mt-1">
-                      {meal.calories && (
-                        <span className="text-xs text-muted-foreground">
-                          {meal.calories} kcal
-                        </span>
-                      )}
-                      {meal.isVegetarian && (
-                        <Badge size="sm" variant="fit">
-                          Wege
-                        </Badge>
-                      )}
-                      {meal.isChildFriendly && (
-                        <Badge size="sm" variant="info">
-                          Dla dzieci
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </Modal>
+        onSelect={handleAddMeal}
+      />
 
       {/* Swap day Modal */}
       <Modal

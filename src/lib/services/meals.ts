@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   ingredients,
@@ -46,6 +46,52 @@ export async function getMealsByUserId(
     mealTypes: meal.mealMealTypes.map((mmt) => mmt.mealType),
     ingredients: meal.mealIngredients,
   }));
+}
+
+export type MealSummary = {
+  id: string;
+  name: string;
+  calories: number | null;
+  isVegetarian: boolean;
+  isChildFriendly: boolean;
+};
+
+/**
+ * Paginated, server-side search of meals for a given meal type.
+ * Lightweight summary (no relations) — used by the "add meal" picker.
+ */
+export async function searchMealsForType(
+  userId: string,
+  params: {
+    mealTypeId: string;
+    query?: string;
+    limit?: number;
+    offset?: number;
+  },
+): Promise<MealSummary[]> {
+  const { mealTypeId, query, limit = 20, offset = 0 } = params;
+  const trimmed = query?.trim();
+
+  return db
+    .select({
+      id: meals.id,
+      name: meals.name,
+      calories: meals.calories,
+      isVegetarian: meals.isVegetarian,
+      isChildFriendly: meals.isChildFriendly,
+    })
+    .from(meals)
+    .innerJoin(mealMealTypes, eq(mealMealTypes.mealId, meals.id))
+    .where(
+      and(
+        eq(meals.userId, userId),
+        eq(mealMealTypes.mealTypeId, mealTypeId),
+        trimmed ? ilike(meals.name, `%${trimmed}%`) : undefined,
+      ),
+    )
+    .orderBy(meals.name)
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getMealById(
