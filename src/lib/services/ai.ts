@@ -598,29 +598,22 @@ export interface GeneratedImage {
   mimeType: string;
 }
 
-export async function generateMealImage(
-  input: { name: string; description?: string; ingredientNames?: string[] },
+// Runs the image model for a prompt, with retries on empty/text-only
+// responses (the model occasionally returns no image part).
+async function runImageModel(
+  prompt: string,
+  operation: string,
   userId?: string | null,
 ): Promise<GeneratedImage> {
   const modelName = "gemini-2.5-flash-image";
   const client = getClient();
   const model = client.getGenerativeModel({
     model: modelName,
-    // Image-capable model: ask for an image modality back.
     generationConfig: {
       responseModalities: ["IMAGE"],
     } as unknown as Record<string, unknown>,
   });
 
-  const ingredients = input.ingredientNames?.filter(Boolean).slice(0, 15) ?? [];
-  const prompt = `Profesjonalne zdjęcie kulinarne dania "${input.name}".${
-    input.description ? ` ${input.description}.` : ""
-  }${
-    ingredients.length > 0 ? ` Składniki: ${ingredients.join(", ")}.` : ""
-  } Apetyczne, naturalne światło, danie podane na talerzu, widok z góry lub pod kątem 45°, płytka głębia ostrości, realistyczne, wysoka jakość, bez tekstu i znaków wodnych.`;
-
-  // The image model occasionally returns a text-only or empty candidate
-  // (transient). Retry a couple of times before giving up.
   const MAX_ATTEMPTS = 3;
   let lastReason = "";
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -628,7 +621,7 @@ export async function generateMealImage(
 
     await recordAiUsage({
       userId,
-      operation: "generate_meal_image",
+      operation,
       model: modelName,
       usage: result.response.usageMetadata,
     });
@@ -654,4 +647,27 @@ export async function generateMealImage(
   }
 
   throw new Error(`AI nie wygenerowało obrazka (${lastReason})`);
+}
+
+export async function generateMealImage(
+  input: { name: string; description?: string; ingredientNames?: string[] },
+  userId?: string | null,
+): Promise<GeneratedImage> {
+  const ingredients = input.ingredientNames?.filter(Boolean).slice(0, 15) ?? [];
+  const prompt = `Profesjonalne zdjęcie kulinarne dania "${input.name}".${
+    input.description ? ` ${input.description}.` : ""
+  }${
+    ingredients.length > 0 ? ` Składniki: ${ingredients.join(", ")}.` : ""
+  } Apetyczne, naturalne światło, danie podane na talerzu, widok z góry lub pod kątem 45°, płytka głębia ostrości, realistyczne, wysoka jakość, bez tekstu i znaków wodnych.`;
+
+  return runImageModel(prompt, "generate_meal_image", userId);
+}
+
+export async function generateIngredientImage(
+  name: string,
+  userId?: string | null,
+): Promise<GeneratedImage> {
+  const prompt = `Czyste zdjęcie produktowe składnika spożywczego "${name}". Pojedynczy surowy produkt na jednolitym, jasnym tle, dobrze oświetlony, ostry, realistyczny, widok z góry lub pod lekkim kątem, bez tekstu, opakowań i znaków wodnych.`;
+
+  return runImageModel(prompt, "generate_ingredient_image", userId);
 }

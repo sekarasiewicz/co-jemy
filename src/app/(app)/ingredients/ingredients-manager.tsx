@@ -1,6 +1,16 @@
 "use client";
 
-import { AlertTriangle, GitMerge, ImageIcon, Pencil, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  GitMerge,
+  ImageIcon,
+  Pencil,
+  Plus,
+  Search,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -8,6 +18,7 @@ import {
   deleteIngredientAction,
   enrichByNameAction,
   enrichIngredientAction,
+  generateIngredientImageAction,
   mergeIngredientsAction,
   updateIngredientAction,
 } from "@/app/actions/ingredients";
@@ -60,25 +71,59 @@ const emptyForm: IngredientFormData = {
 function normalizeIngredientName(name: string): string {
   let normalized = name.toLowerCase().trim();
   // Strip parenthetical weight/volume info like (5g), (ok. 200g), (15ml)
-  normalized = normalized.replace(/\s*\((?:ok\.\s*)?\d+\s*(?:g|ml)\)\s*/gi, " ").trim();
+  normalized = normalized
+    .replace(/\s*\((?:ok\.\s*)?\d+\s*(?:g|ml)\)\s*/gi, " ")
+    .trim();
   // Strip leading unit words that may have leaked into the name
   const unitWords = [
-    "kostki", "kostek", "kostka",
-    "garści", "garść",
-    "szczypty", "szczypt", "szczypta",
-    "listki", "listków", "listek",
-    "gałązki", "gałązek", "gałązka",
-    "łodygi", "łodyg", "łodyga",
-    "puszki", "puszek", "puszka",
-    "słoiki", "słoików", "słoik",
-    "łyżki", "łyżek", "łyżka",
-    "łyżeczki", "łyżeczek", "łyżeczka",
-    "szklanki", "szklankę", "szklanka",
-    "ząbki", "ząbków", "ząbek",
-    "plastry", "plasterki", "plasterków", "plaster",
-    "kromki", "kromek", "kromka",
-    "pęczki", "pęczków", "pęczek",
-    "opakowania", "opakowań", "opakowanie",
+    "kostki",
+    "kostek",
+    "kostka",
+    "garści",
+    "garść",
+    "szczypty",
+    "szczypt",
+    "szczypta",
+    "listki",
+    "listków",
+    "listek",
+    "gałązki",
+    "gałązek",
+    "gałązka",
+    "łodygi",
+    "łodyg",
+    "łodyga",
+    "puszki",
+    "puszek",
+    "puszka",
+    "słoiki",
+    "słoików",
+    "słoik",
+    "łyżki",
+    "łyżek",
+    "łyżka",
+    "łyżeczki",
+    "łyżeczek",
+    "łyżeczka",
+    "szklanki",
+    "szklankę",
+    "szklanka",
+    "ząbki",
+    "ząbków",
+    "ząbek",
+    "plastry",
+    "plasterki",
+    "plasterków",
+    "plaster",
+    "kromki",
+    "kromek",
+    "kromka",
+    "pęczki",
+    "pęczków",
+    "pęczek",
+    "opakowania",
+    "opakowań",
+    "opakowanie",
   ];
   for (const word of unitWords) {
     if (normalized.startsWith(word + " ")) {
@@ -103,6 +148,7 @@ export function IngredientsManager({
   const [merging, setMerging] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [bulkEnriching, setBulkEnriching] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ processed: 0, total: 0 });
   const abortRef = useRef<AbortController | null>(null);
@@ -144,10 +190,14 @@ export function IngredientsManager({
         });
       }
     }
-    return result.sort((a, b) => a.normalizedName.localeCompare(b.normalizedName, "pl"));
+    return result.sort((a, b) =>
+      a.normalizedName.localeCompare(b.normalizedName, "pl"),
+    );
   }, [ingredients]);
 
-  const [mergeSelections, setMergeSelections] = useState<Record<string, string>>({});
+  const [mergeSelections, setMergeSelections] = useState<
+    Record<string, string>
+  >({});
 
   const getTargetId = (group: DuplicateGroup) =>
     mergeSelections[group.normalizedName] || group.selectedTargetId;
@@ -155,7 +205,7 @@ export function IngredientsManager({
   const filteredIngredients = ingredients.filter(
     (ing) =>
       ing.name.toLowerCase().includes(search.toLowerCase()) ||
-      ing.category.toLowerCase().includes(search.toLowerCase())
+      ing.category.toLowerCase().includes(search.toLowerCase()),
   );
 
   const groupedIngredients = filteredIngredients.reduce(
@@ -166,7 +216,7 @@ export function IngredientsManager({
       acc[ing.category].push(ing);
       return acc;
     },
-    {} as Record<string, Ingredient[]>
+    {} as Record<string, Ingredient[]>,
   );
 
   const openAddModal = () => {
@@ -202,6 +252,23 @@ export function IngredientsManager({
     setIsMergeModalOpen(true);
   };
 
+  const handleGenerateImage = async () => {
+    if (!form.name.trim()) {
+      toast.error("Najpierw podaj nazwę składnika");
+      return;
+    }
+    setGeneratingImage(true);
+    try {
+      const { url } = await generateIngredientImageAction(form.name.trim());
+      setForm((prev) => ({ ...prev, image: url }));
+      toast.success("Zdjęcie wygenerowane");
+    } catch {
+      toast.error("Nie udało się wygenerować zdjęcia");
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
@@ -219,19 +286,15 @@ export function IngredientsManager({
         proteinPer100g: form.proteinPer100g
           ? Number(form.proteinPer100g)
           : null,
-        carbsPer100g: form.carbsPer100g
-          ? Number(form.carbsPer100g)
-          : null,
+        carbsPer100g: form.carbsPer100g ? Number(form.carbsPer100g) : null,
         fatPer100g: form.fatPer100g ? Number(form.fatPer100g) : null,
-        weightPerUnit: form.weightPerUnit
-          ? Number(form.weightPerUnit)
-          : null,
+        weightPerUnit: form.weightPerUnit ? Number(form.weightPerUnit) : null,
       };
 
       if (editingId) {
         const updated = await updateIngredientAction(editingId, data);
         setIngredients(
-          ingredients.map((ing) => (ing.id === editingId ? updated : ing))
+          ingredients.map((ing) => (ing.id === editingId ? updated : ing)),
         );
         toast.success("Składnik zaktualizowany");
       } else {
@@ -428,9 +491,10 @@ export function IngredientsManager({
             <div
               className="bg-orange-500 h-2 rounded-full transition-all duration-300"
               style={{
-                width: bulkProgress.total > 0
-                  ? `${(bulkProgress.processed / bulkProgress.total) * 100}%`
-                  : "0%",
+                width:
+                  bulkProgress.total > 0
+                    ? `${(bulkProgress.processed / bulkProgress.total) * 100}%`
+                    : "0%",
               }}
             />
           </div>
@@ -484,10 +548,10 @@ export function IngredientsManager({
                             <p className="font-medium text-foreground truncate">
                               {ing.name}
                             </p>
-                            {(ing.caloriesPer100g ||
-                              ing.proteinPer100g ||
-                              ing.carbsPer100g ||
-                              ing.fatPer100g) ? (
+                            {ing.caloriesPer100g ||
+                            ing.proteinPer100g ||
+                            ing.carbsPer100g ||
+                            ing.fatPer100g ? (
                               <p className="text-sm text-muted-foreground">
                                 {ing.caloriesPer100g && (
                                   <span>{ing.caloriesPer100g} kcal</span>
@@ -570,11 +634,16 @@ export function IngredientsManager({
                   onClick={async () => {
                     setLoading(true);
                     try {
-                      const enriched = await enrichByNameAction(form.name.trim(), form.defaultUnit);
+                      const enriched = await enrichByNameAction(
+                        form.name.trim(),
+                        form.defaultUnit,
+                      );
                       setForm({
                         ...form,
-                        caloriesPer100g: enriched.caloriesPer100g?.toString() || "",
-                        proteinPer100g: enriched.proteinPer100g?.toString() || "",
+                        caloriesPer100g:
+                          enriched.caloriesPer100g?.toString() || "",
+                        proteinPer100g:
+                          enriched.proteinPer100g?.toString() || "",
                         carbsPer100g: enriched.carbsPer100g?.toString() || "",
                         fatPer100g: enriched.fatPer100g?.toString() || "",
                         weightPerUnit: enriched.weightPerUnit?.toString() || "",
@@ -611,13 +680,26 @@ export function IngredientsManager({
             required
           />
 
-          <ImageUpload
-            label="Zdjęcie"
-            value={form.image}
-            onChange={(url) => setForm({ ...form, image: url })}
-            folder="ingredients"
-            aspect="square"
-          />
+          <div className="space-y-2">
+            <ImageUpload
+              label="Zdjęcie"
+              value={form.image}
+              onChange={(url) => setForm({ ...form, image: url })}
+              folder="ingredients"
+              aspect="square"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateImage}
+              loading={generatingImage}
+              disabled={!form.name.trim()}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Wygeneruj zdjęcie z AI
+            </Button>
+          </div>
 
           <div className="grid grid-cols-3 gap-4 items-end">
             <Select
@@ -786,11 +868,7 @@ export function IngredientsManager({
             >
               Anuluj
             </Button>
-            <Button
-              onClick={handleMerge}
-              loading={merging}
-              className="flex-1"
-            >
+            <Button onClick={handleMerge} loading={merging} className="flex-1">
               <GitMerge className="w-4 h-4 mr-2" />
               Scal wybrane
             </Button>

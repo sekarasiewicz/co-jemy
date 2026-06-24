@@ -1,6 +1,8 @@
 "use server";
 
+import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
+import { generateIngredientImage } from "@/lib/services/ai";
 import {
   createIngredient,
   deleteIngredient,
@@ -10,8 +12,31 @@ import {
   searchIngredients,
   updateIngredient,
 } from "@/lib/services/ingredients";
+import { generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "./auth";
+
+export async function generateIngredientImageAction(
+  name: string,
+): Promise<{ url: string }> {
+  const session = await requireAuth();
+  if (!name?.trim()) throw new Error("Najpierw podaj nazwę składnika");
+
+  const image = await generateIngredientImage(name, session.user.id);
+  const buffer = Buffer.from(image.base64, "base64");
+  const ext = image.mimeType.includes("png")
+    ? "png"
+    : image.mimeType.includes("webp")
+      ? "webp"
+      : "jpg";
+
+  const blob = await put(`ingredients/ai-${generateId()}.${ext}`, buffer, {
+    access: "public",
+    contentType: image.mimeType,
+  });
+
+  return { url: blob.url };
+}
 
 export async function getIngredientsAction(): Promise<Ingredient[]> {
   const session = await requireAuth();
