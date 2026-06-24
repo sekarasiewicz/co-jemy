@@ -96,28 +96,6 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
         <div className="flex items-center gap-2">
           <Barcode className="w-5 h-5 text-sky-500" />
           <h2 className="font-semibold text-foreground">Gotowy produkt</h2>
-          <Tooltip
-            side="bottom"
-            className="max-w-[260px] text-left"
-            content={
-              <span className="block space-y-1">
-                <span className="block">
-                  <strong>Etykieta</strong> — sfotografuj tabelę wartości
-                  odżywczych z opakowania.
-                </span>
-                <span className="block">
-                  <strong>Kod kreskowy</strong> — sfotografuj paski z cyframi
-                  (zwykle z tyłu/spodu opakowania).
-                </span>
-                <span className="block">
-                  <strong>Numer</strong> — wpisz cyfry spod kodu (EAN, 8–13
-                  cyfr).
-                </span>
-              </span>
-            }
-          >
-            <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-          </Tooltip>
         </div>
         <p className="text-sm text-muted-foreground">
           Baton, mrożona pizza, jogurt... Dodaj zdjęcie etykiety albo kodu
@@ -140,53 +118,81 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
         />
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => labelRef.current?.click()}
-            loading={loading === "label"}
-            disabled={loading !== null}
-          >
-            <Tag className="w-4 h-4 mr-2" />
-            Zdjęcie etykiety
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => barcodeRef.current?.click()}
-            loading={loading === "barcode"}
-            disabled={loading !== null}
-          >
-            <ScanLine className="w-4 h-4 mr-2" />
-            Zdjęcie kodu kreskowego
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => labelRef.current?.click()}
+              loading={loading === "label"}
+              disabled={loading !== null}
+            >
+              <Tag className="w-4 h-4 mr-2" />
+              Zdjęcie etykiety
+            </Button>
+            <Tooltip
+              side="bottom"
+              content="Sfotografuj tabelę wartości odżywczych z opakowania."
+            >
+              <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+            </Tooltip>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => barcodeRef.current?.click()}
+              loading={loading === "barcode"}
+              disabled={loading !== null}
+            >
+              <ScanLine className="w-4 h-4 mr-2" />
+              Zdjęcie kodu kreskowego
+            </Button>
+            <Tooltip
+              side="bottom"
+              content="Sfotografuj kod kreskowy — paski z cyframi, zwykle z tyłu opakowania."
+            >
+              <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+            </Tooltip>
+          </div>
         </div>
 
-        <div className="flex items-end gap-2 border-t border-border pt-4">
-          <div className="flex-1">
-            <Input
-              label="...lub wpisz numer kodu"
-              value={barcodeNumber}
-              onChange={(e) => setBarcodeNumber(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleNumber();
-                }
-              }}
-              placeholder="np. 5900512983004"
-              inputMode="numeric"
-              disabled={loading !== null}
-            />
+        <div className="border-t border-border pt-4">
+          <div className="mb-1 flex items-center gap-1.5">
+            <span className="text-sm font-medium text-foreground">
+              ...lub wpisz numer kodu
+            </span>
+            <Tooltip
+              side="bottom"
+              content="Cyfry wydrukowane pod kodem kreskowym (EAN, 8–13 cyfr)."
+            >
+              <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+            </Tooltip>
           </div>
-          <Button
-            type="button"
-            onClick={handleNumber}
-            loading={loading === "number"}
-            disabled={loading !== null || !barcodeNumber.trim()}
-          >
-            Szukaj
-          </Button>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                value={barcodeNumber}
+                onChange={(e) => setBarcodeNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleNumber();
+                  }
+                }}
+                placeholder="np. 5900512983004"
+                inputMode="numeric"
+                disabled={loading !== null}
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={handleNumber}
+              loading={loading === "number"}
+              disabled={loading !== null || !barcodeNumber.trim()}
+            >
+              Szukaj
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
