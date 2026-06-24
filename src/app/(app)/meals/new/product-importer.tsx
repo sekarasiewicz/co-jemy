@@ -1,6 +1,6 @@
 "use client";
 
-import { Barcode, ScanLine, Tag } from "lucide-react";
+import { Barcode, Info, ScanLine, Tag } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -9,7 +9,7 @@ import {
   createMealDraftFromProductImageAction,
   type MealDraft,
 } from "@/app/actions/meal-ai";
-import { Button, Card, CardContent, Input } from "@/components/ui";
+import { Button, Card, CardContent, Input, Tooltip } from "@/components/ui";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -96,6 +96,28 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
         <div className="flex items-center gap-2">
           <Barcode className="w-5 h-5 text-sky-500" />
           <h2 className="font-semibold text-foreground">Gotowy produkt</h2>
+          <Tooltip
+            side="bottom"
+            className="max-w-[260px] text-left"
+            content={
+              <span className="block space-y-1">
+                <span className="block">
+                  <strong>Etykieta</strong> — sfotografuj tabelę wartości
+                  odżywczych z opakowania.
+                </span>
+                <span className="block">
+                  <strong>Kod kreskowy</strong> — sfotografuj paski z cyframi
+                  (zwykle z tyłu/spodu opakowania).
+                </span>
+                <span className="block">
+                  <strong>Numer</strong> — wpisz cyfry spod kodu (EAN, 8–13
+                  cyfr).
+                </span>
+              </span>
+            }
+          >
+            <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+          </Tooltip>
         </div>
         <p className="text-sm text-muted-foreground">
           Baton, mrożona pizza, jogurt... Dodaj zdjęcie etykiety albo kodu
