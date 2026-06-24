@@ -6,6 +6,8 @@ export const dynamic = "force-dynamic";
 const OPERATION_LABELS: Record<string, string> = {
   enrich_ingredients: "Wzbogacanie składników",
   extract_diet: "Import diety (PDF)",
+  create_meal_from_text: "Danie z tekstu (AI)",
+  create_meal_from_image: "Danie ze zdjęcia (AI)",
 };
 
 export default async function AdminAiPage() {

@@ -317,3 +317,173 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
     plan,
   };
 }
+
+// ============================================
+// Single meal extraction (from recipe text or photo)
+// ============================================
+
+export interface ExtractedMealIngredient {
+  name: string;
+  amount: number;
+  unit: Unit;
+  grams: number; // total grams for this line, from a "(Ng)" hint; 0 if absent
+}
+
+export interface ExtractedMeal {
+  name: string;
+  description: string;
+  instructions: string;
+  servings: number;
+  prepTimeMinutes: number | null;
+  cookTimeMinutes: number | null;
+  mealTypeNames: string[];
+  isVegetarian: boolean;
+  isVegan: boolean;
+  isGlutenFree: boolean;
+  isLactoseFree: boolean;
+  isQuick: boolean;
+  isMealPrep: boolean;
+  isChildFriendly: boolean;
+  ingredients: ExtractedMealIngredient[];
+}
+
+function buildMealPrompt(): string {
+  const unitsList = UNITS.join(", ");
+  const mealTypesList = MEAL_TYPE_NAMES.join(", ");
+
+  return `Jesteś ekspertem kulinarnym i dietetykiem. Otrzymujesz przepis na JEDNO danie (jako tekst lub zdjęcie). Wyodrębnij dane dania.
+
+ZASADY:
+- "name" to krótka, zwięzła nazwa dania.
+- "ingredients" to lista składników (nazwa, ilość jako liczba, jednostka). Ilości zamień na liczby ("1 i 1/2" → 1.5, "3/4" → 0.75).
+- Jeśli przy składniku jest gramatura w nawiasie (np. "(120g)"), wpisz ją do "grams" (łączna waga linii), ale jako "unit" użyj jednostki głównej (sztuka→szt, łyżka, garść itp.), nie gramów.
+- "servings" to liczba porcji (domyślnie 1 jeśli nie podano).
+- "prepTimeMinutes"/"cookTimeMinutes" w minutach lub null gdy brak.
+- "mealTypeNames" — do jakich typów posiłku pasuje danie (może być kilka).
+- Flagi diety (isVegetarian, isVegan, isGlutenFree, isLactoseFree) wywnioskuj ze składników. "isQuick" gdy łączny czas < 30 min. "isMealPrep" gdy danie nadaje się do przygotowania na zapas. "isChildFriendly" gdy przyjazne dzieciom.
+- NIE licz kalorii ani makroskładników — to zrobi system na podstawie składników.
+
+Dozwolone jednostki: ${unitsList}
+Dozwolone typy posiłków: ${mealTypesList}
+
+Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
+{
+  "name": "nazwa dania",
+  "description": "krótki opis lub pusty string",
+  "instructions": "sposób przygotowania krok po kroku lub pusty string",
+  "servings": liczba,
+  "prepTimeMinutes": liczba lub null,
+  "cookTimeMinutes": liczba lub null,
+  "mealTypeNames": ["jeden lub więcej z dozwolonych typów"],
+  "isVegetarian": bool, "isVegan": bool, "isGlutenFree": bool, "isLactoseFree": bool,
+  "isQuick": bool, "isMealPrep": bool, "isChildFriendly": bool,
+  "ingredients": [
+    { "name": "nazwa składnika", "amount": liczba, "unit": "jedna z dozwolonych jednostek", "grams": liczba lub 0 }
+  ]
+}`;
+}
+
+function parseExtractedMeal(text: string): ExtractedMeal {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Nie udało się sparsować odpowiedzi AI");
+  }
+  const raw = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+
+  const bool = (v: unknown) => v === true || v === "true";
+  const numOrNull = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const rawTypes = Array.isArray(raw.mealTypeNames) ? raw.mealTypeNames : [];
+  const mealTypeNames = [
+    ...new Set(rawTypes.map((t) => normalizeMealTypeName(t))),
+  ];
+
+  const rawIngredients = Array.isArray(raw.ingredients) ? raw.ingredients : [];
+  const ingredients: ExtractedMealIngredient[] = rawIngredients
+    .map((i) => {
+      const ri = i as Record<string, unknown>;
+      return {
+        name: String(ri.name || "").trim(),
+        amount: Number(ri.amount) || 0,
+        unit: normalizeUnit(ri.unit),
+        grams: Math.max(0, Number(ri.grams) || 0),
+      };
+    })
+    .filter((i) => i.name.length > 0);
+
+  return {
+    name: String(raw.name || "").trim(),
+    description: String(raw.description || "").trim(),
+    instructions: String(raw.instructions || "").trim(),
+    servings: Math.max(1, Number(raw.servings) || 1),
+    prepTimeMinutes: numOrNull(raw.prepTimeMinutes),
+    cookTimeMinutes: numOrNull(raw.cookTimeMinutes),
+    mealTypeNames,
+    isVegetarian: bool(raw.isVegetarian),
+    isVegan: bool(raw.isVegan),
+    isGlutenFree: bool(raw.isGlutenFree),
+    isLactoseFree: bool(raw.isLactoseFree),
+    isQuick: bool(raw.isQuick),
+    isMealPrep: bool(raw.isMealPrep),
+    isChildFriendly: bool(raw.isChildFriendly),
+    ingredients,
+  };
+}
+
+function getMealModel() {
+  const modelName = "gemini-2.5-flash";
+  const client = getClient();
+  const model = client.getGenerativeModel({
+    model: modelName,
+    generationConfig: {
+      responseMimeType: "application/json",
+      maxOutputTokens: 8192,
+      temperature: 0.2,
+    },
+  });
+  return { model, modelName };
+}
+
+export async function extractMealFromText(
+  recipeText: string,
+  userId?: string | null,
+): Promise<ExtractedMeal> {
+  const { model, modelName } = getMealModel();
+  const prompt = `${buildMealPrompt()}\n\nPRZEPIS:\n${recipeText}`;
+
+  const result = await model.generateContent(prompt);
+
+  await recordAiUsage({
+    userId,
+    operation: "create_meal_from_text",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
+
+  return parseExtractedMeal(result.response.text());
+}
+
+export async function extractMealFromImage(
+  base64Image: string,
+  mimeType: string,
+  userId?: string | null,
+): Promise<ExtractedMeal> {
+  const { model, modelName } = getMealModel();
+
+  const result = await model.generateContent([
+    { inlineData: { data: base64Image, mimeType } },
+    { text: buildMealPrompt() },
+  ]);
+
+  await recordAiUsage({
+    userId,
+    operation: "create_meal_from_image",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
+
+  return parseExtractedMeal(result.response.text());
+}
