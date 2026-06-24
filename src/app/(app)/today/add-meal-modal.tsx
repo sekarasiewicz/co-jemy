@@ -135,13 +135,13 @@ export function AddMealModal({
           />
         </div>
 
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div className="space-y-2 h-96 overflow-y-auto">
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
+            <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
               Ładowanie...
             </div>
           ) : results.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="flex h-full flex-col items-center justify-center text-center">
               <p className="text-muted-foreground mb-4">
                 {debouncedQuery
                   ? "Brak dań pasujących do wyszukiwania"
