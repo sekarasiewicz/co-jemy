@@ -518,26 +518,39 @@ export async function generateMealImage(
     ingredients.length > 0 ? ` Składniki: ${ingredients.join(", ")}.` : ""
   } Apetyczne, naturalne światło, danie podane na talerzu, widok z góry lub pod kątem 45°, płytka głębia ostrości, realistyczne, wysoka jakość, bez tekstu i znaków wodnych.`;
 
-  const result = await model.generateContent(prompt);
+  // The image model occasionally returns a text-only or empty candidate
+  // (transient). Retry a couple of times before giving up.
+  const MAX_ATTEMPTS = 3;
+  let lastReason = "";
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const result = await model.generateContent(prompt);
 
-  await recordAiUsage({
-    userId,
-    operation: "generate_meal_image",
-    model: modelName,
-    usage: result.response.usageMetadata,
-  });
+    await recordAiUsage({
+      userId,
+      operation: "generate_meal_image",
+      model: modelName,
+      usage: result.response.usageMetadata,
+    });
 
-  const parts = result.response.candidates?.[0]?.content?.parts ?? [];
-  for (const part of parts) {
-    const inline = (part as { inlineData?: { data?: string; mimeType?: string } })
-      .inlineData;
-    if (inline?.data) {
-      return {
-        base64: inline.data,
-        mimeType: inline.mimeType || "image/png",
-      };
+    const candidate = result.response.candidates?.[0];
+    const parts = candidate?.content?.parts ?? [];
+    for (const part of parts) {
+      const inline = (
+        part as { inlineData?: { data?: string; mimeType?: string } }
+      ).inlineData;
+      if (inline?.data) {
+        return {
+          base64: inline.data,
+          mimeType: inline.mimeType || "image/png",
+        };
+      }
     }
+
+    lastReason =
+      result.response.promptFeedback?.blockReason ||
+      candidate?.finishReason ||
+      "brak obrazka w odpowiedzi";
   }
 
-  throw new Error("AI nie wygenerowało obrazka");
+  throw new Error(`AI nie wygenerowało obrazka (${lastReason})`);
 }
