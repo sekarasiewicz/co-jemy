@@ -7,6 +7,8 @@ import { generateId } from "@/lib/utils";
 const PRICING: Record<string, { input: number; output: number }> = {
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "gemini-2.5-pro": { input: 1.25, output: 10 },
+  // Image output billed at ~$30/1M tokens (~1290 tokens/image ≈ $0.039).
+  "gemini-2.5-flash-image": { input: 0.3, output: 30 },
 };
 
 export function estimateCost(
@@ -16,8 +18,7 @@ export function estimateCost(
 ): number {
   const p = PRICING[model] ?? { input: 0, output: 0 };
   return (
-    (promptTokens / 1_000_000) * p.input +
-    (outputTokens / 1_000_000) * p.output
+    (promptTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output
   );
 }
 

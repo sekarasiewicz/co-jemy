@@ -1,17 +1,19 @@
 "use server";
 
+import { put } from "@vercel/blob";
 import {
   type ExtractedMeal,
   enrichIngredients,
   extractMealFromImage,
   extractMealFromText,
+  generateMealImage,
 } from "@/lib/services/ai";
 import {
   createIngredient,
   getIngredientsByUserId,
 } from "@/lib/services/ingredients";
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
-import { convertToGrams } from "@/lib/utils";
+import { convertToGrams, generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "./auth";
 
@@ -221,4 +223,28 @@ export async function createMealDraftFromImageAction(input: {
   );
   if (!extracted.name) throw new Error("AI nie rozpoznało dania ze zdjęcia");
   return buildMealDraft(session.user.id, extracted);
+}
+
+export async function generateMealImageAction(input: {
+  name: string;
+  description?: string;
+  ingredientNames?: string[];
+}): Promise<{ url: string }> {
+  const session = await requireAuth();
+  if (!input.name?.trim()) throw new Error("Najpierw podaj nazwę dania");
+
+  const image = await generateMealImage(input, session.user.id);
+  const buffer = Buffer.from(image.base64, "base64");
+  const ext = image.mimeType.includes("png")
+    ? "png"
+    : image.mimeType.includes("webp")
+      ? "webp"
+      : "jpg";
+
+  const blob = await put(`meals/ai-${generateId()}.${ext}`, buffer, {
+    access: "public",
+    contentType: image.mimeType,
+  });
+
+  return { url: blob.url };
 }

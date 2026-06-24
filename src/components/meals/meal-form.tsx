@@ -1,9 +1,11 @@
 "use client";
 
-import { Calculator, Plus, Trash2 } from "lucide-react";
+import { Calculator, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { createIngredientAction } from "@/app/actions/ingredients";
+import { generateMealImageAction } from "@/app/actions/meal-ai";
 import {
   Button,
   Card,
@@ -16,13 +18,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type {
-  Ingredient,
-  Meal,
-  MealIngredient,
-  MealType,
-  Tag,
-} from "@/types";
+import type { Ingredient, Meal, MealIngredient, MealType, Tag } from "@/types";
 import { UNITS } from "@/types";
 
 interface IngredientEntry {
@@ -76,6 +72,7 @@ export function MealForm({
 }: MealFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
 
   const [name, setName] = useState(meal?.name || "");
   const [description, setDescription] = useState(meal?.description || "");
@@ -176,6 +173,34 @@ export function MealForm({
     });
     setAvailableIngredients([...availableIngredients, newIngredient]);
     return { value: newIngredient.id, label: newIngredient.name };
+  };
+
+  const handleGenerateImage = async () => {
+    if (!name.trim()) {
+      toast.error("Najpierw podaj nazwę dania");
+      return;
+    }
+    setGeneratingImage(true);
+    try {
+      const ingredientNames = selectedIngredients
+        .map(
+          (si) =>
+            availableIngredients.find((ing) => ing.id === si.ingredientId)
+              ?.name,
+        )
+        .filter((n): n is string => Boolean(n));
+      const { url } = await generateMealImageAction({
+        name,
+        description: description || undefined,
+        ingredientNames,
+      });
+      setImageUrl(url);
+      toast.success("Zdjęcie wygenerowane");
+    } catch {
+      toast.error("Nie udało się wygenerować zdjęcia");
+    } finally {
+      setGeneratingImage(false);
+    }
   };
 
   // Calculate nutritional values from ingredients
@@ -315,13 +340,26 @@ export function MealForm({
             rows={2}
           />
 
-          <ImageUpload
-            label="Zdjęcie dania"
-            value={imageUrl}
-            onChange={setImageUrl}
-            folder="meals"
-            aspect="video"
-          />
+          <div className="space-y-2">
+            <ImageUpload
+              label="Zdjęcie dania"
+              value={imageUrl}
+              onChange={setImageUrl}
+              folder="meals"
+              aspect="video"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateImage}
+              loading={generatingImage}
+              disabled={!name.trim()}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Wygeneruj zdjęcie z AI
+            </Button>
+          </div>
 
           <div className="grid grid-cols-3 gap-4">
             <Input

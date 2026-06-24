@@ -487,3 +487,57 @@ export async function extractMealFromImage(
 
   return parseExtractedMeal(result.response.text());
 }
+
+// ============================================
+// Meal image generation
+// ============================================
+
+export interface GeneratedImage {
+  base64: string;
+  mimeType: string;
+}
+
+export async function generateMealImage(
+  input: { name: string; description?: string; ingredientNames?: string[] },
+  userId?: string | null,
+): Promise<GeneratedImage> {
+  const modelName = "gemini-2.5-flash-image";
+  const client = getClient();
+  const model = client.getGenerativeModel({
+    model: modelName,
+    // Image-capable model: ask for an image modality back.
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+    } as unknown as Record<string, unknown>,
+  });
+
+  const ingredients = input.ingredientNames?.filter(Boolean).slice(0, 15) ?? [];
+  const prompt = `Profesjonalne zdjęcie kulinarne dania "${input.name}".${
+    input.description ? ` ${input.description}.` : ""
+  }${
+    ingredients.length > 0 ? ` Składniki: ${ingredients.join(", ")}.` : ""
+  } Apetyczne, naturalne światło, danie podane na talerzu, widok z góry lub pod kątem 45°, płytka głębia ostrości, realistyczne, wysoka jakość, bez tekstu i znaków wodnych.`;
+
+  const result = await model.generateContent(prompt);
+
+  await recordAiUsage({
+    userId,
+    operation: "generate_meal_image",
+    model: modelName,
+    usage: result.response.usageMetadata,
+  });
+
+  const parts = result.response.candidates?.[0]?.content?.parts ?? [];
+  for (const part of parts) {
+    const inline = (part as { inlineData?: { data?: string; mimeType?: string } })
+      .inlineData;
+    if (inline?.data) {
+      return {
+        base64: inline.data,
+        mimeType: inline.mimeType || "image/png",
+      };
+    }
+  }
+
+  throw new Error("AI nie wygenerowało obrazka");
+}
