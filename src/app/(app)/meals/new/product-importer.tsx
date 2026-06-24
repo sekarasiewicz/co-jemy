@@ -5,10 +5,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   createMealDraftFromBarcodeAction,
+  createMealDraftFromBarcodeNumberAction,
   createMealDraftFromProductImageAction,
   type MealDraft,
 } from "@/app/actions/meal-ai";
-import { Button, Card, CardContent } from "@/components/ui";
+import { Button, Card, CardContent, Input } from "@/components/ui";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -29,9 +30,31 @@ interface ProductImporterProps {
 }
 
 export function ProductImporter({ onDraft }: ProductImporterProps) {
-  const [loading, setLoading] = useState<"label" | "barcode" | null>(null);
+  const [loading, setLoading] = useState<"label" | "barcode" | "number" | null>(
+    null,
+  );
+  const [barcodeNumber, setBarcodeNumber] = useState("");
   const labelRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
+
+  const handleNumber = async () => {
+    const ean = barcodeNumber.replace(/\D/g, "");
+    if (ean.length < 8) {
+      toast.error("Wpisz poprawny kod kreskowy");
+      return;
+    }
+    setLoading("number");
+    try {
+      const draft = await createMealDraftFromBarcodeNumberAction(ean);
+      onDraft(draft);
+      setBarcodeNumber("");
+      toast.success("Produkt rozpoznany — sprawdź i zapisz");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie znaleziono produktu");
+    } finally {
+      setLoading(null);
+    }
+  };
 
   const run = async (
     file: File | undefined,
@@ -114,6 +137,33 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
           >
             <ScanLine className="w-4 h-4 mr-2" />
             Zdjęcie kodu kreskowego
+          </Button>
+        </div>
+
+        <div className="flex items-end gap-2 border-t border-border pt-4">
+          <div className="flex-1">
+            <Input
+              label="...lub wpisz numer kodu"
+              value={barcodeNumber}
+              onChange={(e) => setBarcodeNumber(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleNumber();
+                }
+              }}
+              placeholder="np. 5900512983004"
+              inputMode="numeric"
+              disabled={loading !== null}
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={handleNumber}
+            loading={loading === "number"}
+            disabled={loading !== null || !barcodeNumber.trim()}
+          >
+            Szukaj
           </Button>
         </div>
       </CardContent>

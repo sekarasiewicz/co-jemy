@@ -330,6 +330,20 @@ export async function createMealDraftFromBarcodeAction(input: {
   return buildProductDraft(session.user.id, fromLabel);
 }
 
+export async function createMealDraftFromBarcodeNumberAction(
+  barcode: string,
+): Promise<MealDraft> {
+  const session = await requireAuth();
+  const ean = barcode.replace(/\D/g, "");
+  if (ean.length < 8) throw new Error("Nieprawidłowy kod kreskowy");
+
+  const product = await fetchProductByBarcode(ean);
+  if (!product) {
+    throw new Error("Nie znaleziono produktu dla tego kodu");
+  }
+  return buildProductDraft(session.user.id, product);
+}
+
 export async function createMealDraftFromProductImageAction(input: {
   base64: string;
   mimeType: string;
