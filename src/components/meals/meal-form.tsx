@@ -421,7 +421,7 @@ export function MealForm({
               value={protein}
               onChange={(e) => setProtein(e.target.value)}
               min={0}
-              step={0.1}
+              step="any"
             />
             <Input
               label="Węglowodany (g)"
@@ -429,7 +429,7 @@ export function MealForm({
               value={carbs}
               onChange={(e) => setCarbs(e.target.value)}
               min={0}
-              step={0.1}
+              step="any"
             />
             <Input
               label="Tłuszcze (g)"
@@ -437,7 +437,7 @@ export function MealForm({
               value={fat}
               onChange={(e) => setFat(e.target.value)}
               min={0}
-              step={0.1}
+              step="any"
             />
           </div>
         </CardContent>
@@ -492,7 +492,7 @@ export function MealForm({
                         )
                       }
                       min={0}
-                      step={0.1}
+                      step="any"
                     />
                   </div>
                   <div className="w-24">
