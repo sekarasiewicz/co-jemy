@@ -1,6 +1,7 @@
 "use server";
 
 import { put } from "@vercel/blob";
+import { revalidatePath } from "next/cache";
 import {
   type ExtractedMeal,
   enrichIngredients,
@@ -15,6 +16,7 @@ import {
   getIngredientsByUserId,
 } from "@/lib/services/ingredients";
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
+import { createMeal } from "@/lib/services/meals";
 import { fetchProductByBarcode } from "@/lib/services/open-food-facts";
 import { convertToGrams, generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
@@ -244,6 +246,13 @@ async function buildProductDraft(
   userId: string,
   product: ProductInfo,
 ): Promise<MealDraft> {
+  // Default the product-meal to a meal type so it shows up in the day picker
+  // (the picker filters by meal type). "Przekąska" fits most ready products.
+  const mealTypes = await addMissingDefaultMealTypes(userId);
+  const defaultType =
+    mealTypes.find((mt) => mt.name.toLowerCase() === "przekąska") ??
+    mealTypes[0];
+
   const existing = await getIngredientsByUserId(userId);
   const key = product.name.toLowerCase();
   let ingredient = existing.find((i) => i.name.toLowerCase() === key);
@@ -293,16 +302,49 @@ async function buildProductDraft(
     isQuick: false,
     isMealPrep: false,
     isChildFriendly: false,
-    mealTypeIds: [],
+    mealTypeIds: defaultType ? [defaultType.id] : [],
     ingredients: [{ ingredientId: ingredient.id, amount, unit: "g" }],
     newIngredients,
   };
 }
 
-export async function createMealDraftFromBarcodeAction(input: {
+export interface SavedMeal {
+  id: string;
+  name: string;
+}
+
+// Persist a product draft straight to a saved meal (1-click product add).
+async function saveProductAsMeal(
+  userId: string,
+  product: ProductInfo,
+): Promise<SavedMeal> {
+  const draft = await buildProductDraft(userId, product);
+  const meal = await createMeal(userId, {
+    name: draft.name,
+    servings: draft.servings,
+    calories: draft.calories || null,
+    protein: draft.protein || null,
+    carbs: draft.carbs || null,
+    fat: draft.fat || null,
+    isVegetarian: draft.isVegetarian,
+    isVegan: draft.isVegan,
+    isGlutenFree: draft.isGlutenFree,
+    isLactoseFree: draft.isLactoseFree,
+    isQuick: draft.isQuick,
+    isMealPrep: draft.isMealPrep,
+    isChildFriendly: draft.isChildFriendly,
+    mealTypeIds: draft.mealTypeIds,
+    ingredientsList: draft.ingredients,
+  });
+  revalidatePath("/meals");
+  revalidatePath("/today");
+  return { id: meal.id, name: meal.name };
+}
+
+export async function createMealFromBarcodeAction(input: {
   base64: string;
   mimeType: string;
-}): Promise<MealDraft> {
+}): Promise<SavedMeal> {
   const session = await requireAuth();
   if (!input.base64) throw new Error("Brak zdjęcia");
 
@@ -314,7 +356,7 @@ export async function createMealDraftFromBarcodeAction(input: {
 
   if (barcode.length >= 8) {
     const product = await fetchProductByBarcode(barcode);
-    if (product) return buildProductDraft(session.user.id, product);
+    if (product) return saveProductAsMeal(session.user.id, product);
   }
 
   // No code read or product not in Open Food Facts — fall back to reading the
@@ -327,12 +369,12 @@ export async function createMealDraftFromBarcodeAction(input: {
   if (!fromLabel.name) {
     throw new Error("Nie rozpoznano produktu — spróbuj zdjęcia etykiety");
   }
-  return buildProductDraft(session.user.id, fromLabel);
+  return saveProductAsMeal(session.user.id, fromLabel);
 }
 
-export async function createMealDraftFromBarcodeNumberAction(
+export async function createMealFromBarcodeNumberAction(
   barcode: string,
-): Promise<MealDraft> {
+): Promise<SavedMeal> {
   const session = await requireAuth();
   const ean = barcode.replace(/\D/g, "");
   if (ean.length < 8) throw new Error("Nieprawidłowy kod kreskowy");
@@ -341,13 +383,13 @@ export async function createMealDraftFromBarcodeNumberAction(
   if (!product) {
     throw new Error("Nie znaleziono produktu dla tego kodu");
   }
-  return buildProductDraft(session.user.id, product);
+  return saveProductAsMeal(session.user.id, product);
 }
 
-export async function createMealDraftFromProductImageAction(input: {
+export async function createMealFromProductImageAction(input: {
   base64: string;
   mimeType: string;
-}): Promise<MealDraft> {
+}): Promise<SavedMeal> {
   const session = await requireAuth();
   if (!input.base64) throw new Error("Brak zdjęcia");
   const product = await extractProductFromImage(
@@ -356,7 +398,7 @@ export async function createMealDraftFromProductImageAction(input: {
     session.user.id,
   );
   if (!product.name) throw new Error("Nie rozpoznano produktu ze zdjęcia");
-  return buildProductDraft(session.user.id, product);
+  return saveProductAsMeal(session.user.id, product);
 }
 
 export async function generateMealImageAction(input: {

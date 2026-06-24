@@ -107,7 +107,7 @@ export function NewMealForm({
   return (
     <div className="space-y-6">
       <AiMealGenerator onDraft={handleDraft} />
-      <ProductImporter onDraft={handleDraft} />
+      <ProductImporter />
       <MealForm
         key={draftKey}
         meal={draft}

@@ -1,13 +1,13 @@
 "use client";
 
 import { Barcode, Info, ScanLine, Tag } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  createMealDraftFromBarcodeAction,
-  createMealDraftFromBarcodeNumberAction,
-  createMealDraftFromProductImageAction,
-  type MealDraft,
+  createMealFromBarcodeAction,
+  createMealFromBarcodeNumberAction,
+  createMealFromProductImageAction,
 } from "@/app/actions/meal-ai";
 import { Button, Card, CardContent, Input, Tooltip } from "@/components/ui";
 
@@ -25,17 +25,20 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-interface ProductImporterProps {
-  onDraft: (draft: MealDraft) => void;
-}
-
-export function ProductImporter({ onDraft }: ProductImporterProps) {
+export function ProductImporter() {
+  const router = useRouter();
   const [loading, setLoading] = useState<"label" | "barcode" | "number" | null>(
     null,
   );
   const [barcodeNumber, setBarcodeNumber] = useState("");
   const labelRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
+
+  const onSaved = (name: string) => {
+    toast.success(`Dodano danie: ${name}`);
+    router.push("/meals");
+    router.refresh();
+  };
 
   const handleNumber = async () => {
     const ean = barcodeNumber.replace(/\D/g, "");
@@ -45,10 +48,9 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
     }
     setLoading("number");
     try {
-      const draft = await createMealDraftFromBarcodeNumberAction(ean);
-      onDraft(draft);
+      const meal = await createMealFromBarcodeNumberAction(ean);
       setBarcodeNumber("");
-      toast.success("Produkt rozpoznany — sprawdź i zapisz");
+      onSaved(meal.name);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Nie znaleziono produktu");
     } finally {
@@ -75,11 +77,10 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
       const base64 = await fileToBase64(file);
       const action =
         kind === "barcode"
-          ? createMealDraftFromBarcodeAction
-          : createMealDraftFromProductImageAction;
-      const draft = await action({ base64, mimeType: file.type });
-      onDraft(draft);
-      toast.success("Produkt rozpoznany — sprawdź i zapisz");
+          ? createMealFromBarcodeAction
+          : createMealFromProductImageAction;
+      const meal = await action({ base64, mimeType: file.type });
+      onSaved(meal.name);
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Nie udało się rozpoznać produktu",
@@ -98,8 +99,9 @@ export function ProductImporter({ onDraft }: ProductImporterProps) {
           <h2 className="font-semibold text-foreground">Gotowy produkt</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Baton, mrożona pizza, jogurt... Dodaj zdjęcie etykiety albo kodu
-          kreskowego — wartości odżywcze uzupełnią się automatycznie.
+          Baton, mrożona pizza, jogurt... Zeskanuj etykietę lub kod kreskowy —
+          produkt zostanie zapisany jako danie (1 porcja) gotowe do dodania w
+          widoku Dziś.
         </p>
 
         <input
