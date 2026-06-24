@@ -146,8 +146,25 @@ export function ProfilesManager({
                   <p className="font-medium text-foreground">{profile.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {profile.dailyCalorieGoal} kcal/dzień
+                    {profile.autoCalorieGoal && " • auto (BMR)"}
                     {profile.isChild && " • Profil dziecka"}
                   </p>
+                  {(profile.height || profile.weight || profile.age) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {[
+                        profile.height && `${profile.height} cm`,
+                        profile.weight && `${profile.weight} kg`,
+                        profile.age && `${profile.age} lat`,
+                        profile.sex === "male"
+                          ? "♂"
+                          : profile.sex === "female"
+                            ? "♀"
+                            : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
                 </div>
               </div>
 
