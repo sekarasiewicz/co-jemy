@@ -150,7 +150,9 @@ export function IngredientsManager({
   const [merging, setMerging] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
-  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [convertTarget, setConvertTarget] = useState<Ingredient | null>(null);
+  const [convertName, setConvertName] = useState("");
+  const [converting, setConverting] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [bulkEnriching, setBulkEnriching] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ processed: 0, total: 0 });
@@ -255,17 +257,27 @@ export function IngredientsManager({
     setIsMergeModalOpen(true);
   };
 
-  const handleConvertToMeal = async (ingredientId: string) => {
-    setConvertingId(ingredientId);
+  const openConvert = (ing: Ingredient) => {
+    setConvertTarget(ing);
+    setConvertName(ing.name);
+  };
+
+  const confirmConvert = async () => {
+    if (!convertTarget) return;
+    setConverting(true);
     try {
-      const meal = await createMealFromIngredientAction(ingredientId);
+      const meal = await createMealFromIngredientAction(
+        convertTarget.id,
+        convertName.trim() || undefined,
+      );
       toast.success(`Utworzono danie: ${meal.name}`);
+      setConvertTarget(null);
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Nie udało się utworzyć dania",
       );
     } finally {
-      setConvertingId(null);
+      setConverting(false);
     }
   };
 
@@ -613,8 +625,7 @@ export function IngredientsManager({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleConvertToMeal(ing.id)}
-                              loading={convertingId === ing.id}
+                              onClick={() => openConvert(ing)}
                               title="Zrób z tego danie"
                               className="text-sky-600 hover:text-sky-700"
                             >
@@ -898,6 +909,48 @@ export function IngredientsManager({
             <Button onClick={handleMerge} loading={merging} className="flex-1">
               <GitMerge className="w-4 h-4 mr-2" />
               Scal wybrane
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!convertTarget}
+        onClose={() => !converting && setConvertTarget(null)}
+      >
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">
+            Zrób danie ze składnika
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Powstanie danie (1 porcja, typ „Przekąska") z wartościami odżywczymi
+            tego składnika. Nazwę możesz zmienić.
+          </p>
+          <Input
+            label="Nazwa dania"
+            value={convertName}
+            onChange={(e) => setConvertName(e.target.value)}
+            placeholder="np. Baton proteinowy"
+            required
+          />
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConvertTarget(null)}
+              disabled={converting}
+              className="flex-1"
+            >
+              Anuluj
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmConvert}
+              loading={converting}
+              disabled={!convertName.trim()}
+              className="flex-1"
+            >
+              Utwórz danie
             </Button>
           </div>
         </div>

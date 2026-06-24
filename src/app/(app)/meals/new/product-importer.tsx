@@ -31,11 +31,14 @@ export function ProductImporter() {
     null,
   );
   const [barcodeNumber, setBarcodeNumber] = useState("");
+  const [name, setName] = useState("");
   const labelRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
 
-  const onSaved = (name: string) => {
-    toast.success(`Dodano danie: ${name}`);
+  const nameOverride = () => name.trim() || undefined;
+
+  const onSaved = (savedName: string) => {
+    toast.success(`Dodano danie: ${savedName}`);
     router.push("/meals");
     router.refresh();
   };
@@ -48,7 +51,7 @@ export function ProductImporter() {
     }
     setLoading("number");
     try {
-      const meal = await createMealFromBarcodeNumberAction(ean);
+      const meal = await createMealFromBarcodeNumberAction(ean, nameOverride());
       setBarcodeNumber("");
       onSaved(meal.name);
     } catch (e) {
@@ -79,7 +82,11 @@ export function ProductImporter() {
         kind === "barcode"
           ? createMealFromBarcodeAction
           : createMealFromProductImageAction;
-      const meal = await action({ base64, mimeType: file.type });
+      const meal = await action({
+        base64,
+        mimeType: file.type,
+        name: nameOverride(),
+      });
       onSaved(meal.name);
     } catch (e) {
       toast.error(
@@ -103,6 +110,14 @@ export function ProductImporter() {
           produkt zostanie zapisany jako danie (1 porcja) gotowe do dodania w
           widoku Dziś.
         </p>
+
+        <Input
+          label="Nazwa dania (opcjonalnie)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="domyślnie z produktu, np. Baton proteinowy GoOn"
+          disabled={loading !== null}
+        />
 
         <input
           ref={labelRef}

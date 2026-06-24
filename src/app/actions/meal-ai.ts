@@ -318,10 +318,11 @@ export interface SavedMeal {
 async function saveProductAsMeal(
   userId: string,
   product: ProductInfo,
+  nameOverride?: string,
 ): Promise<SavedMeal> {
   const draft = await buildProductDraft(userId, product);
   const meal = await createMeal(userId, {
-    name: draft.name,
+    name: nameOverride?.trim() || draft.name,
     servings: draft.servings,
     calories: draft.calories || null,
     protein: draft.protein || null,
@@ -344,6 +345,7 @@ async function saveProductAsMeal(
 
 export async function createMealFromIngredientAction(
   ingredientId: string,
+  name?: string,
 ): Promise<SavedMeal> {
   const session = await requireAuth();
   const userId = session.user.id;
@@ -372,7 +374,7 @@ export async function createMealFromIngredientAction(
   const factor = grams / 100;
 
   const meal = await createMeal(userId, {
-    name: ingredient.name,
+    name: name?.trim() || ingredient.name,
     servings: 1,
     calories: Math.round((ingredient.caloriesPer100g ?? 0) * factor) || null,
     protein: round((ingredient.proteinPer100g ?? 0) * factor) || null,
@@ -390,6 +392,7 @@ export async function createMealFromIngredientAction(
 export async function createMealFromBarcodeAction(input: {
   base64: string;
   mimeType: string;
+  name?: string;
 }): Promise<SavedMeal> {
   const session = await requireAuth();
   if (!input.base64) throw new Error("Brak zdjęcia");
@@ -402,7 +405,7 @@ export async function createMealFromBarcodeAction(input: {
 
   if (barcode.length >= 8) {
     const product = await fetchProductByBarcode(barcode);
-    if (product) return saveProductAsMeal(session.user.id, product);
+    if (product) return saveProductAsMeal(session.user.id, product, input.name);
   }
 
   // No code read or product not in Open Food Facts — fall back to reading the
@@ -415,11 +418,12 @@ export async function createMealFromBarcodeAction(input: {
   if (!fromLabel.name) {
     throw new Error("Nie rozpoznano produktu — spróbuj zdjęcia etykiety");
   }
-  return saveProductAsMeal(session.user.id, fromLabel);
+  return saveProductAsMeal(session.user.id, fromLabel, input.name);
 }
 
 export async function createMealFromBarcodeNumberAction(
   barcode: string,
+  name?: string,
 ): Promise<SavedMeal> {
   const session = await requireAuth();
   const ean = barcode.replace(/\D/g, "");
@@ -429,12 +433,13 @@ export async function createMealFromBarcodeNumberAction(
   if (!product) {
     throw new Error("Nie znaleziono produktu dla tego kodu");
   }
-  return saveProductAsMeal(session.user.id, product);
+  return saveProductAsMeal(session.user.id, product, name);
 }
 
 export async function createMealFromProductImageAction(input: {
   base64: string;
   mimeType: string;
+  name?: string;
 }): Promise<SavedMeal> {
   const session = await requireAuth();
   if (!input.base64) throw new Error("Brak zdjęcia");
@@ -444,7 +449,7 @@ export async function createMealFromProductImageAction(input: {
     session.user.id,
   );
   if (!product.name) throw new Error("Nie rozpoznano produktu ze zdjęcia");
-  return saveProductAsMeal(session.user.id, product);
+  return saveProductAsMeal(session.user.id, product, input.name);
 }
 
 export async function generateMealImageAction(input: {
