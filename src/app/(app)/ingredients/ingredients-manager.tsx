@@ -9,6 +9,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -22,6 +23,7 @@ import {
   mergeIngredientsAction,
   updateIngredientAction,
 } from "@/app/actions/ingredients";
+import { createMealFromIngredientAction } from "@/app/actions/meal-ai";
 import {
   Button,
   Card,
@@ -148,6 +150,7 @@ export function IngredientsManager({
   const [merging, setMerging] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [convertingId, setConvertingId] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [bulkEnriching, setBulkEnriching] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ processed: 0, total: 0 });
@@ -250,6 +253,20 @@ export function IngredientsManager({
   const openMergeModal = () => {
     setMergeSelections({});
     setIsMergeModalOpen(true);
+  };
+
+  const handleConvertToMeal = async (ingredientId: string) => {
+    setConvertingId(ingredientId);
+    try {
+      const meal = await createMealFromIngredientAction(ingredientId);
+      toast.success(`Utworzono danie: ${meal.name}`);
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Nie udało się utworzyć dania",
+      );
+    } finally {
+      setConvertingId(null);
+    }
   };
 
   const handleGenerateImage = async () => {
@@ -592,6 +609,16 @@ export function IngredientsManager({
                               className="text-orange-600 hover:text-orange-700"
                             >
                               <Sparkles className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleConvertToMeal(ing.id)}
+                              loading={convertingId === ing.id}
+                              title="Zrób z tego danie"
+                              className="text-sky-600 hover:text-sky-700"
+                            >
+                              <UtensilsCrossed className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"

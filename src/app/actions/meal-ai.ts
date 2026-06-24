@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/ai";
 import {
   createIngredient,
+  getIngredientById,
   getIngredientsByUserId,
 } from "@/lib/services/ingredients";
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
@@ -336,6 +337,51 @@ async function saveProductAsMeal(
     mealTypeIds: draft.mealTypeIds,
     ingredientsList: draft.ingredients,
   });
+  revalidatePath("/meals");
+  revalidatePath("/today");
+  return { id: meal.id, name: meal.name };
+}
+
+export async function createMealFromIngredientAction(
+  ingredientId: string,
+): Promise<SavedMeal> {
+  const session = await requireAuth();
+  const userId = session.user.id;
+
+  const ingredient = await getIngredientById(ingredientId, userId);
+  if (!ingredient) throw new Error("Nie znaleziono składnika");
+
+  const mealTypes = await addMissingDefaultMealTypes(userId);
+  const defaultType =
+    mealTypes.find((mt) => mt.name.toLowerCase() === "przekąska") ??
+    mealTypes[0];
+
+  // One unit of the product when it has a per-unit weight (e.g. 1 baton),
+  // otherwise 100 g of the ingredient.
+  const usePiece =
+    ingredient.weightPerUnit != null && ingredient.weightPerUnit > 0;
+  const amount = usePiece ? 1 : 100;
+  const unit = usePiece ? ingredient.defaultUnit || "szt" : "g";
+
+  const grams = convertToGrams(
+    amount,
+    unit,
+    ingredient.weightPerUnit,
+    ingredient.defaultUnit,
+  );
+  const factor = grams / 100;
+
+  const meal = await createMeal(userId, {
+    name: ingredient.name,
+    servings: 1,
+    calories: Math.round((ingredient.caloriesPer100g ?? 0) * factor) || null,
+    protein: round((ingredient.proteinPer100g ?? 0) * factor) || null,
+    carbs: round((ingredient.carbsPer100g ?? 0) * factor) || null,
+    fat: round((ingredient.fatPer100g ?? 0) * factor) || null,
+    mealTypeIds: defaultType ? [defaultType.id] : [],
+    ingredientsList: [{ ingredientId: ingredient.id, amount, unit }],
+  });
+
   revalidatePath("/meals");
   revalidatePath("/today");
   return { id: meal.id, name: meal.name };
