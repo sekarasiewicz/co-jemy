@@ -1,7 +1,7 @@
 import { Calendar, ChefHat, ShoppingCart, Shuffle, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSession } from "@/app/actions/auth";
+import { getSession } from "@/lib/session";
 import { Button, Card, CardContent } from "@/components/ui";
 
 export default async function Home() {

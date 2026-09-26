@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui";
 import { getAdminStats, getAiUsageByModel } from "@/lib/services/admin";
+import { ensureAdminPage } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ function StatCard({
 }
 
 export default async function AdminDashboardPage() {
+  await ensureAdminPage();
   const [stats, byModel] = await Promise.all([
     getAdminStats(),
     getAiUsageByModel(),

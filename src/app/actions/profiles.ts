@@ -11,7 +11,7 @@ import {
   updateProfile,
 } from "@/lib/services/profiles";
 import type { Profile } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function getProfilesAction(): Promise<Profile[]> {
   const session = await requireAuth();

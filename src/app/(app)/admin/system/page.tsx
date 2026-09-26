@@ -2,6 +2,7 @@ import { Check, X } from "lucide-react";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { Card, CardContent } from "@/components/ui";
+import { ensureAdminPage } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ function StatusRow({ label, ok, detail }: { label: string; ok: boolean; detail?:
 }
 
 export default async function AdminSystemPage() {
+  await ensureAdminPage();
   const dbOk = await checkDb();
 
   const env = [

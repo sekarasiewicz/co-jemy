@@ -17,7 +17,7 @@ import {
 } from "@/lib/services/meals";
 import { createTag, getTagsByUserId } from "@/lib/services/tags";
 import type { Ingredient, Meal, MealWithRelations, RandomizerFilters, Tag } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function getMealsAction(): Promise<MealWithRelations[]> {
   const session = await requireAuth();

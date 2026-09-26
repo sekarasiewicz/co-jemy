@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getIsAdmin, getSession } from "@/app/actions/auth";
+import { getIsAdmin, getSession } from "@/lib/session";
 import { getProfilesAction } from "@/app/actions/profiles";
 import { Navbar } from "@/components/navbar";
 import { AppLayoutClient } from "./layout-client";

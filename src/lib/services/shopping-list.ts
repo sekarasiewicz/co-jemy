@@ -8,6 +8,10 @@ import {
   shoppingListItems,
   shoppingLists,
 } from "@/db/schema";
+import {
+  assertOwned,
+  userShoppingListIds,
+} from "@/lib/services/ownership";
 import { aggregateIngredients, generateId } from "@/lib/utils";
 import type {
   NewShoppingList,
@@ -50,6 +54,8 @@ export async function generateShoppingListFromDateRange(
   dateTo: Date,
   name: string,
 ): Promise<ShoppingListWithItems> {
+  await assertOwned("profiles", userId, profileIds);
+
   // Normalize to full-day bounds — plan dates are stored at midnight, but the
   // caller may pass a time-of-day (e.g. "today" = now), which would exclude them.
   const rangeStart = new Date(dateFrom);
@@ -160,6 +166,7 @@ export async function generateShoppingListFromDateRange(
 }
 
 export async function addItemToShoppingList(
+  userId: string,
   listId: string,
   data: {
     ingredientId?: string;
@@ -169,24 +176,46 @@ export async function addItemToShoppingList(
     category: string;
   },
 ): Promise<ShoppingListItem> {
+  await Promise.all([
+    assertOwned("shoppingLists", userId, [listId]),
+    assertOwned("ingredients", userId, [data.ingredientId]),
+  ]);
+
   const [item] = await db
     .insert(shoppingListItems)
     .values({
+      ingredientId: data.ingredientId,
+      customName: data.customName,
+      amount: data.amount,
+      unit: data.unit,
+      category: data.category,
       id: generateId(),
       shoppingListId: listId,
-      ...data,
     })
     .returning();
 
   return item;
 }
 
+function ownedItem(userId: string, itemId: string) {
+  return and(
+    eq(shoppingListItems.id, itemId),
+    inArray(shoppingListItems.shoppingListId, userShoppingListIds(userId)),
+  );
+}
+
 export async function toggleShoppingListItem(
+  userId: string,
   itemId: string,
   field: "checked" | "inPantry",
 ): Promise<ShoppingListItem> {
+  // Runtime whitelist: the union type isn't enforced for server-action callers.
+  if (field !== "checked" && field !== "inPantry") {
+    throw new Error("Nieprawidłowe pole");
+  }
+
   const item = await db.query.shoppingListItems.findFirst({
-    where: eq(shoppingListItems.id, itemId),
+    where: ownedItem(userId, itemId),
   });
 
   if (!item) {
@@ -196,14 +225,17 @@ export async function toggleShoppingListItem(
   const [updated] = await db
     .update(shoppingListItems)
     .set({ [field]: !item[field] })
-    .where(eq(shoppingListItems.id, itemId))
+    .where(ownedItem(userId, itemId))
     .returning();
 
   return updated;
 }
 
-export async function deleteShoppingListItem(itemId: string): Promise<void> {
-  await db.delete(shoppingListItems).where(eq(shoppingListItems.id, itemId));
+export async function deleteShoppingListItem(
+  userId: string,
+  itemId: string,
+): Promise<void> {
+  await db.delete(shoppingListItems).where(ownedItem(userId, itemId));
 }
 
 export async function deleteShoppingList(

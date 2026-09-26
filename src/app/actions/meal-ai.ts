@@ -21,7 +21,7 @@ import { createMeal } from "@/lib/services/meals";
 import { fetchProductByBarcode } from "@/lib/services/open-food-facts";
 import { convertToGrams, generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export interface MealDraft {
   name: string;

@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui";
 import { getAiUsageByModel, getRecentAiUsage } from "@/lib/services/admin";
+import { ensureAdminPage } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ const OPERATION_LABELS: Record<string, string> = {
 };
 
 export default async function AdminAiPage() {
+  await ensureAdminPage();
   const [rows, byModel] = await Promise.all([
     getRecentAiUsage(150),
     getAiUsageByModel(),

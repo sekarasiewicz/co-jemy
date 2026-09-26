@@ -1,6 +1,7 @@
 import { and, eq, ilike, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { ingredients, mealIngredients, shoppingListItems } from "@/db/schema";
+import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { Ingredient, NewIngredient } from "@/types";
 
@@ -46,9 +47,9 @@ export async function createIngredient(
   const [ingredient] = await db
     .insert(ingredients)
     .values({
+      ...stripProtected(data),
       id: generateId(),
       userId,
-      ...data,
     })
     .returning();
 
@@ -62,7 +63,7 @@ export async function updateIngredient(
 ): Promise<Ingredient> {
   const [ingredient] = await db
     .update(ingredients)
-    .set(data)
+    .set(stripProtected(data))
     .where(
       and(eq(ingredients.id, ingredientId), eq(ingredients.userId, userId)),
     )
@@ -111,6 +112,12 @@ export async function mergeIngredients(
   if (!target) {
     throw new Error("Docelowy składnik nie został znaleziony");
   }
+  if (sourceIds.includes(targetId)) {
+    throw new Error("Składnik nie może zostać scalony sam ze sobą");
+  }
+  // Sources must be the user's too — the re-point updates below aren't scoped
+  // by user, so a foreign id would rewrite another user's recipes.
+  await assertOwned("ingredients", userId, sourceIds);
 
   // Re-point mealIngredients from source → target
   await db

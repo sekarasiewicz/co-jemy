@@ -14,8 +14,9 @@ import {
   updatePlanMealServings,
 } from "@/lib/services/daily-plans";
 import { randomizeSingleMeal } from "@/lib/services/meals";
+import { assertOwned } from "@/lib/services/ownership";
 import type { DailyPlan, DailyPlanMeal, DailyPlanWithMeals, RandomizerFilters } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function getDailyPlanAction(
   profileId: string,
@@ -49,6 +50,10 @@ export async function addMealToPlanAction(data: {
   servings?: number;
 }): Promise<DailyPlanMeal> {
   const session = await requireAuth();
+  await Promise.all([
+    assertOwned("meals", session.user.id, [data.mealId]),
+    assertOwned("mealTypes", session.user.id, [data.mealTypeId]),
+  ]);
 
   const plan = await getOrCreateDailyPlan(
     session.user.id,
@@ -70,8 +75,8 @@ export async function addMealToPlanAction(data: {
 export async function removeMealFromPlanAction(
   planMealId: string,
 ): Promise<void> {
-  await requireAuth();
-  await removeMealFromPlan(planMealId);
+  const session = await requireAuth();
+  await removeMealFromPlan(session.user.id, planMealId);
   revalidatePath("/planner");
 }
 
@@ -79,8 +84,12 @@ export async function toggleMealCompletedAction(
   planMealId: string,
   completed: boolean,
 ): Promise<DailyPlanMeal> {
-  await requireAuth();
-  const planMeal = await toggleMealCompleted(planMealId, completed);
+  const session = await requireAuth();
+  const planMeal = await toggleMealCompleted(
+    session.user.id,
+    planMealId,
+    completed,
+  );
   revalidatePath("/planner");
   return planMeal;
 }
@@ -89,8 +98,12 @@ export async function updatePlanMealServingsAction(
   planMealId: string,
   servings: number,
 ): Promise<DailyPlanMeal> {
-  await requireAuth();
-  const planMeal = await updatePlanMealServings(planMealId, servings);
+  const session = await requireAuth();
+  const planMeal = await updatePlanMealServings(
+    session.user.id,
+    planMealId,
+    servings,
+  );
   revalidatePath("/planner");
   return planMeal;
 }
@@ -130,6 +143,10 @@ export async function fillPlannerAction(data: {
 }): Promise<{ daysFilledCount: number; mealsAddedCount: number }> {
   const session = await requireAuth();
   const userId = session.user.id;
+  await Promise.all([
+    assertOwned("profiles", userId, [data.profileId]),
+    assertOwned("mealTypes", userId, data.mealTypeIds),
+  ]);
 
   // Fetch existing plans for the date range to check which days already have meals
   const existingPlans =

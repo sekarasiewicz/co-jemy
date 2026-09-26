@@ -1,6 +1,5 @@
 import { Shield } from "lucide-react";
-import { redirect } from "next/navigation";
-import { getIsAdmin } from "@/app/actions/auth";
+import { ensureAdminPage } from "@/lib/session";
 import { AdminNav } from "./admin-nav";
 
 export default async function AdminLayout({
@@ -8,10 +7,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isAdmin = await getIsAdmin();
-  if (!isAdmin) {
-    redirect("/today");
-  }
+  await ensureAdminPage();
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { clearUserData, deleteUserAccount } from "@/lib/services/account";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function clearAllDataAction(): Promise<void> {
   const session = await requireAuth();

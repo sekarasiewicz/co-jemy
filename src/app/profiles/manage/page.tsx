@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/app/actions/auth";
+import { getSession } from "@/lib/session";
 import { getProfilesAction } from "@/app/actions/profiles";
 import { ProfilesManager } from "./profiles-manager";
 

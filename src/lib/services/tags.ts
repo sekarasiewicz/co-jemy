@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tags } from "@/db/schema";
+import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { NewTag, Tag } from "@/types";
 
@@ -27,9 +28,9 @@ export async function createTag(
   const [tag] = await db
     .insert(tags)
     .values({
+      ...stripProtected(data),
       id: generateId(),
       userId,
-      ...data,
     })
     .returning();
 
@@ -43,7 +44,7 @@ export async function updateTag(
 ): Promise<Tag> {
   const [tag] = await db
     .update(tags)
-    .set(data)
+    .set(stripProtected(data))
     .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
     .returning();
 

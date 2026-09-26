@@ -14,7 +14,7 @@ import {
 } from "@/lib/services/ingredients";
 import { generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function generateIngredientImageAction(
   name: string,

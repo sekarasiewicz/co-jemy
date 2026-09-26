@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/app/actions/auth";
+import { getSession } from "@/lib/session";
 import { getProfilesByUserId } from "@/lib/services/profiles";
 import { ImportDietForm } from "./import-diet-form";
 

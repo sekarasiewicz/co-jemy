@@ -1,7 +1,8 @@
-import { and, eq, gt, gte, lte } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { dailyPlanMeals, dailyPlans, profiles } from "@/db/schema";
-import { generateId, isSameDay } from "@/lib/utils";
+import { assertOwned, userDailyPlanIds } from "@/lib/services/ownership";
+import { generateId } from "@/lib/utils";
 import type {
   DailyPlan,
   DailyPlanMeal,
@@ -139,6 +140,8 @@ export async function getOrCreateDailyPlan(
     return existing;
   }
 
+  await assertOwned("profiles", userId, [profileId]);
+
   const [plan] = await db
     .insert(dailyPlans)
     .values({
@@ -172,33 +175,51 @@ export async function addMealToPlan(
   return planMeal;
 }
 
-export async function removeMealFromPlan(planMealId: string): Promise<void> {
-  await db.delete(dailyPlanMeals).where(eq(dailyPlanMeals.id, planMealId));
+function ownedPlanMeal(userId: string, planMealId: string) {
+  return and(
+    eq(dailyPlanMeals.id, planMealId),
+    inArray(dailyPlanMeals.dailyPlanId, userDailyPlanIds(userId)),
+  );
+}
+
+export async function removeMealFromPlan(
+  userId: string,
+  planMealId: string,
+): Promise<void> {
+  await db.delete(dailyPlanMeals).where(ownedPlanMeal(userId, planMealId));
 }
 
 export async function toggleMealCompleted(
+  userId: string,
   planMealId: string,
   completed: boolean,
 ): Promise<DailyPlanMeal> {
   const [planMeal] = await db
     .update(dailyPlanMeals)
     .set({ completed })
-    .where(eq(dailyPlanMeals.id, planMealId))
+    .where(ownedPlanMeal(userId, planMealId))
     .returning();
 
+  if (!planMeal) {
+    throw new Error("Posiłek nie został znaleziony");
+  }
   return planMeal;
 }
 
 export async function updatePlanMealServings(
+  userId: string,
   planMealId: string,
   servings: number,
 ): Promise<DailyPlanMeal> {
   const [planMeal] = await db
     .update(dailyPlanMeals)
     .set({ servings })
-    .where(eq(dailyPlanMeals.id, planMealId))
+    .where(ownedPlanMeal(userId, planMealId))
     .returning();
 
+  if (!planMeal) {
+    throw new Error("Posiłek nie został znaleziony");
+  }
   return planMeal;
 }
 

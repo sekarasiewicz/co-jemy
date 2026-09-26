@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { getSession } from "@/app/actions/auth";
+import { getSession } from "@/lib/session";
 
 // Client-side upload token endpoint for Vercel Blob.
 // Lets the browser upload directly to Blob (bypasses the 4.5MB serverless body limit).

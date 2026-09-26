@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
 import { signUp } from "@/lib/auth-client";
-import { validateInviteCode } from "@/app/actions/auth";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -34,17 +33,10 @@ export function RegisterForm() {
     setLoading(true);
 
     try {
-      const { valid } = await validateInviteCode(inviteCode);
-      if (!valid) {
-        setError("Nieprawidłowy kod zaproszenia");
-        return;
-      }
-
-      const result = await signUp.email({
-        email,
-        password,
-        name,
-      });
+      const result = await signUp.email(
+        { email, password, name },
+        { headers: { "x-invite-code": inviteCode.trim() } },
+      );
 
       if (result.error) {
         setError(result.error.message || "Błąd rejestracji");

@@ -16,7 +16,7 @@ import type {
   ShoppingListItem,
   ShoppingListWithItems,
 } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function getShoppingListsAction(): Promise<ShoppingList[]> {
   const session = await requireAuth();
@@ -58,8 +58,8 @@ export async function addShoppingItemAction(
     category: string;
   },
 ): Promise<ShoppingListItem> {
-  await requireAuth();
-  const item = await addItemToShoppingList(listId, data);
+  const session = await requireAuth();
+  const item = await addItemToShoppingList(session.user.id, listId, data);
   revalidatePath(`/shopping/${listId}`);
   return item;
 }
@@ -68,15 +68,15 @@ export async function toggleShoppingItemAction(
   itemId: string,
   field: "checked" | "inPantry",
 ): Promise<ShoppingListItem> {
-  await requireAuth();
-  const item = await toggleShoppingListItem(itemId, field);
+  const session = await requireAuth();
+  const item = await toggleShoppingListItem(session.user.id, itemId, field);
   revalidatePath("/shopping");
   return item;
 }
 
 export async function deleteShoppingItemAction(itemId: string): Promise<void> {
-  await requireAuth();
-  await deleteShoppingListItem(itemId);
+  const session = await requireAuth();
+  await deleteShoppingListItem(session.user.id, itemId);
   revalidatePath("/shopping");
 }
 

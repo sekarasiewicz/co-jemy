@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { mealTypes } from "@/db/schema";
+import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { MealType, NewMealType } from "@/types";
 
@@ -29,9 +30,9 @@ export async function createMealType(
   const [mealType] = await db
     .insert(mealTypes)
     .values({
+      ...stripProtected(data),
       id: generateId(),
       userId,
-      ...data,
     })
     .returning();
 
@@ -45,7 +46,7 @@ export async function updateMealType(
 ): Promise<MealType> {
   const [mealType] = await db
     .update(mealTypes)
-    .set(data)
+    .set(stripProtected(data))
     .where(and(eq(mealTypes.id, mealTypeId), eq(mealTypes.userId, userId)))
     .returning();
 

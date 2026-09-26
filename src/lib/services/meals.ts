@@ -9,6 +9,7 @@ import {
   mealTypes,
   tags,
 } from "@/db/schema";
+import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId, getRandomItem } from "@/lib/utils";
 import type {
   Ingredient,
@@ -132,19 +133,35 @@ type CreateMealData = Omit<
   ingredientsList?: { ingredientId: string; amount: number; unit: string }[];
 };
 
+async function assertLinkedOwned(
+  userId: string,
+  data: Partial<CreateMealData>,
+): Promise<void> {
+  await Promise.all([
+    assertOwned("tags", userId, data.tagIds ?? []),
+    assertOwned("mealTypes", userId, data.mealTypeIds ?? []),
+    assertOwned(
+      "ingredients",
+      userId,
+      (data.ingredientsList ?? []).map((i) => i.ingredientId),
+    ),
+  ]);
+}
+
 export async function createMeal(
   userId: string,
   data: CreateMealData,
 ): Promise<Meal> {
   const { tagIds, mealTypeIds, ingredientsList, ...mealData } = data;
+  await assertLinkedOwned(userId, data);
   const mealId = generateId();
 
   const [meal] = await db
     .insert(meals)
     .values({
+      ...stripProtected(mealData),
       id: mealId,
       userId,
-      ...mealData,
     })
     .returning();
 
@@ -187,10 +204,11 @@ export async function updateMeal(
   data: Partial<CreateMealData>,
 ): Promise<Meal> {
   const { tagIds, mealTypeIds, ingredientsList, ...mealData } = data;
+  await assertLinkedOwned(userId, data);
 
   const [meal] = await db
     .update(meals)
-    .set({ ...mealData, updatedAt: new Date() })
+    .set({ ...stripProtected(mealData), updatedAt: new Date() })
     .where(and(eq(meals.id, mealId), eq(meals.userId, userId)))
     .returning();
 

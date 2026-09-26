@@ -7,7 +7,7 @@ import {
   deleteUserById,
   setUserRole,
 } from "@/lib/services/admin";
-import { requireAdmin } from "./auth";
+import { requireAdmin } from "@/lib/session";
 
 export async function setUserRoleAction(
   userId: string,

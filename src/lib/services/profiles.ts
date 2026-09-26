@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { NewProfile, Profile } from "@/types";
 
@@ -35,9 +36,9 @@ export async function createProfile(
   const [profile] = await db
     .insert(profiles)
     .values({
+      ...stripProtected(data),
       id: generateId(),
       userId,
-      ...data,
     })
     .returning();
 
@@ -51,7 +52,7 @@ export async function updateProfile(
 ): Promise<Profile> {
   const [profile] = await db
     .update(profiles)
-    .set(data)
+    .set(stripProtected(data))
     .where(and(eq(profiles.id, profileId), eq(profiles.userId, userId)))
     .returning();
 

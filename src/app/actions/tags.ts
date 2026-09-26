@@ -9,7 +9,7 @@ import {
   updateTag,
 } from "@/lib/services/tags";
 import type { MealType, Tag } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export async function getTagsAction(): Promise<Tag[]> {
   const session = await requireAuth();

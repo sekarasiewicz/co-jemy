@@ -11,7 +11,7 @@ import { createMeal } from "@/lib/services/meals";
 import { enrichIngredients, extractDietFromPdf } from "@/lib/services/ai";
 import { convertToGrams } from "@/lib/utils";
 import type { Ingredient } from "@/types";
-import { requireAuth } from "./auth";
+import { requireAuth } from "@/lib/session";
 
 export interface DietImportResult {
   mealsCreated: number;
