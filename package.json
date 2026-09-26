@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "drizzle-kit push && next build",
+    "build": "next build",
+    "vercel-build": "if [ \"$VERCEL_ENV\" = \"production\" ]; then drizzle-kit migrate; fi && next build",
     "start": "next start",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
@@ -12,6 +13,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:baseline": "npx tsx scripts/baseline-migrations.mts",
     "db:clear-user": "npx tsx scripts/clear-user-data.ts"
   },
   "dependencies": {

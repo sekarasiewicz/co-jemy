@@ -13,10 +13,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev           # Development server
 npm run build         # Production build
-npm run db:push       # Push schema to Neon
+npm run db:generate   # Generate a migration from schema changes (commit drizzle/)
+npm run db:migrate    # Apply pending migrations
 npm run db:studio     # Drizzle Studio (database browser)
-npm run db:generate   # Generate migrations
 ```
+
+Schema changes go through migrations: edit `src/db/schema.ts`, run `db:generate`, review the SQL in `drizzle/`, commit. Production deploys run `drizzle-kit migrate` via the `vercel-build` script (only when `VERCEL_ENV=production`); `build` never touches the DB. Don't use `db:push` against shared databases.
 
 ## Architecture
 
@@ -45,3 +47,13 @@ npm run db:generate   # Generate migrations
 - **Styling:** Tailwind with green/emerald primary colors, mobile-first
 - **Loading:** Use Suspense + `loading.tsx`
 - **Errors:** Use `error.tsx` + try/catch in actions
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
