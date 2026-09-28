@@ -7,6 +7,7 @@
     "build": "next build",
     "vercel-build": "if [ \"$VERCEL_ENV\" = \"production\" ]; then drizzle-kit migrate; fi && next build",
     "start": "next start",
+    "test": "vitest run",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
     "check": "biome check --write ./src",
@@ -48,7 +49,8 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   },
   "overrides": {
     "esbuild": "^0.28.1",

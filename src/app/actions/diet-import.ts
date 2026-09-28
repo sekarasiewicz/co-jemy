@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addMealToPlan, getOrCreateDailyPlan } from "@/lib/services/daily-plans";
+import {
+  addMealToPlan,
+  getOrCreateDailyPlan,
+} from "@/lib/services/daily-plans";
 import {
   createIngredient,
   getIngredientsByUserId,
@@ -9,10 +12,15 @@ import {
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import { createMeal } from "@/lib/services/meals";
 import { enrichIngredients, extractDietFromPdf } from "@/lib/services/ai";
-import { convertToGrams } from "@/lib/utils";
+import { round1, WEIGHT_PER_UNIT_UNITS } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "@/lib/session";
 import { addDays, assertDayKey } from "@/lib/day";
+import {
+  type IngredientLine,
+  recipeNutrition,
+  roundNutrition,
+} from "@/lib/nutrition";
 
 export interface DietImportResult {
   mealsCreated: number;
@@ -20,29 +28,6 @@ export interface DietImportResult {
   daysPlanned: number;
   errors: string[];
 }
-
-function round(value: number): number {
-  return Math.round(value * 10) / 10;
-}
-
-// Units where convertToGrams resolves grams via weightPerUnit (i.e. NOT the
-// fixed-gram units g/kg/ml/l/łyżka/łyżeczka/szklanka/szczypta/garść).
-const WEIGHT_PER_UNIT_UNITS = new Set([
-  "szt",
-  "opakowanie",
-  "pęczek",
-  "ząbek",
-  "plaster",
-  "kromka",
-  "kostka",
-  "listek",
-  "gałązka",
-  "łodyga",
-  "puszka",
-  "słoik",
-  "woreczek",
-  "porcja",
-]);
 
 export async function importDietFromPdfAction(
   base64Pdf: string,
@@ -123,7 +108,7 @@ export async function importDietFromPdfAction(
         // estimate, for piece-like units where convertToGrams uses weightPerUnit.
         const pdfWeightPerUnit =
           grams > 0 && amount > 0 && WEIGHT_PER_UNIT_UNITS.has(unit)
-            ? round(grams / amount)
+            ? round1(grams / amount)
             : null;
         return createIngredient(userId, {
           name,
@@ -160,10 +145,7 @@ export async function importDietFromPdfAction(
         (mt) => mt.name.toLowerCase() === meal.mealTypeName.toLowerCase(),
       );
 
-      let calories = 0;
-      let protein = 0;
-      let carbs = 0;
-      let fat = 0;
+      const lines: IngredientLine[] = [];
       const ingredientsList: {
         ingredientId: string;
         amount: number;
@@ -178,17 +160,7 @@ export async function importDietFromPdfAction(
           amount: ing.amount,
           unit: ing.unit,
         });
-        const grams = convertToGrams(
-          ing.amount,
-          ing.unit,
-          ingredient.weightPerUnit,
-          ingredient.defaultUnit,
-        );
-        const factor = grams / 100;
-        calories += (ingredient.caloriesPer100g ?? 0) * factor;
-        protein += (ingredient.proteinPer100g ?? 0) * factor;
-        carbs += (ingredient.carbsPer100g ?? 0) * factor;
-        fat += (ingredient.fatPer100g ?? 0) * factor;
+        lines.push({ amount: ing.amount, unit: ing.unit, ingredient });
       }
 
       try {
@@ -196,10 +168,8 @@ export async function importDietFromPdfAction(
           name: meal.name,
           instructions: meal.instructions || null,
           servings: 1,
-          calories: Math.round(calories),
-          protein: round(protein),
-          carbs: round(carbs),
-          fat: round(fat),
+          // One portion per diet entry, so the recipe total is the portion.
+          ...roundNutrition(recipeNutrition(lines)),
           mealTypeIds: mealType ? [mealType.id] : [],
           ingredientsList,
         });

@@ -157,7 +157,6 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         day: toDayKey(date),
         mealId: result.id,
         mealTypeId: typeId,
-        servings: result.servings,
       });
       setAddedToPlan(date);
       const isToday = date.toDateString() === new Date().toDateString();
@@ -232,7 +231,6 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
             day: toDayKey(date),
             mealId: dm.meal.id,
             mealTypeId: dm.mealType.id,
-            servings: dm.meal.servings,
           });
         }
       }

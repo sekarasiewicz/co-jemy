@@ -12,7 +12,7 @@ import {
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
-import { Badge, Button, Card, CardContent, Checkbox, Modal, Tooltip } from "@/components/ui";
+import { Badge, Button, Checkbox, Modal, Tooltip } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import {
   addDays,
@@ -26,36 +26,9 @@ import {
   type FillRange,
   getDaysForRange,
 } from "@/lib/fill-range";
-import { cn, convertToGrams, formatDateShort } from "@/lib/utils";
-import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType, MealWithRelations } from "@/types";
-
-function getMealNutrition(
-  meal: Meal & { mealIngredients: (MealIngredient & { ingredient: Ingredient })[] },
-  servings: number,
-) {
-  if (meal.calories != null || meal.protein != null || meal.carbs != null || meal.fat != null) {
-    return {
-      calories: (meal.calories || 0) * servings,
-      protein: (meal.protein || 0) * servings,
-      carbs: (meal.carbs || 0) * servings,
-      fat: (meal.fat || 0) * servings,
-    };
-  }
-  if (meal.mealIngredients.length === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
-  const t = meal.mealIngredients.reduce(
-    (acc, mi) => {
-      const g = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit, mi.ingredient.defaultUnit) / 100;
-      return {
-        calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * g,
-        protein: acc.protein + (mi.ingredient.proteinPer100g || 0) * g,
-        carbs: acc.carbs + (mi.ingredient.carbsPer100g || 0) * g,
-        fat: acc.fat + (mi.ingredient.fatPer100g || 0) * g,
-      };
-    },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  );
-  return { calories: t.calories * servings, protein: t.protein * servings, carbs: t.carbs * servings, fat: t.fat * servings };
-}
+import { portionsNutrition } from "@/lib/nutrition";
+import { cn, formatDateShort } from "@/lib/utils";
+import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
 
 interface WeekPlannerProps {
   mealTypes: MealType[];
@@ -422,7 +395,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
                                 </span>
                               </Tooltip>
                               {(() => {
-                                const n = getMealNutrition(pm.meal, pm.servings || 1);
+                                const n = portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1);
                                 return n.calories > 0 ? (
                                   <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
                                     {Math.round(n.calories)} kcal
@@ -494,7 +467,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
               const plan = plans.get(key);
               const dayTotals = plan?.meals.reduce(
                 (acc, pm) => {
-                  const n = getMealNutrition(pm.meal, pm.servings || 1);
+                  const n = portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1);
                   return {
                     calories: acc.calories + n.calories,
                     protein: acc.protein + n.protein,

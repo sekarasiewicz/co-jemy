@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev           # Development server
 npm run build         # Production build
+npm test              # Unit tests (Vitest, src/**/*.test.ts)
 npm run db:generate   # Generate a migration from schema changes (commit drizzle/)
 npm run db:migrate    # Apply pending migrations
 npm run db:studio     # Drizzle Studio (database browser)
@@ -27,6 +28,11 @@ Schema changes go through migrations: edit `src/db/schema.ts`, run `db:generate`
 - **Shared resources** (`userId`): `ingredients`, `meals`, `tags`, `mealTypes` - entire family sees the same dishes
 - **Per-profile resources** (`profileId`): `dailyPlans` - each family member has their own daily plan
 - **Multi-profile resources** (`profileIds[]`): `shoppingLists` - can generate for selected profiles
+
+### Days and portions
+
+- Plan days are calendar dates: `YYYY-MM-DD` keys from `src/lib/day.ts`, built from the browser's local date. Never pass `Date` objects for plan days to actions.
+- Portions (`src/lib/nutrition.ts`): meal macros are per portion, recipe ingredient amounts are for the whole recipe (`meal.servings` portions), `dailyPlanMeals.servings` = portions a profile eats. Use the helpers there, don't recompute macros inline.
 
 ### Key Patterns
 

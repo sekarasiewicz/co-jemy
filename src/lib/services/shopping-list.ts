@@ -1,21 +1,15 @@
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  dailyPlanMeals,
   dailyPlans,
-  type ingredients,
-  mealIngredients,
   shoppingListItems,
   shoppingLists,
 } from "@/db/schema";
-import {
-  assertOwned,
-  userShoppingListIds,
-} from "@/lib/services/ownership";
+import { assertOwned, userShoppingListIds } from "@/lib/services/ownership";
 import type { DayKey } from "@/lib/day";
-import { aggregateIngredients, generateId } from "@/lib/utils";
+import { aggregateShoppingTotals } from "@/lib/shopping";
+import { generateId } from "@/lib/utils";
 import type {
-  NewShoppingList,
   ShoppingList,
   ShoppingListItem,
   ShoppingListWithItems,
@@ -82,26 +76,14 @@ export async function generateShoppingListFromDateRange(
     },
   });
 
-  // Collect all ingredients from all meals
-  const allIngredients: {
-    ingredient: typeof ingredients.$inferSelect;
-    amount: number;
-    unit: string;
-    servings: number;
-  }[] = [];
-
-  for (const plan of plans) {
-    for (const planMeal of plan.dailyPlanMeals) {
-      for (const mealIng of planMeal.meal.mealIngredients) {
-        allIngredients.push({
-          ingredient: mealIng.ingredient,
-          amount: mealIng.amount,
-          unit: mealIng.unit,
-          servings: planMeal.servings,
-        });
-      }
-    }
-  }
+  const totals = aggregateShoppingTotals(
+    plans.flatMap((plan) =>
+      plan.dailyPlanMeals.map((planMeal) => ({
+        portions: planMeal.servings,
+        meal: planMeal.meal,
+      })),
+    ),
+  );
 
   // Create shopping list
   const listId = generateId();
@@ -117,37 +99,11 @@ export async function generateShoppingListFromDateRange(
     })
     .returning();
 
-  // Aggregate and insert items
-  const aggregatedMap = new Map<
-    string,
-    {
-      ingredient: typeof ingredients.$inferSelect;
-      totalAmount: number;
-      unit: string;
-    }
-  >();
-
-  for (const item of allIngredients) {
-    const key = `${item.ingredient.id}-${item.unit}`;
-    const existing = aggregatedMap.get(key);
-    const scaledAmount = item.amount * item.servings;
-
-    if (existing) {
-      existing.totalAmount += scaledAmount;
-    } else {
-      aggregatedMap.set(key, {
-        ingredient: item.ingredient,
-        totalAmount: scaledAmount,
-        unit: item.unit,
-      });
-    }
-  }
-
-  const itemsToInsert = Array.from(aggregatedMap.values()).map((item) => ({
+  const itemsToInsert = totals.map((item) => ({
     id: generateId(),
     shoppingListId: listId,
     ingredientId: item.ingredient.id,
-    amount: item.totalAmount,
+    amount: item.amount,
     unit: item.unit,
     category: item.ingredient.category,
   }));

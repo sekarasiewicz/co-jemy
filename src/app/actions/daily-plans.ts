@@ -16,8 +16,14 @@ import {
 import { assertDayKey } from "@/lib/day";
 import { randomizeSingleMeal } from "@/lib/services/meals";
 import { assertOwned } from "@/lib/services/ownership";
-import type { DailyPlan, DailyPlanMeal, DailyPlanWithMeals, RandomizerFilters } from "@/types";
+import type { DailyPlanMeal, DailyPlanWithMeals, RandomizerFilters } from "@/types";
 import { requireAuth } from "@/lib/session";
+
+function assertPortions(servings: number): void {
+  if (!Number.isFinite(servings) || servings <= 0 || servings > 50) {
+    throw new Error("Nieprawidłowa liczba porcji");
+  }
+}
 
 export async function getDailyPlanAction(
   profileId: string,
@@ -56,6 +62,7 @@ export async function addMealToPlanAction(data: {
   servings?: number;
 }): Promise<DailyPlanMeal> {
   const session = await requireAuth();
+  if (data.servings !== undefined) assertPortions(data.servings);
   await Promise.all([
     assertOwned("meals", session.user.id, [data.mealId]),
     assertOwned("mealTypes", session.user.id, [data.mealTypeId]),
@@ -105,6 +112,7 @@ export async function updatePlanMealServingsAction(
   servings: number,
 ): Promise<DailyPlanMeal> {
   const session = await requireAuth();
+  assertPortions(servings);
   const planMeal = await updatePlanMealServings(
     session.user.id,
     planMealId,
@@ -198,7 +206,7 @@ export async function fillPlannerAction(data: {
 
       const meal = await randomizeSingleMeal(userId, filters);
       if (meal) {
-        await addMealToPlan(plan.id, meal.id, mealTypeId, meal.servings);
+        await addMealToPlan(plan.id, meal.id, mealTypeId);
         excludeMealIds.push(meal.id);
         mealsAddedCount++;
         addedForDay = true;

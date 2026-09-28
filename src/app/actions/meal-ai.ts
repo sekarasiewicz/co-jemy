@@ -19,9 +19,20 @@ import {
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import { createMeal } from "@/lib/services/meals";
 import { fetchProductByBarcode } from "@/lib/services/open-food-facts";
-import { convertToGrams, generateId } from "@/lib/utils";
+import {
+  convertToGrams,
+  generateId,
+  round1,
+  WEIGHT_PER_UNIT_UNITS,
+} from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "@/lib/session";
+import {
+  type IngredientLine,
+  recipeNutrition,
+  roundNutrition,
+  scaleNutrition,
+} from "@/lib/nutrition";
 
 export interface MealDraft {
   name: string;
@@ -46,28 +57,6 @@ export interface MealDraft {
   // Ingredients created during extraction — merged into the form's option list.
   newIngredients: Ingredient[];
 }
-
-function round(value: number): number {
-  return Math.round(value * 10) / 10;
-}
-
-// Units where convertToGrams resolves grams via weightPerUnit (not fixed-gram).
-const WEIGHT_PER_UNIT_UNITS = new Set([
-  "szt",
-  "opakowanie",
-  "pęczek",
-  "ząbek",
-  "plaster",
-  "kromka",
-  "kostka",
-  "listek",
-  "gałązka",
-  "łodyga",
-  "puszka",
-  "słoik",
-  "woreczek",
-  "porcja",
-]);
 
 async function buildMealDraft(
   userId: string,
@@ -122,7 +111,7 @@ async function buildMealDraft(
         const e = enrichedByName.get(name.toLowerCase());
         const hintWeightPerUnit =
           grams > 0 && amount > 0 && WEIGHT_PER_UNIT_UNITS.has(unit)
-            ? round(grams / amount)
+            ? round1(grams / amount)
             : null;
         return createIngredient(userId, {
           name,
@@ -144,10 +133,7 @@ async function buildMealDraft(
 
   // 2. Build ingredient entries + compute total macros.
   const ingredients: MealDraft["ingredients"] = [];
-  let calories = 0;
-  let protein = 0;
-  let carbs = 0;
-  let fat = 0;
+  const lines: IngredientLine[] = [];
   for (const ing of extracted.ingredients) {
     const ingredient = ingredientByName.get(ing.name.toLowerCase());
     if (!ingredient) continue;
@@ -156,21 +142,14 @@ async function buildMealDraft(
       amount: ing.amount,
       unit: ing.unit,
     });
-    const grams = convertToGrams(
-      ing.amount,
-      ing.unit,
-      ingredient.weightPerUnit,
-      ingredient.defaultUnit,
-    );
-    const factor = grams / 100;
-    calories += (ingredient.caloriesPer100g ?? 0) * factor;
-    protein += (ingredient.proteinPer100g ?? 0) * factor;
-    carbs += (ingredient.carbsPer100g ?? 0) * factor;
-    fat += (ingredient.fatPer100g ?? 0) * factor;
+    lines.push({ amount: ing.amount, unit: ing.unit, ingredient });
   }
 
   // Form stores nutrition per serving.
   const perServing = Math.max(1, extracted.servings);
+  const nutrition = roundNutrition(
+    scaleNutrition(recipeNutrition(lines), 1 / perServing),
+  );
 
   // 3. Resolve meal type names → ids.
   const mealTypeIds = extracted.mealTypeNames
@@ -188,10 +167,7 @@ async function buildMealDraft(
     servings: perServing,
     prepTimeMinutes: extracted.prepTimeMinutes,
     cookTimeMinutes: extracted.cookTimeMinutes,
-    calories: Math.round(calories / perServing),
-    protein: round(protein / perServing),
-    carbs: round(carbs / perServing),
-    fat: round(fat / perServing),
+    ...nutrition,
     isVegetarian: extracted.isVegetarian,
     isVegan: extracted.isVegan,
     isGlutenFree: extracted.isGlutenFree,
@@ -293,9 +269,9 @@ async function buildProductDraft(
     prepTimeMinutes: null,
     cookTimeMinutes: null,
     calories: Math.round((product.caloriesPer100g ?? 0) * factor),
-    protein: round((product.proteinPer100g ?? 0) * factor),
-    carbs: round((product.carbsPer100g ?? 0) * factor),
-    fat: round((product.fatPer100g ?? 0) * factor),
+    protein: round1((product.proteinPer100g ?? 0) * factor),
+    carbs: round1((product.carbsPer100g ?? 0) * factor),
+    fat: round1((product.fatPer100g ?? 0) * factor),
     isVegetarian: false,
     isVegan: false,
     isGlutenFree: false,
@@ -377,9 +353,9 @@ export async function createMealFromIngredientAction(
     name: name?.trim() || ingredient.name,
     servings: 1,
     calories: Math.round((ingredient.caloriesPer100g ?? 0) * factor) || null,
-    protein: round((ingredient.proteinPer100g ?? 0) * factor) || null,
-    carbs: round((ingredient.carbsPer100g ?? 0) * factor) || null,
-    fat: round((ingredient.fatPer100g ?? 0) * factor) || null,
+    protein: round1((ingredient.proteinPer100g ?? 0) * factor) || null,
+    carbs: round1((ingredient.carbsPer100g ?? 0) * factor) || null,
+    fat: round1((ingredient.fatPer100g ?? 0) * factor) || null,
     mealTypeIds: defaultType ? [defaultType.id] : [],
     ingredientsList: [{ ingredientId: ingredient.id, amount, unit }],
   });

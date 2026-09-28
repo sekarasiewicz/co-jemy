@@ -39,48 +39,10 @@ import {
 } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import { addDays, parseDayKey, todayKey } from "@/lib/day";
-import { cn, convertToGrams, formatAmount, formatMinutes } from "@/lib/utils";
-import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType } from "@/types";
+import { portionsNutrition } from "@/lib/nutrition";
+import { cn, formatAmount, formatMinutes } from "@/lib/utils";
+import type { DailyPlanWithMeals, MealType } from "@/types";
 import { AddMealModal } from "./add-meal-modal";
-
-type MealNutrition = { calories: number; protein: number; carbs: number; fat: number };
-
-function getMealNutrition(
-  meal: Meal & { mealIngredients: (MealIngredient & { ingredient: Ingredient })[] },
-  servings: number,
-): MealNutrition {
-  // Use meal-level values if available
-  if (meal.calories != null || meal.protein != null || meal.carbs != null || meal.fat != null) {
-    return {
-      calories: (meal.calories || 0) * servings,
-      protein: (meal.protein || 0) * servings,
-      carbs: (meal.carbs || 0) * servings,
-      fat: (meal.fat || 0) * servings,
-    };
-  }
-  // Compute from ingredients
-  if (meal.mealIngredients.length === 0) {
-    return { calories: 0, protein: 0, carbs: 0, fat: 0 };
-  }
-  const totals = meal.mealIngredients.reduce(
-    (acc, mi) => {
-      const g = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit, mi.ingredient.defaultUnit) / 100;
-      return {
-        calories: acc.calories + (mi.ingredient.caloriesPer100g || 0) * g,
-        protein: acc.protein + (mi.ingredient.proteinPer100g || 0) * g,
-        carbs: acc.carbs + (mi.ingredient.carbsPer100g || 0) * g,
-        fat: acc.fat + (mi.ingredient.fatPer100g || 0) * g,
-      };
-    },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  );
-  return {
-    calories: totals.calories * servings,
-    protein: totals.protein * servings,
-    carbs: totals.carbs * servings,
-    fat: totals.fat * servings,
-  };
-}
 
 // Distinct accent per meal type so the day cards don't blend together.
 const MEAL_TYPE_ACCENTS: Record<string, { bar: string; text: string }> = {
@@ -350,7 +312,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
   // Calculate totals for the day
   const totals = plan?.meals.reduce(
     (acc, pm) => {
-      const n = getMealNutrition(pm.meal, pm.servings || 1);
+      const n = portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1);
       return {
         calories: acc.calories + n.calories,
         protein: acc.protein + n.protein,
@@ -607,7 +569,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
                               </p>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                                 {(() => {
-                                  const n = getMealNutrition(pm.meal, pm.servings || 1);
+                                  const n = portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1);
                                   return n.calories > 0 ? (
                                     <span className="flex items-center gap-1">
                                       <Flame className="w-3 h-3" />

@@ -4,7 +4,13 @@ import { notFound } from "next/navigation";
 import { getMealAction } from "@/app/actions/meals";
 import { MealImage } from "@/components/meals/meal-image";
 import { BackButton, Badge, Button, Card, CardContent } from "@/components/ui";
-import { convertToGrams, formatAmount, formatMinutes } from "@/lib/utils";
+import {
+  lineGrams,
+  lineNutrition,
+  perServingNutrition,
+  roundNutrition,
+} from "@/lib/nutrition";
+import { formatAmount, formatMinutes } from "@/lib/utils";
 import { DeleteMealButton } from "./delete-meal-button";
 
 export default async function MealPage({
@@ -21,35 +27,21 @@ export default async function MealPage({
 
   const totalTime = (meal.prepTimeMinutes || 0) + (meal.cookTimeMinutes || 0);
 
-  // Compute nutrition from ingredients
-  const ingredientNutrition = meal.ingredients.map((mi) => {
-    const g = convertToGrams(mi.amount, mi.unit, mi.ingredient.weightPerUnit, mi.ingredient.defaultUnit);
-    const factor = g / 100;
-    return {
-      id: mi.id,
-      grams: Math.round(g),
-      calories: Math.round((mi.ingredient.caloriesPer100g || 0) * factor),
-      protein: Math.round((mi.ingredient.proteinPer100g || 0) * factor * 10) / 10,
-      carbs: Math.round((mi.ingredient.carbsPer100g || 0) * factor * 10) / 10,
-      fat: Math.round((mi.ingredient.fatPer100g || 0) * factor * 10) / 10,
-    };
-  });
+  // Per-ingredient values are for the amounts as written (whole recipe);
+  // the header shows one portion.
+  const ingredientNutrition = meal.ingredients.map((mi) => ({
+    grams: Math.round(lineGrams(mi)),
+    ...roundNutrition(lineNutrition(mi)),
+  }));
 
-  const computedTotal = ingredientNutrition.reduce(
-    (acc, n) => ({
-      calories: acc.calories + n.calories,
-      protein: acc.protein + n.protein,
-      carbs: acc.carbs + n.carbs,
-      fat: acc.fat + n.fat,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  );
-
+  const perServing = perServingNutrition(meal, meal.ingredients);
+  const rounded = perServing && roundNutrition(perServing);
+  const orNull = (v: number | undefined) => (v && v > 0 ? v : null);
   const nutrition = {
-    calories: meal.calories ?? (computedTotal.calories > 0 ? Math.round(computedTotal.calories) : null),
-    protein: meal.protein ?? (computedTotal.protein > 0 ? Math.round(computedTotal.protein * 10) / 10 : null),
-    carbs: meal.carbs ?? (computedTotal.carbs > 0 ? Math.round(computedTotal.carbs * 10) / 10 : null),
-    fat: meal.fat ?? (computedTotal.fat > 0 ? Math.round(computedTotal.fat * 10) / 10 : null),
+    calories: orNull(rounded?.calories),
+    protein: orNull(rounded?.protein),
+    carbs: orNull(rounded?.carbs),
+    fat: orNull(rounded?.fat),
   };
 
   const hasNutrition = nutrition.calories || nutrition.protein || nutrition.carbs || nutrition.fat;

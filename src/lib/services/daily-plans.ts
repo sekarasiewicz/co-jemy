@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { dailyPlanMeals, dailyPlans, profiles } from "@/db/schema";
+import { dailyPlanMeals, dailyPlans, } from "@/db/schema";
 import { assertOwned, userDailyPlanIds } from "@/lib/services/ownership";
 import { addDays, type DayKey } from "@/lib/day";
 import { generateId } from "@/lib/utils";
@@ -8,7 +8,6 @@ import type {
   DailyPlan,
   DailyPlanMeal,
   DailyPlanWithMeals,
-  NewDailyPlan,
 } from "@/types";
 
 export async function getDailyPlanByDate(
