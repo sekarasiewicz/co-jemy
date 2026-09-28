@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   dailyPlans,
@@ -37,7 +37,14 @@ export async function assertOwned(
   const rows = await db
     .select({ id: t.id })
     .from(t)
-    .where(and(inArray(t.id, unique), eq(t.userId, userId)));
+    .where(
+      and(
+        inArray(t.id, unique),
+        eq(t.userId, userId),
+        // Deleted meals can't be linked into new plans.
+        table === "meals" ? isNull(meals.deletedAt) : undefined,
+      ),
+    );
 
   if (rows.length !== unique.length) {
     throw new UserError("Nie znaleziono");

@@ -43,8 +43,8 @@ export function DeleteMealButton({ mealId, mealName }: DeleteMealButtonProps) {
         title="Usuń danie"
       >
         <p className="text-muted-foreground mb-6">
-          Czy na pewno chcesz usunąć danie <strong>{mealName}</strong>? Tej
-          operacji nie można cofnąć.
+          Czy na pewno chcesz usunąć danie <strong>{mealName}</strong>? Zniknie
+          z listy dań i losowania, ale zostanie w dotychczasowych planach.
         </p>
         <div className="flex gap-3">
           <Button

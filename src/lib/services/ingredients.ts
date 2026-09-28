@@ -1,6 +1,11 @@
-import { and, eq, ilike, inArray } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { ingredients, mealIngredients, shoppingListItems } from "@/db/schema";
+import {
+  ingredients,
+  mealIngredients,
+  meals,
+  shoppingListItems,
+} from "@/db/schema";
 import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
@@ -90,6 +95,25 @@ export async function deleteIngredient(
   ingredientId: string,
   userId: string,
 ): Promise<void> {
+  // Deleting would silently drop the ingredient from recipes (FK cascade)
+  // without recomputing their macros, so refuse while an active meal uses it.
+  const [{ usedIn }] = await db
+    .select({ usedIn: count() })
+    .from(mealIngredients)
+    .innerJoin(meals, eq(meals.id, mealIngredients.mealId))
+    .where(
+      and(
+        eq(mealIngredients.ingredientId, ingredientId),
+        eq(meals.userId, userId),
+        isNull(meals.deletedAt),
+      ),
+    );
+  if (usedIn > 0) {
+    throw new UserError(
+      `Składnik jest używany w ${usedIn} ${usedIn === 1 ? "daniu" : "daniach"}. Usuń go najpierw z przepisów albo scal z innym składnikiem.`,
+    );
+  }
+
   const deleted = await db
     .delete(ingredients)
     .where(

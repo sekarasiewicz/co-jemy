@@ -19,7 +19,7 @@ export default async function EditMealPage({
     getIngredientsAction(),
   ]);
 
-  if (!meal) {
+  if (!meal || meal.deletedAt) {
     notFound();
   }
 

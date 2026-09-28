@@ -15,6 +15,13 @@
       "when": 1790584797281,
       "tag": "0001_plan_days_and_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790588410202,
+      "tag": "0002_soft_delete_meals",
+      "breakpoints": true
     }
   ]
 }

@@ -57,15 +57,22 @@ export default async function MealPage({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-bold text-foreground">{meal.name}</h1>
-            <div className="flex flex-shrink-0 gap-2">
-              <Link href={`/meals/${meal.id}/edit`}>
-                <Button variant="outline" size="sm">
-                  <Pencil className="w-4 h-4" />
-                </Button>
-              </Link>
-              <DeleteMealButton mealId={meal.id} mealName={meal.name} />
-            </div>
+            {!meal.deletedAt && (
+              <div className="flex flex-shrink-0 gap-2">
+                <Link href={`/meals/${meal.id}/edit`}>
+                  <Button variant="outline" size="sm">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </Link>
+                <DeleteMealButton mealId={meal.id} mealName={meal.name} />
+              </div>
+            )}
           </div>
+          {meal.deletedAt && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              To danie zostało usunięte — widać je tylko w historii planów.
+            </p>
+          )}
 
           <div className="mt-3 flex flex-wrap gap-2">
             {meal.mealTypes.map((mt) => (

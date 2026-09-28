@@ -178,6 +178,9 @@ export const meals = pgTable(
     isChildFriendly: boolean("is_child_friendly").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    // Soft delete: a deleted meal leaves lists and pickers but stays in the
+    // plans (history) that used it.
+    deletedAt: timestamp("deleted_at"),
   },
   (t) => [index("meals_user_id_name_idx").on(t.userId, t.name)],
 );

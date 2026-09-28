@@ -107,10 +107,12 @@ export async function updateIngredientAction(
 
 export async function deleteIngredientAction(
   ingredientId: string,
-): Promise<void> {
-  const session = await requireAuth();
-  await deleteIngredient(ingredientId, session.user.id);
-  revalidatePath("/ingredients");
+): Promise<ActionResult<void>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    await deleteIngredient(ingredientId, session.user.id);
+    revalidatePath("/ingredients");
+  });
 }
 
 export async function mergeIngredientsAction(

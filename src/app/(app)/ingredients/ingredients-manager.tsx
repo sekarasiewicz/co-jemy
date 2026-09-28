@@ -344,11 +344,11 @@ export function IngredientsManager({
   const handleDelete = async (id: string) => {
     setDeleting(id);
     try {
-      await deleteIngredientAction(id);
+      unwrap(await deleteIngredientAction(id));
       setIngredients(ingredients.filter((ing) => ing.id !== id));
       toast.success("Składnik usunięty");
-    } catch {
-      toast.error("Nie można usunąć składnika");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie można usunąć składnika");
     } finally {
       setDeleting(null);
     }

@@ -85,6 +85,7 @@ export function NewMealForm({
       isChildFriendly: d.isChildFriendly,
       createdAt: new Date(),
       updatedAt: new Date(),
+      deletedAt: null,
       mealTypes: mealTypes.filter((mt) => d.mealTypeIds.includes(mt.id)),
       tags: [],
       ingredients: ingredientEntries,

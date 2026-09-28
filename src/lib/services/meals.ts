@@ -1,4 +1,4 @@
-import { and, eq, ilike, } from "drizzle-orm";
+import { and, eq, ilike, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   mealIngredients,
@@ -22,7 +22,7 @@ export async function getMealsByUserId(
   userId: string,
 ): Promise<MealWithRelations[]> {
   const mealsData = await db.query.meals.findMany({
-    where: eq(meals.userId, userId),
+    where: and(eq(meals.userId, userId), isNull(meals.deletedAt)),
     with: {
       mealTags: {
         with: { tag: true },
@@ -82,6 +82,7 @@ export async function searchMealsForType(
     .where(
       and(
         eq(meals.userId, userId),
+        isNull(meals.deletedAt),
         eq(mealMealTypes.mealTypeId, mealTypeId),
         trimmed ? ilike(meals.name, `%${trimmed}%`) : undefined,
       ),
@@ -248,7 +249,11 @@ export async function updateMeal(
 
   // Ownership check first: the link statements below are scoped by meal id.
   const previous = await db.query.meals.findFirst({
-    where: and(eq(meals.id, mealId), eq(meals.userId, userId)),
+    where: and(
+      eq(meals.id, mealId),
+      eq(meals.userId, userId),
+      isNull(meals.deletedAt),
+    ),
     columns: { imageUrl: true },
   });
   if (!previous) {
@@ -277,11 +282,18 @@ export async function deleteMeal(
   mealId: string,
   userId: string,
 ): Promise<void> {
-  const deleted = await db
-    .delete(meals)
-    .where(and(eq(meals.id, mealId), eq(meals.userId, userId)))
-    .returning({ imageUrl: meals.imageUrl });
-  await deleteUnreferencedBlobs(deleted.map((m) => m.imageUrl));
+  // Soft delete: plans that used the meal keep showing it. The row still
+  // references its image, so the Blob file stays too.
+  await db
+    .update(meals)
+    .set({ deletedAt: new Date() })
+    .where(
+      and(
+        eq(meals.id, mealId),
+        eq(meals.userId, userId),
+        isNull(meals.deletedAt),
+      ),
+    );
 }
 
 export async function getFilteredMeals(
