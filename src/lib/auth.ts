@@ -15,7 +15,22 @@ function isValidInviteCode(code: string | null | undefined): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+const PRODUCTION_URL = "https://co-jemy.karasiewicz.dev";
+
+// Origin used for auth redirects and CSRF origin checks. Preview deploys get
+// their own URL so sign-in works there too.
+function resolveBaseURL(): string {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+  if (process.env.VERCEL_ENV === "production") return PRODUCTION_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+}
+
+const baseURL = resolveBaseURL();
+
 export const auth = betterAuth({
+  baseURL,
+  trustedOrigins: [...new Set([baseURL, PRODUCTION_URL])],
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
