@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface ProfileAvatarProps {
@@ -31,13 +32,15 @@ export function ProfileAvatar({
 
   const isImage =
     !!avatar && (avatar.startsWith("http") || avatar.startsWith("/"));
+  const pixels = { sm: 32, md: 40, lg: 64, xl: 96 }[size];
 
   if (isImage) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={avatar as string}
         alt={name}
+        width={pixels}
+        height={pixels}
         className={cn(
           "rounded-full object-cover",
           sizes[size],

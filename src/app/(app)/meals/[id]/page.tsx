@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Clock, Flame, Pencil, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -199,10 +200,11 @@ export default async function MealPage({
                   >
                     <div className="flex items-center gap-2.5 text-foreground min-w-0 flex-1">
                       {mi.ingredient.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={mi.ingredient.image}
                           alt={mi.ingredient.name}
+                          width={32}
+                          height={32}
                           className="h-8 w-8 flex-shrink-0 rounded-md object-cover border border-border"
                         />
                       ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   AlertTriangle,
   GitMerge,
@@ -563,10 +564,11 @@ export function IngredientsManager({
                           className="flex items-center gap-4 py-3"
                         >
                           {ing.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            <Image
                               src={ing.image}
                               alt={ing.name}
+                              width={44}
+                              height={44}
                               className="h-11 w-11 flex-shrink-0 rounded-lg object-cover border border-border"
                             />
                           ) : (

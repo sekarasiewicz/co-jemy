@@ -1,12 +1,8 @@
-import { getMealsAction } from "@/app/actions/meals";
 import { getMealTypesAction } from "@/app/actions/tags";
 import { WeekPlanner } from "./week-planner";
 
 export default async function PlannerPage() {
-  const [mealTypes, meals] = await Promise.all([
-    getMealTypesAction(),
-    getMealsAction(),
-  ]);
+  const mealTypes = await getMealTypesAction();
 
   return (
     <div>
@@ -15,7 +11,7 @@ export default async function PlannerPage() {
         <p className="text-muted-foreground">Zaplanuj posiłki na cały tydzień</p>
       </div>
 
-      <WeekPlanner mealTypes={mealTypes} meals={meals} />
+      <WeekPlanner mealTypes={mealTypes} />
     </div>
   );
 }

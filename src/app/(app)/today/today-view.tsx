@@ -43,7 +43,7 @@ import { addDays, parseDayKey, todayKey } from "@/lib/day";
 import { portionsNutrition } from "@/lib/nutrition";
 import { cn, formatAmount, formatMinutes } from "@/lib/utils";
 import type { DailyPlanWithMeals, MealType } from "@/types";
-import { AddMealModal } from "./add-meal-modal";
+import { AddMealModal } from "@/components/meals/add-meal-modal";
 
 // Distinct accent per meal type so the day cards don't blend together.
 const MEAL_TYPE_ACCENTS: Record<string, { bar: string; text: string }> = {

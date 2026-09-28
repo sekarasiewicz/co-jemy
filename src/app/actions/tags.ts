@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
+import { getMealTypesByUserId } from "@/lib/services/meal-types";
 import {
   createTag,
   deleteTag,
@@ -44,6 +44,6 @@ export async function deleteTagAction(tagId: string): Promise<void> {
 
 export async function getMealTypesAction(): Promise<MealType[]> {
   const session = await requireAuth();
-  // Automatically add missing default meal types (e.g., II śniadanie)
-  return addMissingDefaultMealTypes(session.user.id);
+  // Plain read: defaults are seeded once for new users (initializeNewUserAction).
+  return getMealTypesByUserId(session.user.id);
 }

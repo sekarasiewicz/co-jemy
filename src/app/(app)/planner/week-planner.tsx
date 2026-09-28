@@ -12,7 +12,7 @@ import {
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
-import { Badge, Button, Checkbox, Modal, Tooltip } from "@/components/ui";
+import { Button, Checkbox, Modal, Tooltip } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import {
   addDays,
@@ -28,14 +28,14 @@ import {
 } from "@/lib/fill-range";
 import { portionsNutrition } from "@/lib/nutrition";
 import { cn, formatDateShort } from "@/lib/utils";
-import type { DailyPlanWithMeals, MealType, MealWithRelations } from "@/types";
+import type { DailyPlanWithMeals, MealType, } from "@/types";
+import { AddMealModal } from "@/components/meals/add-meal-modal";
 
 interface WeekPlannerProps {
   mealTypes: MealType[];
-  meals: MealWithRelations[];
 }
 
-export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
+export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
   const activeProfile = useActiveProfile();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(todayKey()));
   const [plans, setPlans] = useState<Map<string, DailyPlanWithMeals>>(
@@ -169,12 +169,6 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
         return newPlans;
       });
     }
-  };
-
-  const getMealsForType = (mealTypeId: string) => {
-    return meals.filter((meal) =>
-      meal.mealTypes.some((mt) => mt.id === mealTypeId),
-    );
   };
 
   const handleRandomizeCell = async (date: Date, mealTypeId: string) => {
@@ -495,51 +489,14 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
         </div>
       )}
 
-      {/* Add Meal Modal */}
-      <Modal
+      <AddMealModal
+        mealType={
+          mealTypes.find((mt) => mt.id === addingMeal?.mealTypeId) ?? null
+        }
         isOpen={!!addingMeal}
         onClose={() => setAddingMeal(null)}
-        title={`Dodaj ${
-          addingMeal
-            ? mealTypes.find((mt) => mt.id === addingMeal.mealTypeId)?.name
-            : ""
-        }`}
-        size="lg"
-      >
-        {addingMeal && (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {getMealsForType(addingMeal.mealTypeId).length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
-                Brak dań dla tego typu posiłku
-              </p>
-            ) : (
-              getMealsForType(addingMeal.mealTypeId).map((meal) => (
-                <button
-                  key={meal.id}
-                  onClick={() => handleAddMeal(meal.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-orange-500 hover:bg-orange-500/10 transition-colors text-left"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{meal.name}</p>
-                    <div className="flex gap-2 mt-1">
-                      {meal.calories && (
-                        <span className="text-xs text-muted-foreground">
-                          {meal.calories} kcal
-                        </span>
-                      )}
-                      {meal.isChildFriendly && (
-                        <Badge size="sm" variant="info">
-                          Dla dzieci
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </Modal>
+        onSelect={handleAddMeal}
+      />
 
       {/* Fill Planner Modal */}
       <Modal
