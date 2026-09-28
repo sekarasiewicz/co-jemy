@@ -1,6 +1,7 @@
 import { and, eq, ilike, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { ingredients, mealIngredients, shoppingListItems } from "@/db/schema";
+import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { Ingredient, NewIngredient } from "@/types";
@@ -61,6 +62,11 @@ export async function updateIngredient(
   userId: string,
   data: Partial<Omit<NewIngredient, "id" | "userId" | "createdAt">>,
 ): Promise<Ingredient> {
+  const previous =
+    data.image !== undefined
+      ? await getIngredientById(ingredientId, userId)
+      : undefined;
+
   const [ingredient] = await db
     .update(ingredients)
     .set(stripProtected(data))
@@ -72,6 +78,9 @@ export async function updateIngredient(
   if (!ingredient) {
     throw new Error("Składnik nie został znaleziony");
   }
+  if (previous?.image && previous.image !== ingredient.image) {
+    await deleteUnreferencedBlobs([previous.image]);
+  }
 
   return ingredient;
 }
@@ -80,11 +89,13 @@ export async function deleteIngredient(
   ingredientId: string,
   userId: string,
 ): Promise<void> {
-  await db
+  const deleted = await db
     .delete(ingredients)
     .where(
       and(eq(ingredients.id, ingredientId), eq(ingredients.userId, userId)),
-    );
+    )
+    .returning({ image: ingredients.image });
+  await deleteUnreferencedBlobs(deleted.map((i) => i.image));
 }
 
 export async function getIngredientsByCategory(
@@ -132,12 +143,14 @@ export async function mergeIngredients(
     .where(inArray(shoppingListItems.ingredientId, sourceIds));
 
   // Delete source ingredients
-  await db
+  const deleted = await db
     .delete(ingredients)
     .where(
       and(
         inArray(ingredients.id, sourceIds),
         eq(ingredients.userId, userId),
       ),
-    );
+    )
+    .returning({ image: ingredients.image });
+  await deleteUnreferencedBlobs(deleted.map((i) => i.image));
 }

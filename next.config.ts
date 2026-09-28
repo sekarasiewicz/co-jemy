@@ -9,10 +9,9 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      // Vercel Blob uploads
+      // Vercel Blob uploads — the only image source. A wildcard host would
+      // turn /_next/image into an open proxy billed to this project.
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
-      // Meal images can also be arbitrary user-pasted URLs
-      { protocol: "https", hostname: "**" },
     ],
   },
 };

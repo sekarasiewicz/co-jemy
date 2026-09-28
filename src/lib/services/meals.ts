@@ -9,6 +9,7 @@ import {
   mealTypes,
   tags,
 } from "@/db/schema";
+import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId, getRandomItem } from "@/lib/utils";
 import type {
@@ -133,6 +134,19 @@ type CreateMealData = Omit<
   ingredientsList?: { ingredientId: string; amount: number; unit: string }[];
 };
 
+// Images are rendered through next/image, which only allows Vercel Blob.
+function assertImageUrl(url: string | null | undefined): void {
+  if (!url) return;
+  let host = "";
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:") host = parsed.hostname;
+  } catch {}
+  if (!host.endsWith(".public.blob.vercel-storage.com")) {
+    throw new Error("Nieprawidłowy adres zdjęcia");
+  }
+}
+
 async function assertLinkedOwned(
   userId: string,
   data: Partial<CreateMealData>,
@@ -153,6 +167,7 @@ export async function createMeal(
   data: CreateMealData,
 ): Promise<Meal> {
   const { tagIds, mealTypeIds, ingredientsList, ...mealData } = data;
+  assertImageUrl(data.imageUrl);
   await assertLinkedOwned(userId, data);
   const mealId = generateId();
 
@@ -204,7 +219,16 @@ export async function updateMeal(
   data: Partial<CreateMealData>,
 ): Promise<Meal> {
   const { tagIds, mealTypeIds, ingredientsList, ...mealData } = data;
+  assertImageUrl(data.imageUrl);
   await assertLinkedOwned(userId, data);
+
+  const previous =
+    data.imageUrl !== undefined
+      ? await db.query.meals.findFirst({
+          where: and(eq(meals.id, mealId), eq(meals.userId, userId)),
+          columns: { imageUrl: true },
+        })
+      : undefined;
 
   const [meal] = await db
     .update(meals)
@@ -214,6 +238,9 @@ export async function updateMeal(
 
   if (!meal) {
     throw new Error("Danie nie zostało znalezione");
+  }
+  if (previous?.imageUrl && previous.imageUrl !== meal.imageUrl) {
+    await deleteUnreferencedBlobs([previous.imageUrl]);
   }
 
   if (tagIds !== undefined) {
@@ -262,9 +289,11 @@ export async function deleteMeal(
   mealId: string,
   userId: string,
 ): Promise<void> {
-  await db
+  const deleted = await db
     .delete(meals)
-    .where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
+    .where(and(eq(meals.id, mealId), eq(meals.userId, userId)))
+    .returning({ imageUrl: meals.imageUrl });
+  await deleteUnreferencedBlobs(deleted.map((m) => m.imageUrl));
 }
 
 export async function getFilteredMeals(

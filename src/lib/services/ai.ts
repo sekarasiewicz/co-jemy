@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { INGREDIENT_CATEGORIES, UNITS } from "@/types";
 import type { IngredientCategory, Unit } from "@/types";
-import { recordAiUsage } from "./ai-usage";
+import { assertAiBudget, recordAiUsage } from "./ai-usage";
 
 const validCategories = new Set<string>(INGREDIENT_CATEGORIES);
 const validUnits = new Set<string>(UNITS);
@@ -48,6 +48,36 @@ function validateEnriched(
   };
 }
 
+// Input caps: keep prompts (and their cost) bounded no matter what a client sends.
+const MAX_TEXT_CHARS = 20_000;
+const MAX_NAME_CHARS = 200;
+const MAX_ENRICH_NAMES = 100;
+// Base64 is ~4/3 of the raw size.
+const MAX_IMAGE_BASE64 = Math.ceil((6 * 1024 * 1024 * 4) / 3);
+const MAX_PDF_BASE64 = Math.ceil((8 * 1024 * 1024 * 4) / 3);
+const IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
+function assertImageInput(base64: string, mimeType: string): void {
+  if (!IMAGE_MIME_TYPES.has(mimeType)) {
+    throw new Error("Nieobsługiwany format zdjęcia");
+  }
+  if (base64.length > MAX_IMAGE_BASE64) {
+    throw new Error("Zdjęcie jest za duże (maks. 6 MB)");
+  }
+}
+
+function assertMaxLength(value: string, max: number, label: string): void {
+  if (value.length > max) {
+    throw new Error(`${label} jest za długi (maks. ${max} znaków)`);
+  }
+}
+
 function getClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
@@ -59,6 +89,14 @@ export async function enrichIngredients(
   forceUnit?: string,
   userId?: string | null,
 ): Promise<EnrichedIngredient[]> {
+  if (names.length > MAX_ENRICH_NAMES) {
+    throw new Error(`Za dużo składników naraz (maks. ${MAX_ENRICH_NAMES})`);
+  }
+  for (const name of names) assertMaxLength(name, MAX_NAME_CHARS, "Nazwa");
+  // forceUnit is interpolated into the prompt — only accept known units.
+  if (forceUnit && !validUnits.has(forceUnit)) forceUnit = undefined;
+  await assertAiBudget(userId);
+
   if (names.length === 0) return [];
 
   const modelName = "gemini-2.5-flash";
@@ -199,6 +237,14 @@ export async function extractDietFromPdf(
   mimeType = "application/pdf",
   userId?: string | null,
 ): Promise<ExtractedDiet> {
+  if (mimeType !== "application/pdf") {
+    throw new Error("Obsługiwane są tylko pliki PDF");
+  }
+  if (base64Pdf.length > MAX_PDF_BASE64) {
+    throw new Error("Plik PDF jest za duży (maks. 8 MB)");
+  }
+  await assertAiBudget(userId);
+
   const modelName = "gemini-2.5-pro";
   const client = getClient();
   const model = client.getGenerativeModel({
@@ -451,6 +497,8 @@ export async function extractMealFromText(
   recipeText: string,
   userId?: string | null,
 ): Promise<ExtractedMeal> {
+  assertMaxLength(recipeText, MAX_TEXT_CHARS, "Tekst przepisu");
+  await assertAiBudget(userId);
   const { model, modelName } = getMealModel();
   const prompt = `${buildMealPrompt()}\n\nPRZEPIS:\n${recipeText}`;
 
@@ -471,6 +519,8 @@ export async function extractMealFromImage(
   mimeType: string,
   userId?: string | null,
 ): Promise<ExtractedMeal> {
+  assertImageInput(base64Image, mimeType);
+  await assertAiBudget(userId);
   const { model, modelName } = getMealModel();
 
   const result = await model.generateContent([
@@ -507,6 +557,8 @@ export async function extractBarcodeFromImage(
   mimeType: string,
   userId?: string | null,
 ): Promise<string> {
+  assertImageInput(base64Image, mimeType);
+  await assertAiBudget(userId);
   const { model, modelName } = getMealModel();
   const prompt = `Na zdjęciu znajduje się kod kreskowy produktu spożywczego. Odczytaj numer kodu (EAN-13, EAN-8 lub UPC) — cyfry wydrukowane pod kreskami. Odpowiedz WYŁĄCZNIE JSON-em: {"barcode": "same cyfry bez spacji, lub pusty string gdy nie widać"}`;
 
@@ -537,6 +589,8 @@ export async function extractProductFromImage(
   mimeType: string,
   userId?: string | null,
 ): Promise<ExtractedProduct> {
+  assertImageInput(base64Image, mimeType);
+  await assertAiBudget(userId);
   const { model, modelName } = getMealModel();
   const prompt = `Na zdjęciu jest gotowy produkt spożywczy (opakowanie / tabela wartości odżywczych). Wyodrębnij dane produktu.
 
@@ -605,6 +659,7 @@ async function runImageModel(
   operation: string,
   userId?: string | null,
 ): Promise<GeneratedImage> {
+  await assertAiBudget(userId);
   const modelName = "gemini-2.5-flash-image";
   const client = getClient();
   const model = client.getGenerativeModel({
@@ -653,6 +708,8 @@ export async function generateMealImage(
   input: { name: string; description?: string; ingredientNames?: string[] },
   userId?: string | null,
 ): Promise<GeneratedImage> {
+  assertMaxLength(input.name, MAX_NAME_CHARS, "Nazwa");
+  assertMaxLength(input.description ?? "", 1000, "Opis");
   const ingredients = input.ingredientNames?.filter(Boolean).slice(0, 15) ?? [];
   const prompt = `Profesjonalne zdjęcie kulinarne dania "${input.name}".${
     input.description ? ` ${input.description}.` : ""
@@ -667,6 +724,7 @@ export async function generateIngredientImage(
   name: string,
   userId?: string | null,
 ): Promise<GeneratedImage> {
+  assertMaxLength(name, MAX_NAME_CHARS, "Nazwa");
   const prompt = `Czyste zdjęcie produktowe składnika spożywczego "${name}". Pojedynczy surowy produkt na jednolitym, jasnym tle, dobrze oświetlony, ostry, realistyczny, widok z góry lub pod lekkim kątem, bez tekstu, opakowań i znaków wodnych.`;
 
   return runImageModel(prompt, "generate_ingredient_image", userId);

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { NewProfile, Profile } from "@/types";
@@ -50,6 +51,11 @@ export async function updateProfile(
   userId: string,
   data: Partial<Omit<NewProfile, "id" | "userId" | "createdAt">>,
 ): Promise<Profile> {
+  const previous =
+    data.avatar !== undefined
+      ? await getProfileById(profileId, userId)
+      : undefined;
+
   const [profile] = await db
     .update(profiles)
     .set(stripProtected(data))
@@ -58,6 +64,9 @@ export async function updateProfile(
 
   if (!profile) {
     throw new Error("Profil nie został znaleziony");
+  }
+  if (previous?.avatar && previous.avatar !== profile.avatar) {
+    await deleteUnreferencedBlobs([previous.avatar]);
   }
 
   return profile;
@@ -73,9 +82,11 @@ export async function deleteProfile(
     throw new Error("Nie można usunąć ostatniego profilu");
   }
 
-  await db
+  const deleted = await db
     .delete(profiles)
-    .where(and(eq(profiles.id, profileId), eq(profiles.userId, userId)));
+    .where(and(eq(profiles.id, profileId), eq(profiles.userId, userId)))
+    .returning({ avatar: profiles.avatar });
+  await deleteUnreferencedBlobs(deleted.map((p) => p.avatar));
 }
 
 export async function createDefaultProfile(

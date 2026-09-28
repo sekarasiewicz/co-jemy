@@ -1,3 +1,4 @@
+import { and, eq, gte, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { aiUsage } from "@/db/schema";
 import { generateId } from "@/lib/utils";
@@ -26,6 +27,38 @@ interface UsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   totalTokenCount?: number;
+}
+
+// Per-user daily spend cap. Every AI call is billed, so without it one account
+// (or a script) could run up an unbounded Gemini bill.
+const DEFAULT_DAILY_BUDGET_USD = 2;
+
+function dailyBudgetUsd(): number {
+  const fromEnv = Number(process.env.AI_DAILY_BUDGET_USD);
+  return Number.isFinite(fromEnv) && fromEnv > 0
+    ? fromEnv
+    : DEFAULT_DAILY_BUDGET_USD;
+}
+
+/** Throws when the user has already spent today's AI budget (UTC day). */
+export async function assertAiBudget(
+  userId: string | null | undefined,
+): Promise<void> {
+  if (!userId) return;
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const [row] = await db
+    .select({ spent: sum(aiUsage.costUsd).mapWith(Number) })
+    .from(aiUsage)
+    .where(and(eq(aiUsage.userId, userId), gte(aiUsage.createdAt, startOfDay)));
+
+  if ((row?.spent ?? 0) >= dailyBudgetUsd()) {
+    throw new Error(
+      "Wykorzystano dzienny limit funkcji AI. Spróbuj ponownie jutro.",
+    );
+  }
 }
 
 /**

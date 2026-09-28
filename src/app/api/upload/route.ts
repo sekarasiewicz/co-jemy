@@ -4,17 +4,24 @@ import { getSession } from "@/lib/session";
 
 // Client-side upload token endpoint for Vercel Blob.
 // Lets the browser upload directly to Blob (bypasses the 4.5MB serverless body limit).
-export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
+const UPLOAD_FOLDERS = ["meals/", "ingredients/", "profiles/"];
 
+export async function POST(request: Request): Promise<NextResponse> {
   try {
+    const body = (await request.json()) as HandleUploadBody;
     const json = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         const session = await getSession();
         if (!session?.user) {
           throw new Error("Musisz być zalogowany, aby przesłać zdjęcie");
+        }
+        if (
+          !UPLOAD_FOLDERS.some((folder) => pathname.startsWith(folder)) ||
+          pathname.includes("..")
+        ) {
+          throw new Error("Nieprawidłowa ścieżka pliku");
         }
         return {
           allowedContentTypes: [

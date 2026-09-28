@@ -10,6 +10,10 @@ import {
   tags,
   users,
 } from "@/db/schema";
+import {
+  deleteUnreferencedBlobs,
+  getUserImageUrls,
+} from "@/lib/services/blob-cleanup";
 
 export interface AdminStats {
   users: number;
@@ -136,8 +140,10 @@ export async function setUserRole(
 }
 
 export async function deleteUserById(userId: string): Promise<void> {
+  const imageUrls = await getUserImageUrls(userId);
   // FK cascades remove profiles, meals, ingredients, plans, sessions, etc.
   await db.delete(users).where(eq(users.id, userId));
+  await deleteUnreferencedBlobs(imageUrls);
 }
 
 export interface AiUsageRow {
@@ -240,9 +246,17 @@ export async function getRecentIngredients(
 }
 
 export async function deleteMealAsAdmin(mealId: string): Promise<void> {
-  await db.delete(meals).where(eq(meals.id, mealId));
+  const deleted = await db
+    .delete(meals)
+    .where(eq(meals.id, mealId))
+    .returning({ imageUrl: meals.imageUrl });
+  await deleteUnreferencedBlobs(deleted.map((m) => m.imageUrl));
 }
 
 export async function deleteIngredientAsAdmin(id: string): Promise<void> {
-  await db.delete(ingredients).where(eq(ingredients.id, id));
+  const deleted = await db
+    .delete(ingredients)
+    .where(eq(ingredients.id, id))
+    .returning({ image: ingredients.image });
+  await deleteUnreferencedBlobs(deleted.map((i) => i.image));
 }
