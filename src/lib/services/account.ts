@@ -9,6 +9,7 @@ import {
   tags,
   users,
 } from "@/db/schema";
+import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import {
   deleteUnreferencedBlobs,
   getUserImageUrls,
@@ -20,12 +21,16 @@ import {
  */
 export async function clearUserData(userId: string): Promise<void> {
   const imageUrls = await getUserImageUrls(userId);
-  await db.delete(dailyPlans).where(eq(dailyPlans.userId, userId));
-  await db.delete(shoppingLists).where(eq(shoppingLists.userId, userId));
-  await db.delete(meals).where(eq(meals.userId, userId));
-  await db.delete(ingredients).where(eq(ingredients.userId, userId));
-  await db.delete(tags).where(eq(tags.userId, userId));
-  await db.delete(mealTypes).where(eq(mealTypes.userId, userId));
+  await db.batch([
+    db.delete(dailyPlans).where(eq(dailyPlans.userId, userId)),
+    db.delete(shoppingLists).where(eq(shoppingLists.userId, userId)),
+    db.delete(meals).where(eq(meals.userId, userId)),
+    db.delete(ingredients).where(eq(ingredients.userId, userId)),
+    db.delete(tags).where(eq(tags.userId, userId)),
+    db.delete(mealTypes).where(eq(mealTypes.userId, userId)),
+  ]);
+  // Meal types are only seeded at sign-up, so put the defaults back.
+  await addMissingDefaultMealTypes(userId);
   // Profiles are kept, so their avatars stay referenced and survive this.
   await deleteUnreferencedBlobs(imageUrls);
 }

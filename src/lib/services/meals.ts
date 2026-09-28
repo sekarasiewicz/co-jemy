@@ -157,6 +157,65 @@ async function assertLinkedOwned(
   ]);
 }
 
+// Statements that (re)write a meal's tags, types and ingredients. With
+// `replace`, lists that were passed replace the existing links.
+function linkStatements(
+  mealId: string,
+  links: Pick<CreateMealData, "tagIds" | "mealTypeIds" | "ingredientsList">,
+  replace: boolean,
+) {
+  const statements = [];
+  if (links.tagIds !== undefined) {
+    if (replace) {
+      statements.push(db.delete(mealTags).where(eq(mealTags.mealId, mealId)));
+    }
+    if (links.tagIds.length > 0) {
+      statements.push(
+        db
+          .insert(mealTags)
+          .values(links.tagIds.map((tagId) => ({ mealId, tagId }))),
+      );
+    }
+  }
+  if (links.mealTypeIds !== undefined) {
+    if (replace) {
+      statements.push(
+        db.delete(mealMealTypes).where(eq(mealMealTypes.mealId, mealId)),
+      );
+    }
+    if (links.mealTypeIds.length > 0) {
+      statements.push(
+        db
+          .insert(mealMealTypes)
+          .values(
+            links.mealTypeIds.map((mealTypeId) => ({ mealId, mealTypeId })),
+          ),
+      );
+    }
+  }
+  if (links.ingredientsList !== undefined) {
+    if (replace) {
+      statements.push(
+        db.delete(mealIngredients).where(eq(mealIngredients.mealId, mealId)),
+      );
+    }
+    if (links.ingredientsList.length > 0) {
+      statements.push(
+        db.insert(mealIngredients).values(
+          links.ingredientsList.map((ing) => ({
+            id: generateId(),
+            mealId,
+            ingredientId: ing.ingredientId,
+            amount: ing.amount,
+            unit: ing.unit,
+          })),
+        ),
+      );
+    }
+  }
+  return statements;
+}
+
 export async function createMeal(
   userId: string,
   data: CreateMealData,
@@ -166,44 +225,14 @@ export async function createMeal(
   await assertLinkedOwned(userId, data);
   const mealId = generateId();
 
-  const [meal] = await db
-    .insert(meals)
-    .values({
-      ...stripProtected(mealData),
-      id: mealId,
-      userId,
-    })
-    .returning();
-
-  if (tagIds && tagIds.length > 0) {
-    await db.insert(mealTags).values(
-      tagIds.map((tagId) => ({
-        mealId,
-        tagId,
-      })),
-    );
-  }
-
-  if (mealTypeIds && mealTypeIds.length > 0) {
-    await db.insert(mealMealTypes).values(
-      mealTypeIds.map((mealTypeId) => ({
-        mealId,
-        mealTypeId,
-      })),
-    );
-  }
-
-  if (ingredientsList && ingredientsList.length > 0) {
-    await db.insert(mealIngredients).values(
-      ingredientsList.map((ing) => ({
-        id: generateId(),
-        mealId,
-        ingredientId: ing.ingredientId,
-        amount: ing.amount,
-        unit: ing.unit,
-      })),
-    );
-  }
+  // One batch = one transaction: no half-built meal if a link insert fails.
+  const [[meal]] = await db.batch([
+    db
+      .insert(meals)
+      .values({ ...stripProtected(mealData), id: mealId, userId })
+      .returning(),
+    ...linkStatements(mealId, { tagIds, mealTypeIds, ingredientsList }, false),
+  ]);
 
   return meal;
 }
@@ -217,64 +246,28 @@ export async function updateMeal(
   assertImageUrl(data.imageUrl);
   await assertLinkedOwned(userId, data);
 
-  const previous =
-    data.imageUrl !== undefined
-      ? await db.query.meals.findFirst({
-          where: and(eq(meals.id, mealId), eq(meals.userId, userId)),
-          columns: { imageUrl: true },
-        })
-      : undefined;
-
-  const [meal] = await db
-    .update(meals)
-    .set({ ...stripProtected(mealData), updatedAt: new Date() })
-    .where(and(eq(meals.id, mealId), eq(meals.userId, userId)))
-    .returning();
-
-  if (!meal) {
+  // Ownership check first: the link statements below are scoped by meal id.
+  const previous = await db.query.meals.findFirst({
+    where: and(eq(meals.id, mealId), eq(meals.userId, userId)),
+    columns: { imageUrl: true },
+  });
+  if (!previous) {
     throw new UserError("Danie nie zostało znalezione");
   }
-  if (previous?.imageUrl && previous.imageUrl !== meal.imageUrl) {
+
+  // One batch = one transaction: a failed insert can't leave the meal
+  // stripped of its tags or ingredients.
+  const [[meal]] = await db.batch([
+    db
+      .update(meals)
+      .set({ ...stripProtected(mealData), updatedAt: new Date() })
+      .where(and(eq(meals.id, mealId), eq(meals.userId, userId)))
+      .returning(),
+    ...linkStatements(mealId, { tagIds, mealTypeIds, ingredientsList }, true),
+  ]);
+
+  if (previous.imageUrl && previous.imageUrl !== meal.imageUrl) {
     await deleteUnreferencedBlobs([previous.imageUrl]);
-  }
-
-  if (tagIds !== undefined) {
-    await db.delete(mealTags).where(eq(mealTags.mealId, mealId));
-    if (tagIds.length > 0) {
-      await db.insert(mealTags).values(
-        tagIds.map((tagId) => ({
-          mealId,
-          tagId,
-        })),
-      );
-    }
-  }
-
-  if (mealTypeIds !== undefined) {
-    await db.delete(mealMealTypes).where(eq(mealMealTypes.mealId, mealId));
-    if (mealTypeIds.length > 0) {
-      await db.insert(mealMealTypes).values(
-        mealTypeIds.map((mealTypeId) => ({
-          mealId,
-          mealTypeId,
-        })),
-      );
-    }
-  }
-
-  if (ingredientsList !== undefined) {
-    await db.delete(mealIngredients).where(eq(mealIngredients.mealId, mealId));
-    if (ingredientsList.length > 0) {
-      await db.insert(mealIngredients).values(
-        ingredientsList.map((ing) => ({
-          id: generateId(),
-          mealId,
-          ingredientId: ing.ingredientId,
-          amount: ing.amount,
-          unit: ing.unit,
-        })),
-      );
-    }
   }
 
   return meal;

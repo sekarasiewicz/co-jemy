@@ -131,27 +131,27 @@ export async function mergeIngredients(
   // by user, so a foreign id would rewrite another user's recipes.
   await assertOwned("ingredients", userId, sourceIds);
 
-  // Re-point mealIngredients from source → target
-  await db
-    .update(mealIngredients)
-    .set({ ingredientId: targetId })
-    .where(inArray(mealIngredients.ingredientId, sourceIds));
-
-  // Re-point shoppingListItems from source → target
-  await db
-    .update(shoppingListItems)
-    .set({ ingredientId: targetId })
-    .where(inArray(shoppingListItems.ingredientId, sourceIds));
-
-  // Delete source ingredients
-  const deleted = await db
-    .delete(ingredients)
-    .where(
-      and(
-        inArray(ingredients.id, sourceIds),
-        eq(ingredients.userId, userId),
-      ),
-    )
-    .returning({ image: ingredients.image });
+  // Re-point recipes and shopping items to the target, then delete the
+  // sources — in one batch (transaction), so a failure can't leave recipes
+  // pointing at a half-merged state.
+  const [, , deleted] = await db.batch([
+    db
+      .update(mealIngredients)
+      .set({ ingredientId: targetId })
+      .where(inArray(mealIngredients.ingredientId, sourceIds)),
+    db
+      .update(shoppingListItems)
+      .set({ ingredientId: targetId })
+      .where(inArray(shoppingListItems.ingredientId, sourceIds)),
+    db
+      .delete(ingredients)
+      .where(
+        and(
+          inArray(ingredients.id, sourceIds),
+          eq(ingredients.userId, userId),
+        ),
+      )
+      .returning({ image: ingredients.image }),
+  ]);
   await deleteUnreferencedBlobs(deleted.map((i) => i.image));
 }

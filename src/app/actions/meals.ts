@@ -19,6 +19,7 @@ import {
 import { createTag, getTagsByUserId } from "@/lib/services/tags";
 import type { Meal, MealWithRelations, RandomizerFilters, } from "@/types";
 import { requireAuth } from "@/lib/session";
+import { UserError } from "@/lib/action-result";
 
 export async function getMealsAction(): Promise<MealWithRelations[]> {
   const session = await requireAuth();
@@ -138,15 +139,30 @@ export interface ImportResult {
   errors: string[];
 }
 
+const MAX_IMPORT_CHARS = 200_000;
+const MAX_IMPORT_MEALS = 100;
+
 export async function importMealsFromMarkdownAction(
   markdown: string,
 ): Promise<ImportResult> {
   const session = await requireAuth();
   const userId = session.user.id;
 
+  if (markdown.length > MAX_IMPORT_CHARS) {
+    return {
+      imported: 0,
+      errors: [`Tekst jest za długi (maks. ${MAX_IMPORT_CHARS} znaków)`],
+    };
+  }
   const parsedMeals = parseMarkdownMeals(markdown);
   if (parsedMeals.length === 0) {
     return { imported: 0, errors: ["Nie znaleziono przepisów w podanym tekście"] };
+  }
+  if (parsedMeals.length > MAX_IMPORT_MEALS) {
+    return {
+      imported: 0,
+      errors: [`Za dużo przepisów naraz (maks. ${MAX_IMPORT_MEALS})`],
+    };
   }
 
   // Cache existing data
@@ -235,7 +251,10 @@ export async function importMealsFromMarkdownAction(
 
       imported++;
     } catch (error) {
-      errors.push(`Błąd przy imporcie "${parsed.name}": ${error instanceof Error ? error.message : "Nieznany błąd"}`);
+      const reason =
+        error instanceof UserError ? error.message : "Nieznany błąd";
+      if (!(error instanceof UserError)) console.error(error);
+      errors.push(`Błąd przy imporcie "${parsed.name}": ${reason}`);
     }
   }
 

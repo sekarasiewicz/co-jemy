@@ -20,6 +20,10 @@ export async function setUserRoleAction(
 ): Promise<ActionResult<void>> {
   return toActionResult(async () => {
     const session = await requireAdmin();
+    // The union type isn't enforced for server-action callers.
+    if (role !== "user" && role !== "admin") {
+      throw new UserError("Nieprawidłowa rola");
+    }
     // Prevent locking yourself out by demoting your own account.
     if (userId === session.user.id && role !== "admin") {
       throw new UserError("Nie możesz odebrać uprawnień samemu sobie");

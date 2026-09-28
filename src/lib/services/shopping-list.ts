@@ -88,17 +88,6 @@ export async function generateShoppingListFromDateRange(
 
   // Create shopping list
   const listId = generateId();
-  await db
-    .insert(shoppingLists)
-    .values({
-      id: listId,
-      userId,
-      profileIds,
-      name,
-      dateFrom,
-      dateTo,
-    });
-
   const itemsToInsert = totals.map((item) => ({
     id: generateId(),
     shoppingListId: listId,
@@ -108,11 +97,29 @@ export async function generateShoppingListFromDateRange(
     category: item.ingredient.category,
   }));
 
+  // List and items in one batch, so a failure can't leave an empty list.
+  const insertList = db.insert(shoppingLists).values({
+    id: listId,
+    userId,
+    profileIds,
+    name,
+    dateFrom,
+    dateTo,
+  });
   if (itemsToInsert.length > 0) {
-    await db.insert(shoppingListItems).values(itemsToInsert);
+    await db.batch([
+      insertList,
+      db.insert(shoppingListItems).values(itemsToInsert),
+    ]);
+  } else {
+    await insertList;
   }
 
-  return getShoppingListById(listId, userId) as Promise<ShoppingListWithItems>;
+  const list = await getShoppingListById(listId, userId);
+  if (!list) {
+    throw new UserError("Nie udało się utworzyć listy zakupów");
+  }
+  return list;
 }
 
 export async function addItemToShoppingList(
