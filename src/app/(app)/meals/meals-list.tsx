@@ -4,7 +4,7 @@ import { Filter, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { MealCard } from "@/components/meals/meal-card";
-import { Badge, Button, Checkbox, Input } from "@/components/ui";
+import { Button, Checkbox, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { MealType, MealWithRelations, Tag } from "@/types";
 
@@ -138,7 +138,7 @@ export function MealsList({ meals, mealTypes, tags }: MealsListProps) {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Filtry</span>
             {activeFiltersCount > 0 && (
-              <button
+              <button type="button"
                 onClick={clearFilters}
                 className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
               >
@@ -153,7 +153,7 @@ export function MealsList({ meals, mealTypes, tags }: MealsListProps) {
               <p className="text-sm text-muted-foreground mb-2">Typ posiłku</p>
               <div className="flex flex-wrap gap-2">
                 {mealTypes.map((mt) => (
-                  <button
+                  <button type="button"
                     key={mt.id}
                     onClick={() => toggleMealType(mt.id)}
                     className={cn(
@@ -220,7 +220,7 @@ export function MealsList({ meals, mealTypes, tags }: MealsListProps) {
               <p className="text-sm text-muted-foreground mb-2">Tagi</p>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => (
-                  <button
+                  <button type="button"
                     key={tag.id}
                     onClick={() => toggleTag(tag.id)}
                     className={cn(

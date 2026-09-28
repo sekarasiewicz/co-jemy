@@ -38,7 +38,11 @@ export function MealImage({ src, alt }: { src: string; alt: string }) {
       </button>
 
       {open && (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: Escape closes it (document listener above), plus the close button
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={alt}
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm animate-pop-in"
         >

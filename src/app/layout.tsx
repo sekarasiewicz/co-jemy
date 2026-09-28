@@ -28,6 +28,7 @@ export default function RootLayout({
     <html lang="pl" suppressHydrationWarning>
       <head>
         <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script (no user input) that applies the theme before paint
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("co-jemy-theme");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})()`,
           }}

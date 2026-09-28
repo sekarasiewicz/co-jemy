@@ -12,7 +12,7 @@ interface ProfileCardProps {
 
 export function ProfileCard({ profile, onClick, selected }: ProfileCardProps) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-3 p-4 rounded-xl transition-all",

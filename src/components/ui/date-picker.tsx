@@ -83,9 +83,9 @@ export function DatePicker({
 
   // Keep the visible month in sync when the value changes externally.
   useEffect(() => {
-    setViewYear(selected.year);
-    setViewMonth(selected.month);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const next = parseIso(value);
+    setViewYear(next.year);
+    setViewMonth(next.month);
   }, [value]);
 
   useEffect(() => {

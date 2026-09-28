@@ -88,7 +88,7 @@ export async function generateShoppingListFromDateRange(
 
   // Create shopping list
   const listId = generateId();
-  const [list] = await db
+  await db
     .insert(shoppingLists)
     .values({
       id: listId,
@@ -97,8 +97,7 @@ export async function generateShoppingListFromDateRange(
       name,
       dateFrom,
       dateTo,
-    })
-    .returning();
+    });
 
   const itemsToInsert = totals.map((item) => ({
     id: generateId(),

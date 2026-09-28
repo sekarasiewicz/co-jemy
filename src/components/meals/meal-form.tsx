@@ -107,14 +107,18 @@ export function MealForm({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     meal?.tags.map((t) => t.id) || [],
   );
+  // rowKey: stable React key per row, so removing a row doesn't shift the
+  // comboboxes' state onto the rows below it.
   const [selectedIngredients, setSelectedIngredients] = useState<
-    IngredientEntry[]
+    (IngredientEntry & { rowKey: string })[]
   >(
-    meal?.ingredients.map((mi) => ({
-      ingredientId: mi.ingredientId,
-      amount: mi.amount,
-      unit: mi.unit,
-    })) || [],
+    () =>
+      meal?.ingredients.map((mi) => ({
+        rowKey: crypto.randomUUID(),
+        ingredientId: mi.ingredientId,
+        amount: mi.amount,
+        unit: mi.unit,
+      })) || [],
   );
 
   // Keep track of available ingredients (can grow when user creates new ones)
@@ -130,6 +134,7 @@ export function MealForm({
     setSelectedIngredients([
       ...selectedIngredients,
       {
+        rowKey: crypto.randomUUID(),
         ingredientId: "",
         amount: 100,
         unit: "g",
@@ -190,15 +195,19 @@ export function MealForm({
               ?.name,
         )
         .filter((n): n is string => Boolean(n));
-      const { url } = unwrap(await generateMealImageAction({
-        name,
-        description: description || undefined,
-        ingredientNames,
-      }));
+      const { url } = unwrap(
+        await generateMealImageAction({
+          name,
+          description: description || undefined,
+          ingredientNames,
+        }),
+      );
       setImageUrl(url);
       toast.success("Zdjęcie wygenerowane");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Nie udało się wygenerować zdjęcia");
+      toast.error(
+        e instanceof Error ? e.message : "Nie udało się wygenerować zdjęcia",
+      );
     } finally {
       setGeneratingImage(false);
     }
@@ -298,7 +307,9 @@ export function MealForm({
         isChildFriendly,
         mealTypeIds: selectedMealTypeIds,
         tagIds: selectedTagIds,
-        ingredientsList: selectedIngredients.filter((si) => si.ingredientId),
+        ingredientsList: selectedIngredients
+          .filter((si) => si.ingredientId)
+          .map(({ rowKey: _rowKey, ...entry }) => entry),
       });
     } finally {
       setLoading(false);
@@ -467,7 +478,7 @@ export function MealForm({
             <div className="space-y-3">
               {selectedIngredients.map((si, index) => (
                 <div
-                  key={index}
+                  key={si.rowKey}
                   className="flex items-center gap-2 p-3 rounded-lg bg-muted/50"
                 >
                   <div className="flex-1">

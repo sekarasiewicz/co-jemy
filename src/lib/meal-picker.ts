@@ -60,7 +60,7 @@ export function filterMeals(
       }
     }
 
-    if (filters.excludeMealIds && filters.excludeMealIds.includes(meal.id)) {
+    if (filters.excludeMealIds?.includes(meal.id)) {
       return false;
     }
 

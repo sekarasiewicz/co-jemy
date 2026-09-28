@@ -30,7 +30,14 @@ export function Tooltip({
   };
 
   return (
-    <div className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: wrapper only listens for hover/focus bubbling from its interactive child
+    <div
+      className="relative inline-flex"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+    >
       {children}
       {visible && (
         <div

@@ -27,7 +27,7 @@ export function ProfileSwitcher() {
 
   return (
     <div ref={ref} className="relative">
-      <button
+      <button type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors"
       >
@@ -55,7 +55,7 @@ export function ProfileSwitcher() {
           </div>
 
           {profiles.map((profile) => (
-            <button
+            <button type="button"
               key={profile.id}
               onClick={() => {
                 setActiveProfile(profile);

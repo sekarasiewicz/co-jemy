@@ -163,8 +163,8 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
               Dania: {result.mealsCreated} · Składniki:{" "}
               {result.ingredientsCreated} · Dni: {result.daysPlanned}
             </p>
-            {result.errors.map((err, i) => (
-              <p key={i} className="text-destructive text-sm">
+            {result.errors.map((err) => (
+              <p key={err} className="text-destructive text-sm">
                 {err}
               </p>
             ))}

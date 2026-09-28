@@ -250,8 +250,8 @@ export default function ImportMealsPage() {
             )}
             {result.errors.length > 0 && (
               <div className="space-y-1">
-                {result.errors.map((error, i) => (
-                  <p key={i} className="text-destructive text-sm">
+                {result.errors.map((error) => (
+                  <p key={error} className="text-destructive text-sm">
                     {error}
                   </p>
                 ))}

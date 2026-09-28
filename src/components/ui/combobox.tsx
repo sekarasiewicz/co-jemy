@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface ComboboxOption {
@@ -28,6 +28,7 @@ export function Combobox({
   label,
   className,
 }: ComboboxProps) {
+  const fieldId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
@@ -85,7 +86,10 @@ export function Combobox({
   return (
     <div ref={containerRef} className={cn("relative w-full", className)}>
       {label && (
-        <label className="block text-sm font-medium text-foreground mb-1">
+        <label
+          htmlFor={fieldId}
+          className="block text-sm font-medium text-foreground mb-1"
+        >
           {label}
         </label>
       )}
@@ -99,16 +103,17 @@ export function Combobox({
       >
         {isOpen ? (
           <input
+            id={fieldId}
             ref={inputRef}
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={placeholder}
             className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
-            autoFocus
           />
         ) : (
           <button
+            id={fieldId}
             type="button"
             onClick={() => {
               setIsOpen(true);

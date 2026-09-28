@@ -360,9 +360,9 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
 
           {tags.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <p className="block text-sm font-medium text-foreground mb-2">
                 Tagi
-              </label>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => (
                   <button
@@ -710,9 +710,9 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <p className="block text-sm font-medium text-foreground mb-2">
                 Zakres dat
-              </label>
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {(Object.entries(FILL_RANGE_LABELS) as [FillRange, string][]).map(
                   ([value, label]) => (

@@ -137,27 +137,24 @@ const REVERSED_INGREDIENT_REGEX = new RegExp(
 );
 
 // Reversed format without amount: "Name - (200g)" — just parenthetical weight, no separate amount
-const REVERSED_NO_AMOUNT_REGEX = new RegExp(
-  `^(.+?)\\s*[-–—]\\s*\\(\\s*(\\d+(?:[.,]\\d+)?)\\s*(g|kg|ml|l)\\s*\\)\\s*$`,
-  "i"
-);
+const REVERSED_NO_AMOUNT_REGEX = /^(.+?)\s*[-–—]\s*\(\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\s*\)\s*$/i;
 
 function parseAmount(raw: string): number {
   const trimmed = raw.trim();
   // Mixed fraction with "i": "2 i 1/2"
   const mixedPolishMatch = trimmed.match(/^(\d+)\s+i\s+(\d+)\/(\d+)$/);
   if (mixedPolishMatch) {
-    return parseInt(mixedPolishMatch[1]) + parseInt(mixedPolishMatch[2]) / parseInt(mixedPolishMatch[3]);
+    return parseInt(mixedPolishMatch[1], 10) + parseInt(mixedPolishMatch[2], 10) / parseInt(mixedPolishMatch[3], 10);
   }
   // Mixed fraction with space: "1 1/2"
   const mixedMatch = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mixedMatch) {
-    return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
+    return parseInt(mixedMatch[1], 10) + parseInt(mixedMatch[2], 10) / parseInt(mixedMatch[3], 10);
   }
   // Simple fraction: "1/3"
   const fracMatch = trimmed.match(/^(\d+)\/(\d+)$/);
   if (fracMatch) {
-    return parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
+    return parseInt(fracMatch[1], 10) / parseInt(fracMatch[2], 10);
   }
   // Decimal
   return parseFloat(trimmed.replace(",", "."));

@@ -173,7 +173,7 @@ export default async function MealPage({
                 key={tag.id}
                 className="px-3 py-1 rounded-full text-sm"
                 style={{
-                  backgroundColor: tag.color + "20",
+                  backgroundColor: `${tag.color}20`,
                   color: tag.color,
                 }}
               >

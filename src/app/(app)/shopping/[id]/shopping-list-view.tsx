@@ -115,7 +115,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                       item.inPantry && "bg-blue-500/10",
                     )}
                   >
-                    <button
+                    <button type="button"
                       onClick={() => handleToggle(item.id, "checked")}
                       className={cn(
                         "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
@@ -144,7 +144,7 @@ export function ShoppingListView({ list: initialList }: ShoppingListViewProps) {
                       )}
                     </div>
 
-                    <button
+                    <button type="button"
                       onClick={() => handleToggle(item.id, "inPantry")}
                       className={cn(
                         "p-1.5 rounded-lg transition-colors",

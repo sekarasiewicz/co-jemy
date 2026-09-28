@@ -140,9 +140,9 @@ export function ProfileForm({ profile, onSubmit, onCancel }: ProfileFormProps) {
       />
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
+        <p className="block text-sm font-medium text-foreground mb-2">
           lub wybierz emoji
-        </label>
+        </p>
         <div className="flex flex-wrap gap-2">
           {AVATARS.map((emoji) => (
             <button
@@ -163,9 +163,9 @@ export function ProfileForm({ profile, onSubmit, onCancel }: ProfileFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
+        <p className="block text-sm font-medium text-foreground mb-2">
           Kolor
-        </label>
+        </p>
         <div className="flex flex-wrap gap-2">
           {PROFILE_COLORS.map((c) => (
             <button

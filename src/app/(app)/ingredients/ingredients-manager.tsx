@@ -130,7 +130,7 @@ function normalizeIngredientName(name: string): string {
     "opakowanie",
   ];
   for (const word of unitWords) {
-    if (normalized.startsWith(word + " ")) {
+    if (normalized.startsWith(`${word} `)) {
       normalized = normalized.slice(word.length).trim();
       break;
     }

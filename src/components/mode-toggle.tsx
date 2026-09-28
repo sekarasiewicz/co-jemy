@@ -16,7 +16,7 @@ export function ModeToggle() {
   return (
     <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
       {options.map(({ value, icon: Icon, label }) => (
-        <button
+        <button type="button"
           key={value}
           onClick={() => setTheme(value)}
           className={cn(

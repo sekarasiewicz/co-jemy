@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { upload } from "@vercel/blob/client";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
@@ -78,11 +79,12 @@ export function ImageUpload({
             aspect === "video" ? "aspect-video" : "aspect-square max-w-48",
           )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={value}
             alt="Podgląd"
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 640px) 100vw, 384px"
+            className="object-cover"
           />
           {uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40">

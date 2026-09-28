@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { generateShoppingListAction } from "@/app/actions/shopping";
 import { ProfileAvatar } from "@/components/profiles/profile-avatar";
-import { Button, Checkbox, Input, Modal } from "@/components/ui";
+import { Button, Input, Modal } from "@/components/ui";
 import type { Profile } from "@/types";
 import { addDays, todayKey } from "@/lib/day";
 
@@ -81,9 +81,9 @@ export function GenerateListButton({ profiles }: GenerateListButtonProps) {
           />
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <p className="block text-sm font-medium text-foreground mb-2">
               Dla kogo?
-            </label>
+            </p>
             <div className="space-y-2">
               {profiles.map((profile) => (
                 <button

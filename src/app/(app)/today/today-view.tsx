@@ -497,7 +497,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
                   </div>
 
                   {planMeals.length === 0 ? (
-                    <button
+                    <button type="button"
                       onClick={() => setAddingMealType(mealType)}
                       className="w-full py-6 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
@@ -521,7 +521,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
                                 : "bg-card border-border"
                             )}
                           >
-                            <button
+                            <button type="button"
                               onClick={() =>
                                 handleToggleCompleted(pm.id, pm.completed)
                               }
@@ -596,7 +596,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
                               </div>
                             </Link>
 
-                            <button
+                            <button type="button"
                               onClick={() => handleRemoveMeal(pm.id)}
                               className="text-muted-foreground hover:text-destructive transition-colors self-start mt-0.5"
                             >

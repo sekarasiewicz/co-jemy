@@ -16,6 +16,7 @@ import { Button, Checkbox, Modal, Tooltip } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import {
   addDays,
+  type DayKey,
   parseDayKey,
   startOfWeek,
   toDayKey,
@@ -30,6 +31,16 @@ import { portionsNutrition } from "@/lib/nutrition";
 import { cn, formatDateShort } from "@/lib/utils";
 import type { DailyPlanWithMeals, MealType, } from "@/types";
 import { AddMealModal } from "@/components/meals/add-meal-modal";
+
+// One request for the whole week, keyed by day.
+async function fetchWeekPlans(profileId: string, weekStart: DayKey) {
+  const weekPlans = await getDailyPlansByDateRangeAction(
+    profileId,
+    weekStart,
+    addDays(weekStart, 6),
+  );
+  return new Map(weekPlans.map((plan) => [plan.date, plan]));
+}
 
 interface WeekPlannerProps {
   mealTypes: MealType[];
@@ -65,16 +76,6 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
     parseDayKey(addDays(weekStart, i)),
   );
 
-  // One request for the whole week, keyed by day.
-  const fetchWeekPlans = async (profileId: string) => {
-    const weekPlans = await getDailyPlansByDateRangeAction(
-      profileId,
-      weekStart,
-      addDays(weekStart, 6),
-    );
-    return new Map(weekPlans.map((plan) => [plan.date, plan]));
-  };
-
   useEffect(() => {
     if (!activeProfile) return;
 
@@ -82,7 +83,7 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
     let cancelled = false;
     const loadPlans = async () => {
       setLoading(true);
-      const newPlans = await fetchWeekPlans(activeProfile.id);
+      const newPlans = await fetchWeekPlans(activeProfile.id, weekStart);
       if (cancelled) return;
       setPlans(newPlans);
       setLoading(false);
@@ -220,7 +221,7 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
   const reloadAllPlans = async () => {
     if (!activeProfile) return;
 
-    setPlans(await fetchWeekPlans(activeProfile.id));
+    setPlans(await fetchWeekPlans(activeProfile.id, weekStart));
   };
 
   const handleFillPlanner = async () => {
@@ -350,6 +351,7 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
                   >
                     <div className="space-y-1.5">
                       {planMeals.map((pm) => (
+                        // biome-ignore lint/a11y/useSemanticElements: the card contains its own remove button, and buttons can't nest
                         <div
                           key={pm.id}
                           className={cn(
@@ -358,9 +360,20 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
                               ? "bg-orange-500/10 border border-orange-500/20"
                               : "bg-card border border-border shadow-sm hover:shadow-md hover:border-orange-500/40",
                           )}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={pm.completed}
                           onClick={() =>
                             handleToggleCompleted(pm.id, pm.completed, day)
                           }
+                          onKeyDown={(e) => {
+                            // Only the card itself, not its inner buttons.
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleToggleCompleted(pm.id, pm.completed, day);
+                            }
+                          }}
                         >
                           <div className="flex items-start gap-1.5">
                             <div
@@ -398,7 +411,7 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
                               })()}
                             </div>
                           </div>
-                          <button
+                          <button type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRemoveMeal(pm.id, day);
@@ -412,7 +425,7 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
                     </div>
 
                     <div className="flex gap-1 mt-1.5">
-                      <button
+                      <button type="button"
                         onClick={() =>
                           setAddingMeal({
                             date: day,
@@ -426,7 +439,7 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
-                      <button
+                      <button type="button"
                         onClick={() => handleRandomizeCell(day, mealType.id)}
                         disabled={randomizingCell?.date === key && randomizingCell?.mealTypeId === mealType.id}
                         className={cn(
@@ -530,9 +543,9 @@ export function WeekPlanner({ mealTypes }: WeekPlannerProps) {
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <p className="block text-sm font-medium text-foreground mb-2">
                 Zakres dat
-              </label>
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {(Object.entries(FILL_RANGE_LABELS) as [FillRange, string][]).map(
                   ([value, label]) => (
