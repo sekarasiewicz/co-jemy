@@ -27,6 +27,8 @@ import { Button, Card, CardContent, Input, Modal } from "@/components/ui";
 import { useProfile } from "@/contexts/profile-context";
 import { signOut } from "@/lib/auth-client";
 import type { Profile } from "@/types";
+import { unwrap } from "@/lib/action-result";
+import { toast } from "sonner";
 
 const DELETE_CONFIRM_WORD = "USUŃ";
 
@@ -90,9 +92,11 @@ export function ProfilesManager({
   const handleClearData = async () => {
     setIsProcessing(true);
     try {
-      await clearAllDataAction();
+      unwrap(await clearAllDataAction());
       setIsClearingData(false);
       router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się usunąć danych");
     } finally {
       setIsProcessing(false);
     }
@@ -102,7 +106,7 @@ export function ProfilesManager({
     if (deleteConfirmText !== DELETE_CONFIRM_WORD) return;
     setIsProcessing(true);
     try {
-      await deleteAccountAction();
+      unwrap(await deleteAccountAction());
       // Session row is gone via cascade; clear the cookie best-effort.
       try {
         await signOut();
@@ -110,7 +114,8 @@ export function ProfilesManager({
         // ignore — account already deleted
       }
       window.location.href = "/auth/login";
-    } catch {
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się usunąć konta");
       setIsProcessing(false);
     }
   };

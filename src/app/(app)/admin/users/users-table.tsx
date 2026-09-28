@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/admin";
 import { Badge, Button, Card, CardContent, Modal } from "@/components/ui";
 import type { AdminUserRow } from "@/lib/services/admin";
+import { unwrap } from "@/lib/action-result";
 
 export function UsersTable({
   users,
@@ -24,7 +25,7 @@ export function UsersTable({
     const next = u.role === "admin" ? "user" : "admin";
     setBusy(u.id);
     try {
-      await setUserRoleAction(u.id, next);
+      unwrap(await setUserRoleAction(u.id, next));
       toast.success(
         next === "admin"
           ? `${u.email} jest teraz adminem`
@@ -41,7 +42,7 @@ export function UsersTable({
     if (!confirmDelete) return;
     setBusy(confirmDelete.id);
     try {
-      await deleteUserAction(confirmDelete.id);
+      unwrap(await deleteUserAction(confirmDelete.id));
       toast.success("Konto usunięte");
       setConfirmDelete(null);
     } catch (e) {

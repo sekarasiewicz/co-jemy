@@ -10,6 +10,7 @@ import {
   importDietFromPdfAction,
 } from "@/app/actions/diet-import";
 import { Button, Card, CardContent, DatePicker, Select } from "@/components/ui";
+import { unwrap } from "@/lib/action-result";
 
 interface ImportDietFormProps {
   profiles: { id: string; name: string }[];
@@ -41,6 +42,11 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
       toast.error("Wybierz plik PDF");
       return;
     }
+    // Sent base64-encoded (+33%) to a server action capped at 10 MB.
+    if (file.size > 7 * 1024 * 1024) {
+      toast.error("Plik PDF jest za duży (max 7 MB)");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
@@ -57,7 +63,7 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
     setLoading(true);
     setResult(null);
     try {
-      const res = await importDietFromPdfAction(base64, profileId, startDate);
+      const res = unwrap(await importDietFromPdfAction(base64, profileId, startDate));
       setResult(res);
       if (res.mealsCreated > 0) {
         toast.success(
@@ -66,8 +72,8 @@ export function ImportDietForm({ profiles }: ImportDietFormProps) {
       } else {
         toast.error("Nie zaimportowano żadnych dań");
       }
-    } catch {
-      toast.error("Import nie powiódł się");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Import nie powiódł się");
     } finally {
       setLoading(false);
     }

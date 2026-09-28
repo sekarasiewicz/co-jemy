@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/admin";
 import { Card, CardContent } from "@/components/ui";
 import type { AdminContentMeal } from "@/lib/services/admin";
+import { unwrap } from "@/lib/action-result";
 
 function ContentList({
   title,
@@ -107,13 +108,13 @@ export function AdminContent({
       <ContentList
         title="Ostatnie dania"
         items={meals}
-        onDelete={adminDeleteMealAction}
+        onDelete={async (id) => unwrap(await adminDeleteMealAction(id))}
         linkBase="/meals"
       />
       <ContentList
         title="Ostatnie składniki"
         items={ingredients}
-        onDelete={adminDeleteIngredientAction}
+        onDelete={async (id) => unwrap(await adminDeleteIngredientAction(id))}
       />
     </div>
   );

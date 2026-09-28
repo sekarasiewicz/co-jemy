@@ -5,6 +5,7 @@ import { cache } from "react";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { UserError } from "@/lib/action-result";
 
 // Server-only session helpers. Deliberately NOT a "use server" module, so none
 // of these are exposed as callable server-action endpoints.
@@ -18,7 +19,7 @@ export const getSession = cache(async () => {
 export async function requireAuth() {
   const session = await getSession();
   if (!session?.user) {
-    throw new Error("Musisz być zalogowany");
+    throw new UserError("Musisz być zalogowany");
   }
   return session;
 }
@@ -38,7 +39,7 @@ export const getIsAdmin = cache(async (): Promise<boolean> => {
 export async function requireAdmin() {
   const session = await requireAuth();
   if (!(await getIsAdmin())) {
-    throw new Error("Brak uprawnień administratora");
+    throw new UserError("Brak uprawnień administratora");
   }
   return session;
 }

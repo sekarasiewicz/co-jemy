@@ -4,6 +4,7 @@ import { tags } from "@/db/schema";
 import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { NewTag, Tag } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 export async function getTagsByUserId(userId: string): Promise<Tag[]> {
   return db.query.tags.findMany({
@@ -49,7 +50,7 @@ export async function updateTag(
     .returning();
 
   if (!tag) {
-    throw new Error("Tag nie został znaleziony");
+    throw new UserError("Tag nie został znaleziony");
   }
 
   return tag;

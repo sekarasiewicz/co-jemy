@@ -10,8 +10,10 @@ import {
   createMealFromProductImageAction,
 } from "@/app/actions/meal-ai";
 import { Button, Card, CardContent, Input, Tooltip } from "@/components/ui";
+import { unwrap } from "@/lib/action-result";
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+// Sent base64-encoded (+33%) to a server action capped at 10 MB.
+const MAX_IMAGE_BYTES = 7 * 1024 * 1024;
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -51,7 +53,7 @@ export function ProductImporter() {
     }
     setLoading("number");
     try {
-      const meal = await createMealFromBarcodeNumberAction(ean, nameOverride());
+      const meal = unwrap(await createMealFromBarcodeNumberAction(ean, nameOverride()));
       setBarcodeNumber("");
       onSaved(meal.name);
     } catch (e) {
@@ -72,7 +74,7 @@ export function ProductImporter() {
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      toast.error("Zdjęcie jest za duże (max 8 MB)");
+      toast.error("Zdjęcie jest za duże (max 7 MB)");
       return;
     }
     setLoading(kind);
@@ -82,11 +84,13 @@ export function ProductImporter() {
         kind === "barcode"
           ? createMealFromBarcodeAction
           : createMealFromProductImageAction;
-      const meal = await action({
-        base64,
-        mimeType: file.type,
-        name: nameOverride(),
-      });
+      const meal = unwrap(
+        await action({
+          base64,
+          mimeType: file.type,
+          name: nameOverride(),
+        }),
+      );
       onSaved(meal.name);
     } catch (e) {
       toast.error(

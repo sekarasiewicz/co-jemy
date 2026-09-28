@@ -9,6 +9,7 @@ import type {
   DailyPlanMeal,
   DailyPlanWithMeals,
 } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 export async function getDailyPlanByDate(
   userId: string,
@@ -147,7 +148,7 @@ export async function getOrCreateDailyPlan(
 
   const result = plan ?? (await findExisting());
   if (!result) {
-    throw new Error("Nie udało się utworzyć planu dnia");
+    throw new UserError("Nie udało się utworzyć planu dnia");
   }
   return result;
 }
@@ -198,7 +199,7 @@ export async function toggleMealCompleted(
     .returning();
 
   if (!planMeal) {
-    throw new Error("Posiłek nie został znaleziony");
+    throw new UserError("Posiłek nie został znaleziony");
   }
   return planMeal;
 }
@@ -215,7 +216,7 @@ export async function updatePlanMealServings(
     .returning();
 
   if (!planMeal) {
-    throw new Error("Posiłek nie został znaleziony");
+    throw new UserError("Posiłek nie został znaleziony");
   }
   return planMeal;
 }

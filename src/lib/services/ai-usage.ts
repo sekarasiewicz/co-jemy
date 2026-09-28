@@ -2,6 +2,7 @@ import { and, eq, gte, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { aiUsage } from "@/db/schema";
 import { generateId } from "@/lib/utils";
+import { UserError } from "@/lib/action-result";
 
 // Gemini pricing in USD per 1M tokens. Estimates — adjust to match the
 // current Google pricing page if needed.
@@ -55,7 +56,7 @@ export async function assertAiBudget(
     .where(and(eq(aiUsage.userId, userId), gte(aiUsage.createdAt, startOfDay)));
 
   if ((row?.spent ?? 0) >= dailyBudgetUsd()) {
-    throw new Error(
+    throw new UserError(
       "Wykorzystano dzienny limit funkcji AI. Spróbuj ponownie jutro.",
     );
   }

@@ -9,6 +9,7 @@ import {
   shoppingLists,
   tags,
 } from "@/db/schema";
+import { UserError } from "@/lib/action-result";
 
 const ownedTables = {
   profiles,
@@ -39,7 +40,7 @@ export async function assertOwned(
     .where(and(inArray(t.id, unique), eq(t.userId, userId)));
 
   if (rows.length !== unique.length) {
-    throw new Error("Nie znaleziono");
+    throw new UserError("Nie znaleziono");
   }
 }
 

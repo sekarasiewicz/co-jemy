@@ -35,6 +35,7 @@ import {
 } from "@/components/ui";
 import type { Ingredient } from "@/types";
 import { INGREDIENT_CATEGORIES, UNITS } from "@/types";
+import { unwrap } from "@/lib/action-result";
 
 interface IngredientsManagerProps {
   initialIngredients: Ingredient[];
@@ -266,10 +267,10 @@ export function IngredientsManager({
     if (!convertTarget) return;
     setConverting(true);
     try {
-      const meal = await createMealFromIngredientAction(
+      const meal = unwrap(await createMealFromIngredientAction(
         convertTarget.id,
         convertName.trim() || undefined,
-      );
+      ));
       toast.success(`Utworzono danie: ${meal.name}`);
       setConvertTarget(null);
     } catch (e) {
@@ -288,11 +289,11 @@ export function IngredientsManager({
     }
     setGeneratingImage(true);
     try {
-      const { url } = await generateIngredientImageAction(form.name.trim());
+      const { url } = unwrap(await generateIngredientImageAction(form.name.trim()));
       setForm((prev) => ({ ...prev, image: url }));
       toast.success("Zdjęcie wygenerowane");
-    } catch {
-      toast.error("Nie udało się wygenerować zdjęcia");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się wygenerować zdjęcia");
     } finally {
       setGeneratingImage(false);
     }
@@ -355,13 +356,13 @@ export function IngredientsManager({
   const handleEnrichSingle = async (ing: Ingredient) => {
     setEnrichingId(ing.id);
     try {
-      const updated = await enrichIngredientAction(ing.id);
+      const updated = unwrap(await enrichIngredientAction(ing.id));
       setIngredients((prev) =>
         prev.map((i) => (i.id === ing.id ? updated : i)),
       );
       toast.success(`Uzupełniono dane: ${ing.name}`);
-    } catch {
-      toast.error("Nie udało się uzupełnić danych");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się uzupełnić danych");
     } finally {
       setEnrichingId(null);
     }
@@ -672,10 +673,10 @@ export function IngredientsManager({
                   onClick={async () => {
                     setLoading(true);
                     try {
-                      const enriched = await enrichByNameAction(
+                      const enriched = unwrap(await enrichByNameAction(
                         form.name.trim(),
                         form.defaultUnit,
-                      );
+                      ));
                       setForm({
                         ...form,
                         caloriesPer100g:
@@ -687,8 +688,8 @@ export function IngredientsManager({
                         weightPerUnit: enriched.weightPerUnit?.toString() || "",
                       });
                       toast.success("Uzupełniono dane AI");
-                    } catch {
-                      toast.error("Nie udało się uzupełnić danych");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Nie udało się uzupełnić danych");
                     } finally {
                       setLoading(false);
                     }

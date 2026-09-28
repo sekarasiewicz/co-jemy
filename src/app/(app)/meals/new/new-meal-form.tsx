@@ -100,7 +100,7 @@ export function NewMealForm({
       router.refresh();
     } catch {
       toast.error("Nie udało się dodać dania");
-      throw new Error("Failed to create meal");
+      throw new Error("Nie udało się dodać dania");
     }
   };
 

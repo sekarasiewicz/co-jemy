@@ -18,10 +18,11 @@ import { randomizeSingleMeal } from "@/lib/services/meals";
 import { assertOwned } from "@/lib/services/ownership";
 import type { DailyPlanMeal, DailyPlanWithMeals, RandomizerFilters } from "@/types";
 import { requireAuth } from "@/lib/session";
+import { UserError } from "@/lib/action-result";
 
 function assertPortions(servings: number): void {
   if (!Number.isFinite(servings) || servings <= 0 || servings > 50) {
-    throw new Error("Nieprawidłowa liczba porcji");
+    throw new UserError("Nieprawidłowa liczba porcji");
   }
 }
 
@@ -163,7 +164,7 @@ export async function fillPlannerAction(data: {
   const userId = session.user.id;
   const days = [...new Set(data.days.map(assertDayKey))].sort();
   if (days.length > 62) {
-    throw new Error("Można zaplanować maksymalnie 62 dni naraz");
+    throw new UserError("Można zaplanować maksymalnie 62 dni naraz");
   }
   await Promise.all([
     assertOwned("profiles", userId, [data.profileId]),

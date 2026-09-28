@@ -22,6 +22,7 @@ import type {
   RandomizerFilters,
   Tag,
 } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 export async function getMealsByUserId(
   userId: string,
@@ -143,7 +144,7 @@ function assertImageUrl(url: string | null | undefined): void {
     if (parsed.protocol === "https:") host = parsed.hostname;
   } catch {}
   if (!host.endsWith(".public.blob.vercel-storage.com")) {
-    throw new Error("Nieprawidłowy adres zdjęcia");
+    throw new UserError("Nieprawidłowy adres zdjęcia");
   }
 }
 
@@ -237,7 +238,7 @@ export async function updateMeal(
     .returning();
 
   if (!meal) {
-    throw new Error("Danie nie zostało znalezione");
+    throw new UserError("Danie nie zostało znalezione");
   }
   if (previous?.imageUrl && previous.imageUrl !== meal.imageUrl) {
     await deleteUnreferencedBlobs([previous.imageUrl]);

@@ -1,3 +1,5 @@
+import { UserError } from "@/lib/action-result";
+
 /**
  * Calendar days as "YYYY-MM-DD" keys — the format of the `date` columns.
  *
@@ -17,7 +19,7 @@ export function isDayKey(value: unknown): value is DayKey {
 /** Throws on anything that isn't a real calendar day (runtime input check). */
 export function assertDayKey(value: unknown): DayKey {
   if (!isDayKey(value)) {
-    throw new Error("Nieprawidłowa data");
+    throw new UserError("Nieprawidłowa data");
   }
   return value;
 }

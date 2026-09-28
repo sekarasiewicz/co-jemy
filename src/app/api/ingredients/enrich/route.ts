@@ -19,7 +19,7 @@ export async function POST() {
   });
 
   if (!session?.user) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Musisz być zalogowany", { status: 401 });
   }
 
   const userId = session.user.id;

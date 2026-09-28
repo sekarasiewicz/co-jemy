@@ -4,6 +4,7 @@ import { mealTypes } from "@/db/schema";
 import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { MealType, NewMealType } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 export async function getMealTypesByUserId(
   userId: string,
@@ -51,7 +52,7 @@ export async function updateMealType(
     .returning();
 
   if (!mealType) {
-    throw new Error("Typ posiłku nie został znaleziony");
+    throw new UserError("Typ posiłku nie został znaleziony");
   }
 
   return mealType;

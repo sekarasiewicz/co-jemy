@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Ingredient, Meal, MealIngredient, MealType, Tag } from "@/types";
 import { UNITS } from "@/types";
+import { unwrap } from "@/lib/action-result";
 
 interface IngredientEntry {
   ingredientId: string;
@@ -189,15 +190,15 @@ export function MealForm({
               ?.name,
         )
         .filter((n): n is string => Boolean(n));
-      const { url } = await generateMealImageAction({
+      const { url } = unwrap(await generateMealImageAction({
         name,
         description: description || undefined,
         ingredientNames,
-      });
+      }));
       setImageUrl(url);
       toast.success("Zdjęcie wygenerowane");
-    } catch {
-      toast.error("Nie udało się wygenerować zdjęcia");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się wygenerować zdjęcia");
     } finally {
       setGeneratingImage(false);
     }

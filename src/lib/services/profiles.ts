@@ -5,6 +5,7 @@ import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { NewProfile, Profile } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 const MAX_PROFILES_PER_USER = 6;
 
@@ -31,7 +32,7 @@ export async function createProfile(
   const existingProfiles = await getProfilesByUserId(userId);
 
   if (existingProfiles.length >= MAX_PROFILES_PER_USER) {
-    throw new Error(`Maksymalna liczba profili to ${MAX_PROFILES_PER_USER}`);
+    throw new UserError(`Maksymalna liczba profili to ${MAX_PROFILES_PER_USER}`);
   }
 
   const [profile] = await db
@@ -63,7 +64,7 @@ export async function updateProfile(
     .returning();
 
   if (!profile) {
-    throw new Error("Profil nie został znaleziony");
+    throw new UserError("Profil nie został znaleziony");
   }
   if (previous?.avatar && previous.avatar !== profile.avatar) {
     await deleteUnreferencedBlobs([previous.avatar]);
@@ -79,7 +80,7 @@ export async function deleteProfile(
   const existingProfiles = await getProfilesByUserId(userId);
 
   if (existingProfiles.length <= 1) {
-    throw new Error("Nie można usunąć ostatniego profilu");
+    throw new UserError("Nie można usunąć ostatniego profilu");
   }
 
   const deleted = await db

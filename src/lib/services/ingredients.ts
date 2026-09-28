@@ -5,6 +5,7 @@ import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId } from "@/lib/utils";
 import type { Ingredient, NewIngredient } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 export async function getIngredientsByUserId(
   userId: string,
@@ -76,7 +77,7 @@ export async function updateIngredient(
     .returning();
 
   if (!ingredient) {
-    throw new Error("Składnik nie został znaleziony");
+    throw new UserError("Składnik nie został znaleziony");
   }
   if (previous?.image && previous.image !== ingredient.image) {
     await deleteUnreferencedBlobs([previous.image]);
@@ -121,10 +122,10 @@ export async function mergeIngredients(
     where: and(eq(ingredients.id, targetId), eq(ingredients.userId, userId)),
   });
   if (!target) {
-    throw new Error("Docelowy składnik nie został znaleziony");
+    throw new UserError("Docelowy składnik nie został znaleziony");
   }
   if (sourceIds.includes(targetId)) {
-    throw new Error("Składnik nie może zostać scalony sam ze sobą");
+    throw new UserError("Składnik nie może zostać scalony sam ze sobą");
   }
   // Sources must be the user's too — the re-point updates below aren't scoped
   // by user, so a foreign id would rewrite another user's recipes.

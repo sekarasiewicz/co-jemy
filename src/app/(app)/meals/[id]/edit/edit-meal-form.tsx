@@ -29,7 +29,7 @@ export function EditMealForm({
       router.refresh();
     } catch {
       toast.error("Nie udało się zapisać zmian");
-      throw new Error("Failed to update meal");
+      throw new Error("Nie udało się zapisać zmian");
     }
   };
 

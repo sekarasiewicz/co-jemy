@@ -10,8 +10,10 @@ import {
 } from "@/app/actions/meal-ai";
 import { Button, Card, CardContent, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { unwrap } from "@/lib/action-result";
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+// Sent base64-encoded (+33%) to a server action capped at 10 MB.
+const MAX_IMAGE_BYTES = 7 * 1024 * 1024;
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,11 +41,11 @@ export function AiMealGenerator({ onDraft }: AiMealGeneratorProps) {
     if (!text.trim()) return;
     setLoading(true);
     try {
-      const draft = await createMealDraftFromTextAction(text);
+      const draft = unwrap(await createMealDraftFromTextAction(text));
       onDraft(draft);
       toast.success("Danie rozpoznane — sprawdź i zapisz");
-    } catch {
-      toast.error("Nie udało się rozpoznać dania z tekstu");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się rozpoznać dania z tekstu");
     } finally {
       setLoading(false);
     }
@@ -55,20 +57,20 @@ export function AiMealGenerator({ onDraft }: AiMealGeneratorProps) {
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      toast.error("Zdjęcie jest za duże (max 8 MB)");
+      toast.error("Zdjęcie jest za duże (max 7 MB)");
       return;
     }
     setLoading(true);
     try {
       const base64 = await fileToBase64(file);
-      const draft = await createMealDraftFromImageAction({
+      const draft = unwrap(await createMealDraftFromImageAction({
         base64,
         mimeType: file.type,
-      });
+      }));
       onDraft(draft);
       toast.success("Danie rozpoznane — sprawdź i zapisz");
-    } catch {
-      toast.error("Nie udało się rozpoznać dania ze zdjęcia");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się rozpoznać dania ze zdjęcia");
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

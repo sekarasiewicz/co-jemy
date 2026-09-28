@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { INGREDIENT_CATEGORIES, UNITS } from "@/types";
 import type { IngredientCategory, Unit } from "@/types";
 import { assertAiBudget, recordAiUsage } from "./ai-usage";
+import { UserError } from "@/lib/action-result";
 
 const validCategories = new Set<string>(INGREDIENT_CATEGORIES);
 const validUnits = new Set<string>(UNITS);
@@ -53,8 +54,8 @@ const MAX_TEXT_CHARS = 20_000;
 const MAX_NAME_CHARS = 200;
 const MAX_ENRICH_NAMES = 100;
 // Base64 is ~4/3 of the raw size.
-const MAX_IMAGE_BASE64 = Math.ceil((6 * 1024 * 1024 * 4) / 3);
-const MAX_PDF_BASE64 = Math.ceil((8 * 1024 * 1024 * 4) / 3);
+const MAX_IMAGE_BASE64 = Math.ceil((7 * 1024 * 1024 * 4) / 3);
+const MAX_PDF_BASE64 = Math.ceil((7 * 1024 * 1024 * 4) / 3);
 const IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -65,16 +66,16 @@ const IMAGE_MIME_TYPES = new Set([
 
 function assertImageInput(base64: string, mimeType: string): void {
   if (!IMAGE_MIME_TYPES.has(mimeType)) {
-    throw new Error("Nieobsługiwany format zdjęcia");
+    throw new UserError("Nieobsługiwany format zdjęcia");
   }
   if (base64.length > MAX_IMAGE_BASE64) {
-    throw new Error("Zdjęcie jest za duże (maks. 6 MB)");
+    throw new UserError("Zdjęcie jest za duże (maks. 7 MB)");
   }
 }
 
 function assertMaxLength(value: string, max: number, label: string): void {
   if (value.length > max) {
-    throw new Error(`${label} jest za długi (maks. ${max} znaków)`);
+    throw new UserError(`${label} jest za długi (maks. ${max} znaków)`);
   }
 }
 
@@ -90,7 +91,7 @@ export async function enrichIngredients(
   userId?: string | null,
 ): Promise<EnrichedIngredient[]> {
   if (names.length > MAX_ENRICH_NAMES) {
-    throw new Error(`Za dużo składników naraz (maks. ${MAX_ENRICH_NAMES})`);
+    throw new UserError(`Za dużo składników naraz (maks. ${MAX_ENRICH_NAMES})`);
   }
   for (const name of names) assertMaxLength(name, MAX_NAME_CHARS, "Nazwa");
   // forceUnit is interpolated into the prompt — only accept known units.
@@ -153,7 +154,7 @@ Wartości odżywcze muszą być na 100g masy produktu, niezależnie od defaultUn
   // Extract JSON array from response (handle markdown code blocks)
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    throw new Error("Nie udało się sparsować odpowiedzi AI");
+    throw new UserError("Nie udało się sparsować odpowiedzi AI");
   }
 
   const parsed: Record<string, unknown>[] = JSON.parse(jsonMatch[0]);
@@ -238,10 +239,10 @@ export async function extractDietFromPdf(
   userId?: string | null,
 ): Promise<ExtractedDiet> {
   if (mimeType !== "application/pdf") {
-    throw new Error("Obsługiwane są tylko pliki PDF");
+    throw new UserError("Obsługiwane są tylko pliki PDF");
   }
   if (base64Pdf.length > MAX_PDF_BASE64) {
-    throw new Error("Plik PDF jest za duży (maks. 8 MB)");
+    throw new UserError("Plik PDF jest za duży (maks. 7 MB)");
   }
   await assertAiBudget(userId);
 
@@ -312,7 +313,7 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("Nie udało się sparsować odpowiedzi AI z PDF");
+    throw new UserError("Nie udało się sparsować odpowiedzi AI z PDF");
   }
 
   const parsed = JSON.parse(jsonMatch[0]) as {
@@ -432,7 +433,7 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego innego tekstu:
 function parseExtractedMeal(text: string): ExtractedMeal {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("Nie udało się sparsować odpowiedzi AI");
+    throw new UserError("Nie udało się sparsować odpowiedzi AI");
   }
   const raw = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
 
@@ -624,7 +625,7 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em:
   });
 
   const match = result.response.text().match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Nie udało się odczytać produktu ze zdjęcia");
+  if (!match) throw new UserError("Nie udało się odczytać produktu ze zdjęcia");
   const raw = JSON.parse(match[0]) as Record<string, unknown>;
 
   const numOrNull = (v: unknown) => {
@@ -701,7 +702,7 @@ async function runImageModel(
       "brak obrazka w odpowiedzi";
   }
 
-  throw new Error(`AI nie wygenerowało obrazka (${lastReason})`);
+  throw new UserError(`AI nie wygenerowało obrazka (${lastReason})`);
 }
 
 export async function generateMealImage(

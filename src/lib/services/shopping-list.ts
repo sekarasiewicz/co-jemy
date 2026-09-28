@@ -14,6 +14,7 @@ import type {
   ShoppingListItem,
   ShoppingListWithItems,
 } from "@/types";
+import { UserError } from "@/lib/action-result";
 
 export async function getShoppingListsByUserId(
   userId: string,
@@ -161,7 +162,7 @@ export async function toggleShoppingListItem(
 ): Promise<ShoppingListItem> {
   // Runtime whitelist: the union type isn't enforced for server-action callers.
   if (field !== "checked" && field !== "inPantry") {
-    throw new Error("Nieprawidłowe pole");
+    throw new UserError("Nieprawidłowe pole");
   }
 
   const item = await db.query.shoppingListItems.findFirst({
@@ -169,7 +170,7 @@ export async function toggleShoppingListItem(
   });
 
   if (!item) {
-    throw new Error("Pozycja nie została znaleziona");
+    throw new UserError("Pozycja nie została znaleziona");
   }
 
   const [updated] = await db

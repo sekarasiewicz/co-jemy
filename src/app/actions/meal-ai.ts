@@ -33,6 +33,11 @@ import {
   roundNutrition,
   scaleNutrition,
 } from "@/lib/nutrition";
+import {
+  type ActionResult,
+  toActionResult,
+  UserError,
+} from "@/lib/action-result";
 
 export interface MealDraft {
   name: string;
@@ -183,28 +188,34 @@ async function buildMealDraft(
 
 export async function createMealDraftFromTextAction(
   recipeText: string,
-): Promise<MealDraft> {
-  const session = await requireAuth();
-  const text = recipeText.trim();
-  if (!text) throw new Error("Pusty tekst przepisu");
-  const extracted = await extractMealFromText(text, session.user.id);
-  if (!extracted.name) throw new Error("AI nie rozpoznało dania z tekstu");
-  return buildMealDraft(session.user.id, extracted);
+): Promise<ActionResult<MealDraft>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    const text = recipeText.trim();
+    if (!text) throw new UserError("Pusty tekst przepisu");
+    const extracted = await extractMealFromText(text, session.user.id);
+    if (!extracted.name)
+      throw new UserError("AI nie rozpoznało dania z tekstu");
+    return buildMealDraft(session.user.id, extracted);
+  });
 }
 
 export async function createMealDraftFromImageAction(input: {
   base64: string;
   mimeType: string;
-}): Promise<MealDraft> {
-  const session = await requireAuth();
-  if (!input.base64) throw new Error("Brak zdjęcia");
-  const extracted = await extractMealFromImage(
-    input.base64,
-    input.mimeType,
-    session.user.id,
-  );
-  if (!extracted.name) throw new Error("AI nie rozpoznało dania ze zdjęcia");
-  return buildMealDraft(session.user.id, extracted);
+}): Promise<ActionResult<MealDraft>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    if (!input.base64) throw new UserError("Brak zdjęcia");
+    const extracted = await extractMealFromImage(
+      input.base64,
+      input.mimeType,
+      session.user.id,
+    );
+    if (!extracted.name)
+      throw new UserError("AI nie rozpoznało dania ze zdjęcia");
+    return buildMealDraft(session.user.id, extracted);
+  });
 }
 
 // A packaged product (from a barcode lookup or a label photo). Same shape
@@ -322,132 +333,144 @@ async function saveProductAsMeal(
 export async function createMealFromIngredientAction(
   ingredientId: string,
   name?: string,
-): Promise<SavedMeal> {
-  const session = await requireAuth();
-  const userId = session.user.id;
+): Promise<ActionResult<SavedMeal>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    const userId = session.user.id;
 
-  const ingredient = await getIngredientById(ingredientId, userId);
-  if (!ingredient) throw new Error("Nie znaleziono składnika");
+    const ingredient = await getIngredientById(ingredientId, userId);
+    if (!ingredient) throw new UserError("Nie znaleziono składnika");
 
-  const mealTypes = await addMissingDefaultMealTypes(userId);
-  const defaultType =
-    mealTypes.find((mt) => mt.name.toLowerCase() === "przekąska") ??
-    mealTypes[0];
+    const mealTypes = await addMissingDefaultMealTypes(userId);
+    const defaultType =
+      mealTypes.find((mt) => mt.name.toLowerCase() === "przekąska") ??
+      mealTypes[0];
 
-  // One unit of the product when it has a per-unit weight (e.g. 1 baton),
-  // otherwise 100 g of the ingredient.
-  const usePiece =
-    ingredient.weightPerUnit != null && ingredient.weightPerUnit > 0;
-  const amount = usePiece ? 1 : 100;
-  const unit = usePiece ? ingredient.defaultUnit || "szt" : "g";
+    // One unit of the product when it has a per-unit weight (e.g. 1 baton),
+    // otherwise 100 g of the ingredient.
+    const usePiece =
+      ingredient.weightPerUnit != null && ingredient.weightPerUnit > 0;
+    const amount = usePiece ? 1 : 100;
+    const unit = usePiece ? ingredient.defaultUnit || "szt" : "g";
 
-  const grams = convertToGrams(
-    amount,
-    unit,
-    ingredient.weightPerUnit,
-    ingredient.defaultUnit,
-  );
-  const factor = grams / 100;
+    const grams = convertToGrams(
+      amount,
+      unit,
+      ingredient.weightPerUnit,
+      ingredient.defaultUnit,
+    );
+    const factor = grams / 100;
 
-  const meal = await createMeal(userId, {
-    name: name?.trim() || ingredient.name,
-    servings: 1,
-    calories: Math.round((ingredient.caloriesPer100g ?? 0) * factor) || null,
-    protein: round1((ingredient.proteinPer100g ?? 0) * factor) || null,
-    carbs: round1((ingredient.carbsPer100g ?? 0) * factor) || null,
-    fat: round1((ingredient.fatPer100g ?? 0) * factor) || null,
-    mealTypeIds: defaultType ? [defaultType.id] : [],
-    ingredientsList: [{ ingredientId: ingredient.id, amount, unit }],
+    const meal = await createMeal(userId, {
+      name: name?.trim() || ingredient.name,
+      servings: 1,
+      calories: Math.round((ingredient.caloriesPer100g ?? 0) * factor) || null,
+      protein: round1((ingredient.proteinPer100g ?? 0) * factor) || null,
+      carbs: round1((ingredient.carbsPer100g ?? 0) * factor) || null,
+      fat: round1((ingredient.fatPer100g ?? 0) * factor) || null,
+      mealTypeIds: defaultType ? [defaultType.id] : [],
+      ingredientsList: [{ ingredientId: ingredient.id, amount, unit }],
+    });
+
+    revalidatePath("/meals");
+    revalidatePath("/today");
+    return { id: meal.id, name: meal.name };
   });
-
-  revalidatePath("/meals");
-  revalidatePath("/today");
-  return { id: meal.id, name: meal.name };
 }
 
 export async function createMealFromBarcodeAction(input: {
   base64: string;
   mimeType: string;
   name?: string;
-}): Promise<SavedMeal> {
-  const session = await requireAuth();
-  if (!input.base64) throw new Error("Brak zdjęcia");
+}): Promise<ActionResult<SavedMeal>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    if (!input.base64) throw new UserError("Brak zdjęcia");
 
-  const barcode = await extractBarcodeFromImage(
-    input.base64,
-    input.mimeType,
-    session.user.id,
-  );
+    const barcode = await extractBarcodeFromImage(
+      input.base64,
+      input.mimeType,
+      session.user.id,
+    );
 
-  if (barcode.length >= 8) {
-    const product = await fetchProductByBarcode(barcode);
-    if (product) return saveProductAsMeal(session.user.id, product, input.name);
-  }
+    if (barcode.length >= 8) {
+      const product = await fetchProductByBarcode(barcode);
+      if (product)
+        return saveProductAsMeal(session.user.id, product, input.name);
+    }
 
-  // No code read or product not in Open Food Facts — fall back to reading the
-  // packaging/label directly from the same photo.
-  const fromLabel = await extractProductFromImage(
-    input.base64,
-    input.mimeType,
-    session.user.id,
-  );
-  if (!fromLabel.name) {
-    throw new Error("Nie rozpoznano produktu — spróbuj zdjęcia etykiety");
-  }
-  return saveProductAsMeal(session.user.id, fromLabel, input.name);
+    // No code read or product not in Open Food Facts — fall back to reading the
+    // packaging/label directly from the same photo.
+    const fromLabel = await extractProductFromImage(
+      input.base64,
+      input.mimeType,
+      session.user.id,
+    );
+    if (!fromLabel.name) {
+      throw new UserError("Nie rozpoznano produktu — spróbuj zdjęcia etykiety");
+    }
+    return saveProductAsMeal(session.user.id, fromLabel, input.name);
+  });
 }
 
 export async function createMealFromBarcodeNumberAction(
   barcode: string,
   name?: string,
-): Promise<SavedMeal> {
-  const session = await requireAuth();
-  const ean = barcode.replace(/\D/g, "");
-  if (ean.length < 8) throw new Error("Nieprawidłowy kod kreskowy");
+): Promise<ActionResult<SavedMeal>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    const ean = barcode.replace(/\D/g, "");
+    if (ean.length < 8) throw new UserError("Nieprawidłowy kod kreskowy");
 
-  const product = await fetchProductByBarcode(ean);
-  if (!product) {
-    throw new Error("Nie znaleziono produktu dla tego kodu");
-  }
-  return saveProductAsMeal(session.user.id, product, name);
+    const product = await fetchProductByBarcode(ean);
+    if (!product) {
+      throw new UserError("Nie znaleziono produktu dla tego kodu");
+    }
+    return saveProductAsMeal(session.user.id, product, name);
+  });
 }
 
 export async function createMealFromProductImageAction(input: {
   base64: string;
   mimeType: string;
   name?: string;
-}): Promise<SavedMeal> {
-  const session = await requireAuth();
-  if (!input.base64) throw new Error("Brak zdjęcia");
-  const product = await extractProductFromImage(
-    input.base64,
-    input.mimeType,
-    session.user.id,
-  );
-  if (!product.name) throw new Error("Nie rozpoznano produktu ze zdjęcia");
-  return saveProductAsMeal(session.user.id, product, input.name);
+}): Promise<ActionResult<SavedMeal>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    if (!input.base64) throw new UserError("Brak zdjęcia");
+    const product = await extractProductFromImage(
+      input.base64,
+      input.mimeType,
+      session.user.id,
+    );
+    if (!product.name)
+      throw new UserError("Nie rozpoznano produktu ze zdjęcia");
+    return saveProductAsMeal(session.user.id, product, input.name);
+  });
 }
 
 export async function generateMealImageAction(input: {
   name: string;
   description?: string;
   ingredientNames?: string[];
-}): Promise<{ url: string }> {
-  const session = await requireAuth();
-  if (!input.name?.trim()) throw new Error("Najpierw podaj nazwę dania");
+}): Promise<ActionResult<{ url: string }>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    if (!input.name?.trim()) throw new UserError("Najpierw podaj nazwę dania");
 
-  const image = await generateMealImage(input, session.user.id);
-  const buffer = Buffer.from(image.base64, "base64");
-  const ext = image.mimeType.includes("png")
-    ? "png"
-    : image.mimeType.includes("webp")
-      ? "webp"
-      : "jpg";
+    const image = await generateMealImage(input, session.user.id);
+    const buffer = Buffer.from(image.base64, "base64");
+    const ext = image.mimeType.includes("png")
+      ? "png"
+      : image.mimeType.includes("webp")
+        ? "webp"
+        : "jpg";
 
-  const blob = await put(`meals/ai-${generateId()}.${ext}`, buffer, {
-    access: "public",
-    contentType: image.mimeType,
+    const blob = await put(`meals/ai-${generateId()}.${ext}`, buffer, {
+      access: "public",
+      contentType: image.mimeType,
+    });
+
+    return { url: blob.url };
   });
-
-  return { url: blob.url };
 }

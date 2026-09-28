@@ -15,27 +15,34 @@ import {
 import { generateId } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "@/lib/session";
+import {
+  type ActionResult,
+  toActionResult,
+  UserError,
+} from "@/lib/action-result";
 
 export async function generateIngredientImageAction(
   name: string,
-): Promise<{ url: string }> {
-  const session = await requireAuth();
-  if (!name?.trim()) throw new Error("Najpierw podaj nazwę składnika");
+): Promise<ActionResult<{ url: string }>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    if (!name?.trim()) throw new UserError("Najpierw podaj nazwę składnika");
 
-  const image = await generateIngredientImage(name, session.user.id);
-  const buffer = Buffer.from(image.base64, "base64");
-  const ext = image.mimeType.includes("png")
-    ? "png"
-    : image.mimeType.includes("webp")
-      ? "webp"
-      : "jpg";
+    const image = await generateIngredientImage(name, session.user.id);
+    const buffer = Buffer.from(image.base64, "base64");
+    const ext = image.mimeType.includes("png")
+      ? "png"
+      : image.mimeType.includes("webp")
+        ? "webp"
+        : "jpg";
 
-  const blob = await put(`ingredients/ai-${generateId()}.${ext}`, buffer, {
-    access: "public",
-    contentType: image.mimeType,
+    const blob = await put(`ingredients/ai-${generateId()}.${ext}`, buffer, {
+      access: "public",
+      contentType: image.mimeType,
+    });
+
+    return { url: blob.url };
   });
-
-  return { url: blob.url };
 }
 
 export async function getIngredientsAction(): Promise<Ingredient[]> {
@@ -119,46 +126,52 @@ export async function mergeIngredientsAction(
 export async function enrichByNameAction(
   name: string,
   currentUnit?: string,
-): Promise<{
-  category: string;
-  defaultUnit: string;
-  caloriesPer100g: number;
-  proteinPer100g: number;
-  carbsPer100g: number;
-  fatPer100g: number;
-  weightPerUnit: number | null;
-}> {
-  const session = await requireAuth();
-  const { enrichSingleIngredient } = await import("@/lib/services/ai");
-  return enrichSingleIngredient(name, currentUnit, session.user.id);
+): Promise<
+  ActionResult<{
+    category: string;
+    defaultUnit: string;
+    caloriesPer100g: number;
+    proteinPer100g: number;
+    carbsPer100g: number;
+    fatPer100g: number;
+    weightPerUnit: number | null;
+  }>
+> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    const { enrichSingleIngredient } = await import("@/lib/services/ai");
+    return enrichSingleIngredient(name, currentUnit, session.user.id);
+  });
 }
 
 export async function enrichIngredientAction(
   ingredientId: string,
-): Promise<Ingredient> {
-  const session = await requireAuth();
-  const ingredient = await getIngredientById(ingredientId, session.user.id);
-  if (!ingredient) {
-    throw new Error("Składnik nie został znaleziony");
-  }
+): Promise<ActionResult<Ingredient>> {
+  return toActionResult(async () => {
+    const session = await requireAuth();
+    const ingredient = await getIngredientById(ingredientId, session.user.id);
+    if (!ingredient) {
+      throw new UserError("Składnik nie został znaleziony");
+    }
 
-  const { enrichSingleIngredient } = await import("@/lib/services/ai");
-  const enriched = await enrichSingleIngredient(
-    ingredient.name,
-    undefined,
-    session.user.id,
-  );
+    const { enrichSingleIngredient } = await import("@/lib/services/ai");
+    const enriched = await enrichSingleIngredient(
+      ingredient.name,
+      undefined,
+      session.user.id,
+    );
 
-  const updated = await updateIngredient(ingredientId, session.user.id, {
-    category: enriched.category,
-    defaultUnit: enriched.defaultUnit,
-    caloriesPer100g: enriched.caloriesPer100g,
-    proteinPer100g: enriched.proteinPer100g,
-    carbsPer100g: enriched.carbsPer100g,
-    fatPer100g: enriched.fatPer100g,
-    weightPerUnit: enriched.weightPerUnit,
+    const updated = await updateIngredient(ingredientId, session.user.id, {
+      category: enriched.category,
+      defaultUnit: enriched.defaultUnit,
+      caloriesPer100g: enriched.caloriesPer100g,
+      proteinPer100g: enriched.proteinPer100g,
+      carbsPer100g: enriched.carbsPer100g,
+      fatPer100g: enriched.fatPer100g,
+      weightPerUnit: enriched.weightPerUnit,
+    });
+
+    revalidatePath("/ingredients");
+    return updated;
   });
-
-  revalidatePath("/ingredients");
-  return updated;
 }
