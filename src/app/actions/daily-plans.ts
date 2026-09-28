@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import {
   addMealToPlan,
+  addMealsToPlan,
   duplicateDayShiftForward,
+  fillPlanner,
   getDailyPlanByDate,
   getDailyPlansByDateRange,
   getDailyPlansForAllProfiles,
@@ -14,7 +16,6 @@ import {
   updatePlanMealServings,
 } from "@/lib/services/daily-plans";
 import { assertDayKey } from "@/lib/day";
-import { randomizeSingleMeal } from "@/lib/services/meals";
 import { assertOwned } from "@/lib/services/ownership";
 import type { DailyPlanMeal, DailyPlanWithMeals, RandomizerFilters } from "@/types";
 import { requireAuth } from "@/lib/session";
@@ -84,6 +85,21 @@ export async function addMealToPlanAction(data: {
 
   revalidatePath("/planner");
   return planMeal;
+}
+
+export async function addMealsToPlanAction(data: {
+  profileId: string;
+  day: string;
+  items: { mealId: string; mealTypeId: string }[];
+}): Promise<void> {
+  const session = await requireAuth();
+  await addMealsToPlan(
+    session.user.id,
+    data.profileId,
+    assertDayKey(data.day),
+    data.items,
+  );
+  revalidatePath("/planner");
 }
 
 export async function removeMealFromPlanAction(
@@ -171,54 +187,7 @@ export async function fillPlannerAction(data: {
     assertOwned("mealTypes", userId, data.mealTypeIds),
   ]);
 
-  // Fetch existing plans for the date range to check which days already have meals
-  const existingPlans =
-    days.length > 0
-      ? await getDailyPlansByDateRange(
-          userId,
-          data.profileId,
-          days[0],
-          days[days.length - 1],
-        )
-      : [];
-
-  let daysFilledCount = 0;
-  let mealsAddedCount = 0;
-
-  for (const day of days) {
-    // Check if this day already has meals
-    if (data.skipExistingDays) {
-      const existingPlan = existingPlans.find((p) => p.date === day);
-      if (existingPlan && existingPlan.meals.length > 0) {
-        continue;
-      }
-    }
-
-    const plan = await getOrCreateDailyPlan(userId, data.profileId, day);
-    const excludeMealIds: string[] = [];
-    let addedForDay = false;
-
-    for (const mealTypeId of data.mealTypeIds) {
-      const filters: RandomizerFilters = {
-        ...data.filters,
-        mealTypeId,
-        excludeMealIds: excludeMealIds.length > 0 ? excludeMealIds : undefined,
-      };
-
-      const meal = await randomizeSingleMeal(userId, filters);
-      if (meal) {
-        await addMealToPlan(plan.id, meal.id, mealTypeId);
-        excludeMealIds.push(meal.id);
-        mealsAddedCount++;
-        addedForDay = true;
-      }
-    }
-
-    if (addedForDay) {
-      daysFilledCount++;
-    }
-  }
-
+  const result = await fillPlanner(userId, { ...data, days });
   revalidatePath("/planner");
-  return { daysFilledCount, mealsAddedCount };
+  return result;
 }

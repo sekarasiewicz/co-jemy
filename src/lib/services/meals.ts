@@ -1,26 +1,20 @@
-import { and, eq, gte, ilike, inArray, lte } from "drizzle-orm";
+import { and, eq, ilike, } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  ingredients,
   mealIngredients,
   mealMealTypes,
   meals,
   mealTags,
-  mealTypes,
-  tags,
 } from "@/db/schema";
 import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
+import { filterMeals, pickMealsForDay } from "@/lib/meal-picker";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
 import { generateId, getRandomItem } from "@/lib/utils";
 import type {
-  Ingredient,
   Meal,
-  MealIngredient,
-  MealType,
   MealWithRelations,
   NewMeal,
   RandomizerFilters,
-  Tag,
 } from "@/types";
 import { UserError } from "@/lib/action-result";
 
@@ -301,68 +295,7 @@ export async function getFilteredMeals(
   userId: string,
   filters: RandomizerFilters,
 ): Promise<MealWithRelations[]> {
-  const allMeals = await getMealsByUserId(userId);
-
-  return allMeals.filter((meal) => {
-    if (
-      filters.mealTypeId &&
-      !meal.mealTypes.some((mt) => mt.id === filters.mealTypeId)
-    ) {
-      return false;
-    }
-
-    if (
-      filters.maxPrepTime &&
-      meal.prepTimeMinutes &&
-      meal.prepTimeMinutes > filters.maxPrepTime
-    ) {
-      return false;
-    }
-
-    if (
-      filters.maxCookTime &&
-      meal.cookTimeMinutes &&
-      meal.cookTimeMinutes > filters.maxCookTime
-    ) {
-      return false;
-    }
-
-    if (
-      filters.maxCalories &&
-      meal.calories &&
-      meal.calories > filters.maxCalories
-    ) {
-      return false;
-    }
-
-    if (
-      filters.minProtein &&
-      meal.protein &&
-      meal.protein < filters.minProtein
-    ) {
-      return false;
-    }
-
-    if (filters.isVegetarian && !meal.isVegetarian) return false;
-    if (filters.isVegan && !meal.isVegan) return false;
-    if (filters.isGlutenFree && !meal.isGlutenFree) return false;
-    if (filters.isLactoseFree && !meal.isLactoseFree) return false;
-    if (filters.isQuick && !meal.isQuick) return false;
-    if (filters.isChildFriendly && !meal.isChildFriendly) return false;
-
-    if (filters.tagIds && filters.tagIds.length > 0) {
-      const mealTagIds = meal.tags.map((t) => t.id);
-      if (!filters.tagIds.some((tagId) => mealTagIds.includes(tagId))) {
-        return false;
-      }
-    }
-
-    if (filters.excludeMealIds && filters.excludeMealIds.includes(meal.id)) {
-      return false;
-    }
-
-    return true;
-  });
+  return filterMeals(await getMealsByUserId(userId), filters);
 }
 
 export async function randomizeSingleMeal(
@@ -371,4 +304,12 @@ export async function randomizeSingleMeal(
 ): Promise<MealWithRelations | undefined> {
   const filteredMeals = await getFilteredMeals(userId, filters);
   return getRandomItem(filteredMeals);
+}
+
+export async function randomizeDay(
+  userId: string,
+  mealTypeIds: string[],
+  filters: Omit<RandomizerFilters, "mealTypeId" | "excludeMealIds">,
+): Promise<{ mealTypeId: string; meal: MealWithRelations | null }[]> {
+  return pickMealsForDay(await getMealsByUserId(userId), mealTypeIds, filters);
 }

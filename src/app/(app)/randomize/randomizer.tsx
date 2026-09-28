@@ -5,8 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { addMealToPlanAction, fillPlannerAction } from "@/app/actions/daily-plans";
-import { randomizeMealAction } from "@/app/actions/meals";
+import {
+  addMealsToPlanAction,
+  addMealToPlanAction,
+  fillPlannerAction,
+} from "@/app/actions/daily-plans";
+import { randomizeDayAction, randomizeMealAction } from "@/app/actions/meals";
 import {
   Badge,
   Button,
@@ -190,29 +194,23 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
       tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
     };
 
-    const results: DayMeal[] = [];
-    const usedMealIds: string[] = [];
-
-    for (const mealType of mealTypes) {
-      const filters: RandomizerFilters = {
-        ...baseFilters,
-        mealTypeId: mealType.id,
-        excludeMealIds: usedMealIds.length > 0 ? usedMealIds : undefined,
-      };
-
-      const meal = await randomizeMealAction(filters);
-      if (meal) {
-        usedMealIds.push(meal.id);
-      }
-      results.push({
-        mealType,
-        meal: meal || null,
-        addedToPlan: false,
-      });
+    try {
+      const picks = await randomizeDayAction(
+        mealTypes.map((mt) => mt.id),
+        baseFilters,
+      );
+      setDayMeals(
+        mealTypes.map((mealType, i) => ({
+          mealType,
+          meal: picks[i]?.meal ?? null,
+          addedToPlan: false,
+        })),
+      );
+    } catch {
+      toast.error("Nie udało się wylosować dań");
+    } finally {
+      setLoadingDay(false);
     }
-
-    setDayMeals(results);
-    setLoadingDay(false);
   };
 
   const handleAddAllToPlan = async (date: Date) => {
@@ -224,16 +222,13 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     setAddingAllToPlan(true);
     setShowDayDatePicker(false);
     try {
-      for (const dm of mealsToAdd) {
-        if (dm.meal) {
-          await addMealToPlanAction({
-            profileId: activeProfile.id,
-            day: toDayKey(date),
-            mealId: dm.meal.id,
-            mealTypeId: dm.mealType.id,
-          });
-        }
-      }
+      await addMealsToPlanAction({
+        profileId: activeProfile.id,
+        day: toDayKey(date),
+        items: mealsToAdd.flatMap((dm) =>
+          dm.meal ? [{ mealId: dm.meal.id, mealTypeId: dm.mealType.id }] : [],
+        ),
+      });
 
       setDayMeals((prev) =>
         prev.map((dm) => (dm.meal ? { ...dm, addedToPlan: true } : dm))

@@ -11,12 +11,13 @@ import {
   getMealById,
   getMealsByUserId,
   type MealSummary,
+  randomizeDay,
   randomizeSingleMeal,
   searchMealsForType,
   updateMeal,
 } from "@/lib/services/meals";
 import { createTag, getTagsByUserId } from "@/lib/services/tags";
-import type { Ingredient, Meal, MealWithRelations, RandomizerFilters, Tag } from "@/types";
+import type { Meal, MealWithRelations, RandomizerFilters, } from "@/types";
 import { requireAuth } from "@/lib/session";
 
 export async function getMealsAction(): Promise<MealWithRelations[]> {
@@ -115,6 +116,14 @@ export async function randomizeMealAction(
   const session = await requireAuth();
   const meal = await randomizeSingleMeal(session.user.id, filters);
   return meal ?? null;
+}
+
+export async function randomizeDayAction(
+  mealTypeIds: string[],
+  filters: Omit<RandomizerFilters, "mealTypeId" | "excludeMealIds">,
+): Promise<{ mealTypeId: string; meal: MealWithRelations | null }[]> {
+  const session = await requireAuth();
+  return randomizeDay(session.user.id, mealTypeIds, filters);
 }
 
 export async function getFilteredMealsAction(

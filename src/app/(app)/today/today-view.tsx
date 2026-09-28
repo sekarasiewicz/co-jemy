@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import {
   addMealToPlanAction,
   duplicateDayShiftForwardAction,
+  fillPlannerAction,
   getDailyPlanAction,
   removeMealFromPlanAction,
   swapDailyPlansAction,
@@ -275,24 +276,20 @@ export function TodayView({ mealTypes }: TodayViewProps) {
     if (!activeProfile) return;
 
     setRandomizingAll(true);
-    let count = 0;
     try {
-      for (const mealType of mealTypes) {
-        const planMeals =
-          plan?.meals.filter((pm) => pm.mealType.id === mealType.id) || [];
-        if (planMeals.length > 0) continue;
-
-        const meal = await randomizeMealAction({ mealTypeId: mealType.id });
-        if (!meal) continue;
-
-        await addMealToPlanAction({
-          profileId: activeProfile.id,
-          day: selectedDay,
-          mealId: meal.id,
-          mealTypeId: mealType.id,
-        });
-        count++;
-      }
+      const emptyTypeIds = mealTypes
+        .filter((mt) => !plan?.meals.some((pm) => pm.mealType.id === mt.id))
+        .map((mt) => mt.id);
+      const { mealsAddedCount: count } =
+        emptyTypeIds.length > 0
+          ? await fillPlannerAction({
+              profileId: activeProfile.id,
+              days: [selectedDay],
+              filters: {},
+              mealTypeIds: emptyTypeIds,
+              skipExistingDays: false,
+            })
+          : { mealsAddedCount: 0 };
 
       const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
       setPlan(updatedPlan || null);

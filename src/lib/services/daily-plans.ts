@@ -3,11 +3,15 @@ import { db } from "@/db";
 import { dailyPlanMeals, dailyPlans, } from "@/db/schema";
 import { assertOwned, userDailyPlanIds } from "@/lib/services/ownership";
 import { addDays, type DayKey } from "@/lib/day";
+import { pickMealsForDay } from "@/lib/meal-picker";
+import { getMealsByUserId } from "@/lib/services/meals";
 import { generateId } from "@/lib/utils";
 import type {
   DailyPlan,
   DailyPlanMeal,
   DailyPlanWithMeals,
+  MealWithRelations,
+  RandomizerFilters,
 } from "@/types";
 import { UserError } from "@/lib/action-result";
 
@@ -293,6 +297,116 @@ export async function duplicateDayShiftForward(
       mealId: m.mealId,
       mealTypeId: m.mealTypeId,
       servings: m.servings,
+    })),
+  );
+}
+
+/**
+ * Randomly fills days with one meal per meal type. The catalog is loaded once
+ * and filtered in memory; plans and plan meals are written in bulk.
+ */
+export async function fillPlanner(
+  userId: string,
+  data: {
+    profileId: string;
+    days: DayKey[];
+    filters: RandomizerFilters;
+    mealTypeIds: string[];
+    skipExistingDays: boolean;
+  },
+): Promise<{ daysFilledCount: number; mealsAddedCount: number }> {
+  const { profileId, days } = data;
+  if (days.length === 0) return { daysFilledCount: 0, mealsAddedCount: 0 };
+
+  const [existingPlans, catalog] = await Promise.all([
+    getDailyPlansByDateRange(userId, profileId, days[0], days[days.length - 1]),
+    getMealsByUserId(userId),
+  ]);
+
+  const daysWithMeals = new Set(
+    existingPlans.filter((p) => p.meals.length > 0).map((p) => p.date),
+  );
+  const targetDays = data.skipExistingDays
+    ? days.filter((day) => !daysWithMeals.has(day))
+    : days;
+
+  // Pick meals per day first; a day gets different meals across meal types.
+  const picks = new Map<DayKey, { mealId: string; mealTypeId: string }[]>();
+  for (const day of targetDays) {
+    const dayPicks = pickMealsForDay(catalog, data.mealTypeIds, data.filters)
+      .filter((pick) => pick.meal !== null)
+      .map((pick) => ({
+        mealId: (pick.meal as MealWithRelations).id,
+        mealTypeId: pick.mealTypeId,
+      }));
+    if (dayPicks.length > 0) picks.set(day, dayPicks);
+  }
+  if (picks.size === 0) return { daysFilledCount: 0, mealsAddedCount: 0 };
+
+  // Create the missing plans in one insert, then read back all plan ids.
+  await db
+    .insert(dailyPlans)
+    .values(
+      [...picks.keys()].map((day) => ({
+        id: generateId(),
+        userId,
+        profileId,
+        date: day,
+      })),
+    )
+    .onConflictDoNothing();
+  const plans = await db
+    .select({ id: dailyPlans.id, date: dailyPlans.date })
+    .from(dailyPlans)
+    .where(
+      and(
+        eq(dailyPlans.userId, userId),
+        eq(dailyPlans.profileId, profileId),
+        inArray(dailyPlans.date, [...picks.keys()]),
+      ),
+    );
+  const planIdByDay = new Map(plans.map((p) => [p.date, p.id]));
+
+  const rows = [...picks.entries()].flatMap(([day, dayPicks]) =>
+    dayPicks.map((pick) => ({
+      id: generateId(),
+      dailyPlanId: planIdByDay.get(day) as string,
+      mealId: pick.mealId,
+      mealTypeId: pick.mealTypeId,
+    })),
+  );
+  await db.insert(dailyPlanMeals).values(rows);
+
+  return { daysFilledCount: picks.size, mealsAddedCount: rows.length };
+}
+
+/** Adds several meals to one day in a single insert. */
+export async function addMealsToPlan(
+  userId: string,
+  profileId: string,
+  day: DayKey,
+  items: { mealId: string; mealTypeId: string }[],
+): Promise<void> {
+  if (items.length === 0) return;
+  await Promise.all([
+    assertOwned(
+      "meals",
+      userId,
+      items.map((i) => i.mealId),
+    ),
+    assertOwned(
+      "mealTypes",
+      userId,
+      items.map((i) => i.mealTypeId),
+    ),
+  ]);
+  const plan = await getOrCreateDailyPlan(userId, profileId, day);
+  await db.insert(dailyPlanMeals).values(
+    items.map((item) => ({
+      id: generateId(),
+      dailyPlanId: plan.id,
+      mealId: item.mealId,
+      mealTypeId: item.mealTypeId,
     })),
   );
 }
