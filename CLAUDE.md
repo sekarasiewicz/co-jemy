@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **co-jemy** ("what are we eating") - A meal randomizer app for families. Users can randomize meals, plan daily menus, and generate shopping lists. Features Netflix-style profiles where each family member has their own daily plans and calorie goals.
 
-**Stack:** Next.js 15 + TypeScript + Drizzle ORM + Neon (Postgres) + Better Auth + Tailwind CSS + TanStack React Query
+**Stack:** Next.js 16 + TypeScript + Drizzle ORM + Neon (Postgres) + Better Auth + Tailwind CSS + Vercel Blob + Gemini
 
 ## Commands
 
@@ -38,9 +38,10 @@ Schema changes go through migrations: edit `src/db/schema.ts`, run `db:generate`
 
 - **Server Components** by default, Client Components only for interactivity
 - **Server Actions** (`src/app/actions/`) for mutations instead of API routes
-- **Zod** for form validation
+- **Errors:** throw `UserError` (`src/lib/action-result.ts`) for messages meant for the user. Next.js hides thrown server-action messages in production, so actions whose errors the user must read return `ActionResult` via `toActionResult` and clients call `unwrap`
+- **Ownership:** services scope every query by `userId`; client-supplied ids are checked with `assertOwned` (`src/lib/services/ownership.ts`) before being linked
 - **Services layer** (`src/lib/services/`) contains business logic
-- **Profile Context** for active profile state (persisted in localStorage/cookie)
+- **Profile Context** for active profile state (persisted in localStorage)
 
 ### User Flow
 
@@ -52,7 +53,7 @@ Schema changes go through migrations: edit `src/db/schema.ts`, run `db:generate`
 - **Language:** All UI text in Polish
 - **Styling:** Tailwind with green/emerald primary colors, mobile-first
 - **Loading:** Use Suspense + `loading.tsx`
-- **Errors:** Use `error.tsx` + try/catch in actions
+- **Errors:** `(app)/error.tsx` boundary; see Key Patterns for action errors
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -7,16 +7,6 @@ export { DatePicker } from "./date-picker";
 export type { CheckboxProps } from "./checkbox";
 export { Checkbox } from "./checkbox";
 export { Combobox } from "./combobox";
-export {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  useFormField,
-} from "./form";
 export { ImageUpload } from "./image-upload";
 export type { InputProps, TextareaProps } from "./input";
 export { Input, Textarea } from "./input";
