@@ -38,7 +38,8 @@ import {
   Modal,
 } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, convertToGrams, formatAmount, formatMinutes, getTodayNoon } from "@/lib/utils";
+import { addDays, parseDayKey, todayKey } from "@/lib/day";
+import { cn, convertToGrams, formatAmount, formatMinutes } from "@/lib/utils";
 import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType } from "@/types";
 import { AddMealModal } from "./add-meal-modal";
 
@@ -118,30 +119,33 @@ export function TodayView({ mealTypes }: TodayViewProps) {
   const [randomizingMealType, setRandomizingMealType] = useState<string | null>(null);
   const [randomizingAll, setRandomizingAll] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState(getTodayNoon());
+  const [selectedDay, setSelectedDay] = useState(todayKey);
+  const selectedDate = parseDayKey(selectedDay);
 
   useEffect(() => {
     if (!activeProfile) return;
 
+    // Ignore responses for a day the user already navigated away from.
+    let cancelled = false;
     const loadPlan = async () => {
       setLoading(true);
-      const dailyPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
+      const dailyPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
+      if (cancelled) return;
       setPlan(dailyPlan || null);
       setLoading(false);
     };
 
     loadPlan();
-  }, [activeProfile, selectedDate]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProfile, selectedDay]);
 
   const shiftDay = (delta: number) => {
-    setSelectedDate((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + delta);
-      return next;
-    });
+    setSelectedDay((prev) => addDays(prev, delta));
   };
 
-  const isToday = selectedDate.toDateString() === getTodayNoon().toDateString();
+  const isToday = selectedDay === todayKey();
 
   const [showSwap, setShowSwap] = useState(false);
   const [swapDate, setSwapDate] = useState("");
@@ -149,7 +153,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
 
   const reloadPlan = async () => {
     if (!activeProfile) return;
-    const updated = await getDailyPlanAction(activeProfile.id, selectedDate);
+    const updated = await getDailyPlanAction(activeProfile.id, selectedDay);
     setPlan(updated || null);
   };
 
@@ -159,7 +163,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
     try {
       await duplicateDayShiftForwardAction({
         profileId: activeProfile.id,
-        date: selectedDate,
+        day: selectedDay,
       });
       toast.success("Skopiowano dzień, kolejne przesunięto");
       await reloadPlan();
@@ -174,12 +178,10 @@ export function TodayView({ mealTypes }: TodayViewProps) {
     if (!activeProfile || !swapDate) return;
     setDayActionLoading(true);
     try {
-      const [y, m, d] = swapDate.split("-").map(Number);
-      const target = new Date(y, m - 1, d, 12, 0, 0, 0);
       await swapDailyPlansAction({
         profileId: activeProfile.id,
-        dateA: selectedDate,
-        dateB: target,
+        dayA: selectedDay,
+        dayB: swapDate,
       });
       toast.success("Zamieniono dni");
       setShowSwap(false);
@@ -192,11 +194,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
   };
 
   const openSwap = () => {
-    const next = new Date(selectedDate);
-    next.setDate(next.getDate() + 1);
-    setSwapDate(
-      `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`,
-    );
+    setSwapDate(addDays(selectedDay, 1));
     setShowSwap(true);
   };
 
@@ -206,12 +204,12 @@ export function TodayView({ mealTypes }: TodayViewProps) {
     try {
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date: selectedDate,
+        day: selectedDay,
         mealId,
         mealTypeId: addingMealType.id,
       });
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
       setPlan(updatedPlan || null);
       setAddingMealType(null);
       toast.success("Dodano do planu");
@@ -225,7 +223,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
 
     try {
       await removeMealFromPlanAction(planMealId);
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
       setPlan(updatedPlan || null);
       toast.success("Usunięto z planu");
     } catch {
@@ -272,8 +270,8 @@ export function TodayView({ mealTypes }: TodayViewProps) {
       });
       const list = await generateShoppingListAction({
         profileIds: [activeProfile.id],
-        dateFrom: selectedDate,
-        dateTo: selectedDate,
+        dateFrom: selectedDay,
+        dateTo: selectedDay,
         name: `Zakupy - ${dateStr}`,
       });
       router.push(`/shopping/${list.id}`);
@@ -296,12 +294,12 @@ export function TodayView({ mealTypes }: TodayViewProps) {
 
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date: selectedDate,
+        day: selectedDay,
         mealId: meal.id,
         mealTypeId: mealType.id,
       });
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
       setPlan(updatedPlan || null);
       toast.success(`Wylosowano: ${meal.name}`);
     } catch {
@@ -327,14 +325,14 @@ export function TodayView({ mealTypes }: TodayViewProps) {
 
         await addMealToPlanAction({
           profileId: activeProfile.id,
-          date: selectedDate,
+          day: selectedDay,
           mealId: meal.id,
           mealTypeId: mealType.id,
         });
         count++;
       }
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDate);
+      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
       setPlan(updatedPlan || null);
 
       if (count > 0) {
@@ -409,7 +407,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
         {!isToday && (
           <button
             type="button"
-            onClick={() => setSelectedDate(getTodayNoon())}
+            onClick={() => setSelectedDay(todayKey())}
             className="text-xs text-orange-600 dark:text-orange-400 hover:underline mb-1"
           >
             Wróć do dziś

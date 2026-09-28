@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui";
 import { formatDateShort } from "@/lib/utils";
 import type { ShoppingList } from "@/types";
 import { DeleteListButton } from "./delete-list-button";
+import { parseDayKey } from "@/lib/day";
 
 export function ShoppingListRow({ list }: { list: ShoppingList }) {
   const router = useRouter();
@@ -22,8 +23,8 @@ export function ShoppingListRow({ list }: { list: ShoppingList }) {
             {list.dateFrom && list.dateTo && (
               <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                 <Calendar className="w-4 h-4" />
-                {formatDateShort(new Date(list.dateFrom))} -{" "}
-                {formatDateShort(new Date(list.dateTo))}
+                {formatDateShort(parseDayKey(list.dateFrom))} -{" "}
+                {formatDateShort(parseDayKey(list.dateTo))}
               </p>
             )}
           </div>

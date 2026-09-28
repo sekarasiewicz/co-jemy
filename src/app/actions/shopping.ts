@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertDayKey } from "@/lib/day";
 import {
   addItemToShoppingList,
   deleteShoppingList,
@@ -32,16 +33,16 @@ export async function getShoppingListAction(
 
 export async function generateShoppingListAction(data: {
   profileIds: string[];
-  dateFrom: Date;
-  dateTo: Date;
+  dateFrom: string;
+  dateTo: string;
   name: string;
 }): Promise<ShoppingListWithItems> {
   const session = await requireAuth();
   const list = await generateShoppingListFromDateRange(
     session.user.id,
     data.profileIds,
-    data.dateFrom,
-    data.dateTo,
+    assertDayKey(data.dateFrom),
+    assertDayKey(data.dateTo),
     data.name,
   );
   revalidatePath("/shopping");

@@ -8,6 +8,7 @@ import { generateShoppingListAction } from "@/app/actions/shopping";
 import { ProfileAvatar } from "@/components/profiles/profile-avatar";
 import { Button, Checkbox, Input, Modal } from "@/components/ui";
 import type { Profile } from "@/types";
+import { addDays, todayKey } from "@/lib/day";
 
 interface GenerateListButtonProps {
   profiles: Profile[];
@@ -22,15 +23,10 @@ export function GenerateListButton({ profiles }: GenerateListButtonProps) {
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>(
     profiles.map((p) => p.id),
   );
-  const [dateFrom, setDateFrom] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
-  const [dateTo, setDateTo] = useState(() => {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    return nextWeek.toISOString().split("T")[0];
-  });
+  // Local calendar days — toISOString() would give the UTC date, i.e.
+  // yesterday shortly after midnight in Poland.
+  const [dateFrom, setDateFrom] = useState(todayKey);
+  const [dateTo, setDateTo] = useState(() => addDays(todayKey(), 7));
 
   const toggleProfile = (id: string) => {
     setSelectedProfileIds((prev) =>
@@ -48,8 +44,8 @@ export function GenerateListButton({ profiles }: GenerateListButtonProps) {
     try {
       const list = await generateShoppingListAction({
         profileIds: selectedProfileIds,
-        dateFrom: new Date(dateFrom),
-        dateTo: new Date(dateTo),
+        dateFrom,
+        dateTo,
         name,
       });
 

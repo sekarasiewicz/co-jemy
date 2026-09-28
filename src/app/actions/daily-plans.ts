@@ -13,6 +13,7 @@ import {
   toggleMealCompleted,
   updatePlanMealServings,
 } from "@/lib/services/daily-plans";
+import { assertDayKey } from "@/lib/day";
 import { randomizeSingleMeal } from "@/lib/services/meals";
 import { assertOwned } from "@/lib/services/ownership";
 import type { DailyPlan, DailyPlanMeal, DailyPlanWithMeals, RandomizerFilters } from "@/types";
@@ -20,31 +21,36 @@ import { requireAuth } from "@/lib/session";
 
 export async function getDailyPlanAction(
   profileId: string,
-  date: Date,
+  day: string,
 ): Promise<DailyPlanWithMeals | undefined> {
   const session = await requireAuth();
-  return getDailyPlanByDate(session.user.id, profileId, date);
+  return getDailyPlanByDate(session.user.id, profileId, assertDayKey(day));
 }
 
 export async function getDailyPlansForAllProfilesAction(
-  date: Date,
+  day: string,
 ): Promise<DailyPlanWithMeals[]> {
   const session = await requireAuth();
-  return getDailyPlansForAllProfiles(session.user.id, date);
+  return getDailyPlansForAllProfiles(session.user.id, assertDayKey(day));
 }
 
 export async function getDailyPlansByDateRangeAction(
   profileId: string,
-  dateFrom: Date,
-  dateTo: Date,
+  dateFrom: string,
+  dateTo: string,
 ): Promise<DailyPlanWithMeals[]> {
   const session = await requireAuth();
-  return getDailyPlansByDateRange(session.user.id, profileId, dateFrom, dateTo);
+  return getDailyPlansByDateRange(
+    session.user.id,
+    profileId,
+    assertDayKey(dateFrom),
+    assertDayKey(dateTo),
+  );
 }
 
 export async function addMealToPlanAction(data: {
   profileId: string;
-  date: Date;
+  day: string;
   mealId: string;
   mealTypeId: string;
   servings?: number;
@@ -58,7 +64,7 @@ export async function addMealToPlanAction(data: {
   const plan = await getOrCreateDailyPlan(
     session.user.id,
     data.profileId,
-    data.date,
+    assertDayKey(data.day),
   );
 
   const planMeal = await addMealToPlan(
@@ -110,15 +116,15 @@ export async function updatePlanMealServingsAction(
 
 export async function swapDailyPlansAction(data: {
   profileId: string;
-  dateA: Date;
-  dateB: Date;
+  dayA: string;
+  dayB: string;
 }): Promise<void> {
   const session = await requireAuth();
   await swapDailyPlans(
     session.user.id,
     data.profileId,
-    data.dateA,
-    data.dateB,
+    assertDayKey(data.dayA),
+    assertDayKey(data.dayB),
   );
   revalidatePath("/today");
   revalidatePath("/planner");
@@ -126,23 +132,31 @@ export async function swapDailyPlansAction(data: {
 
 export async function duplicateDayShiftForwardAction(data: {
   profileId: string;
-  date: Date;
+  day: string;
 }): Promise<void> {
   const session = await requireAuth();
-  await duplicateDayShiftForward(session.user.id, data.profileId, data.date);
+  await duplicateDayShiftForward(
+    session.user.id,
+    data.profileId,
+    assertDayKey(data.day),
+  );
   revalidatePath("/today");
   revalidatePath("/planner");
 }
 
 export async function fillPlannerAction(data: {
   profileId: string;
-  dates: Date[];
+  days: string[];
   filters: RandomizerFilters;
   mealTypeIds: string[];
   skipExistingDays: boolean;
 }): Promise<{ daysFilledCount: number; mealsAddedCount: number }> {
   const session = await requireAuth();
   const userId = session.user.id;
+  const days = [...new Set(data.days.map(assertDayKey))].sort();
+  if (days.length > 62) {
+    throw new Error("Można zaplanować maksymalnie 62 dni naraz");
+  }
   await Promise.all([
     assertOwned("profiles", userId, [data.profileId]),
     assertOwned("mealTypes", userId, data.mealTypeIds),
@@ -150,30 +164,28 @@ export async function fillPlannerAction(data: {
 
   // Fetch existing plans for the date range to check which days already have meals
   const existingPlans =
-    data.dates.length > 0
+    days.length > 0
       ? await getDailyPlansByDateRange(
           userId,
           data.profileId,
-          data.dates[0],
-          data.dates[data.dates.length - 1],
+          days[0],
+          days[days.length - 1],
         )
       : [];
 
   let daysFilledCount = 0;
   let mealsAddedCount = 0;
 
-  for (const date of data.dates) {
+  for (const day of days) {
     // Check if this day already has meals
     if (data.skipExistingDays) {
-      const existingPlan = existingPlans.find(
-        (p) => new Date(p.date).toDateString() === date.toDateString(),
-      );
+      const existingPlan = existingPlans.find((p) => p.date === day);
       if (existingPlan && existingPlan.meals.length > 0) {
         continue;
       }
     }
 
-    const plan = await getOrCreateDailyPlan(userId, data.profileId, date);
+    const plan = await getOrCreateDailyPlan(userId, data.profileId, day);
     const excludeMealIds: string[] = [];
     let addedForDay = false;
 

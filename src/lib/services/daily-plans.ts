@@ -1,7 +1,8 @@
-import { and, eq, gt, gte, inArray, lte } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { dailyPlanMeals, dailyPlans, profiles } from "@/db/schema";
 import { assertOwned, userDailyPlanIds } from "@/lib/services/ownership";
+import { addDays, type DayKey } from "@/lib/day";
 import { generateId } from "@/lib/utils";
 import type {
   DailyPlan,
@@ -13,20 +14,13 @@ import type {
 export async function getDailyPlanByDate(
   userId: string,
   profileId: string,
-  date: Date,
+  day: DayKey,
 ): Promise<DailyPlanWithMeals | undefined> {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
   const plan = await db.query.dailyPlans.findFirst({
     where: and(
       eq(dailyPlans.userId, userId),
       eq(dailyPlans.profileId, profileId),
-      gte(dailyPlans.date, startOfDay),
-      lte(dailyPlans.date, endOfDay),
+      eq(dailyPlans.date, day),
     ),
     with: {
       profile: true,
@@ -55,20 +49,10 @@ export async function getDailyPlanByDate(
 
 export async function getDailyPlansForAllProfiles(
   userId: string,
-  date: Date,
+  day: DayKey,
 ): Promise<DailyPlanWithMeals[]> {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
   const plans = await db.query.dailyPlans.findMany({
-    where: and(
-      eq(dailyPlans.userId, userId),
-      gte(dailyPlans.date, startOfDay),
-      lte(dailyPlans.date, endOfDay),
-    ),
+    where: and(eq(dailyPlans.userId, userId), eq(dailyPlans.date, day)),
     with: {
       profile: true,
       dailyPlanMeals: {
@@ -95,8 +79,8 @@ export async function getDailyPlansForAllProfiles(
 export async function getDailyPlansByDateRange(
   userId: string,
   profileId: string,
-  dateFrom: Date,
-  dateTo: Date,
+  dateFrom: DayKey,
+  dateTo: DayKey,
 ): Promise<DailyPlanWithMeals[]> {
   const plans = await db.query.dailyPlans.findMany({
     where: and(
@@ -132,27 +116,41 @@ export async function getDailyPlansByDateRange(
 export async function getOrCreateDailyPlan(
   userId: string,
   profileId: string,
-  date: Date,
+  day: DayKey,
 ): Promise<DailyPlan> {
-  const existing = await getDailyPlanByDate(userId, profileId, date);
+  const findExisting = () =>
+    db.query.dailyPlans.findFirst({
+      where: and(
+        eq(dailyPlans.userId, userId),
+        eq(dailyPlans.profileId, profileId),
+        eq(dailyPlans.date, day),
+      ),
+    });
 
+  const existing = await findExisting();
   if (existing) {
     return existing;
   }
 
   await assertOwned("profiles", userId, [profileId]);
 
+  // Unique (profile_id, date): a concurrent insert wins and we read its row.
   const [plan] = await db
     .insert(dailyPlans)
     .values({
       id: generateId(),
       userId,
       profileId,
-      date,
+      date: day,
     })
+    .onConflictDoNothing()
     .returning();
 
-  return plan;
+  const result = plan ?? (await findExisting());
+  if (!result) {
+    throw new Error("Nie udało się utworzyć planu dnia");
+  }
+  return result;
 }
 
 export async function addMealToPlan(
@@ -223,44 +221,29 @@ export async function updatePlanMealServings(
   return planMeal;
 }
 
-function atNoon(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(12, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-/** Swap the plans (and their meals) between two days for a profile. */
+/**
+ * Swap the meals between two days for a profile. Plans stay on their dates
+ * (one plan per profile per day); their meals change owners in one statement.
+ */
 export async function swapDailyPlans(
   userId: string,
   profileId: string,
-  dateA: Date,
-  dateB: Date,
+  dayA: DayKey,
+  dayB: DayKey,
 ): Promise<void> {
-  const noonA = atNoon(dateA);
-  const noonB = atNoon(dateB);
-  const planA = await getDailyPlanByDate(userId, profileId, noonA);
-  const planB = await getDailyPlanByDate(userId, profileId, noonB);
+  if (dayA === dayB) return;
 
-  // Just move the plan rows to each other's date (no unique constraint, so the
-  // momentary overlap is fine). Plan meals follow via the FK.
-  if (planA) {
-    await db
-      .update(dailyPlans)
-      .set({ date: noonB })
-      .where(eq(dailyPlans.id, planA.id));
-  }
-  if (planB) {
-    await db
-      .update(dailyPlans)
-      .set({ date: noonA })
-      .where(eq(dailyPlans.id, planB.id));
-  }
+  const [planA, planB] = await Promise.all([
+    getOrCreateDailyPlan(userId, profileId, dayA),
+    getOrCreateDailyPlan(userId, profileId, dayB),
+  ]);
+
+  await db
+    .update(dailyPlanMeals)
+    .set({
+      dailyPlanId: sql`case when ${dailyPlanMeals.dailyPlanId} = ${planA.id} then ${planB.id} else ${planA.id} end`,
+    })
+    .where(inArray(dailyPlanMeals.dailyPlanId, [planA.id, planB.id]));
 }
 
 /**
@@ -270,38 +253,46 @@ export async function swapDailyPlans(
 export async function duplicateDayShiftForward(
   userId: string,
   profileId: string,
-  date: Date,
+  day: DayKey,
 ): Promise<void> {
-  const source = await getDailyPlanByDate(userId, profileId, atNoon(date));
+  const source = await getDailyPlanByDate(userId, profileId, day);
 
-  // Shift all later plans (date after the source day) forward by one day.
+  // Shift all later plans forward by one day, latest first, so each move lands
+  // on a day that is already free (one plan per profile per day). Batched so
+  // the calendar never ends up half-shifted.
   const laterPlans = await db.query.dailyPlans.findMany({
     where: and(
       eq(dailyPlans.userId, userId),
       eq(dailyPlans.profileId, profileId),
-      gt(dailyPlans.date, endOfDay(date)),
+      gt(dailyPlans.date, day),
     ),
+    orderBy: desc(dailyPlans.date),
   });
-  await Promise.all(
-    laterPlans.map((p) => {
-      const shifted = new Date(p.date);
-      shifted.setDate(shifted.getDate() + 1);
-      return db
-        .update(dailyPlans)
-        .set({ date: shifted })
-        .where(eq(dailyPlans.id, p.id));
-    }),
+  const [firstShift, ...restShifts] = laterPlans.map((p) =>
+    db
+      .update(dailyPlans)
+      .set({ date: addDays(p.date, 1) })
+      .where(eq(dailyPlans.id, p.id)),
   );
+  if (firstShift) {
+    await db.batch([firstShift, ...restShifts]);
+  }
 
   if (!source || source.meals.length === 0) return;
 
   // Create the copy at the now-vacated next day.
-  const nextDay = atNoon(date);
-  nextDay.setDate(nextDay.getDate() + 1);
-  const newPlan = await getOrCreateDailyPlan(userId, profileId, nextDay);
-  await Promise.all(
-    source.meals.map((m) =>
-      addMealToPlan(newPlan.id, m.mealId, m.mealTypeId, m.servings),
-    ),
+  const newPlan = await getOrCreateDailyPlan(
+    userId,
+    profileId,
+    addDays(day, 1),
+  );
+  await db.insert(dailyPlanMeals).values(
+    source.meals.map((m) => ({
+      id: generateId(),
+      dailyPlanId: newPlan.id,
+      mealId: m.mealId,
+      mealTypeId: m.mealTypeId,
+      servings: m.servings,
+    })),
   );
 }

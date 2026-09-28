@@ -7,13 +7,26 @@ import {
   addMealToPlanAction,
   fillPlannerAction,
   getDailyPlanAction,
+  getDailyPlansByDateRangeAction,
   removeMealFromPlanAction,
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
 import { Badge, Button, Card, CardContent, Checkbox, Modal, Tooltip } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, convertToGrams, formatDateShort, getTodayNoon, getWeekDays } from "@/lib/utils";
+import {
+  addDays,
+  parseDayKey,
+  startOfWeek,
+  toDayKey,
+  todayKey,
+} from "@/lib/day";
+import {
+  FILL_RANGE_LABELS,
+  type FillRange,
+  getDaysForRange,
+} from "@/lib/fill-range";
+import { cn, convertToGrams, formatDateShort } from "@/lib/utils";
 import type { DailyPlanWithMeals, Meal, MealIngredient, Ingredient, MealType, MealWithRelations } from "@/types";
 
 function getMealNutrition(
@@ -44,53 +57,6 @@ function getMealNutrition(
   return { calories: t.calories * servings, protein: t.protein * servings, carbs: t.carbs * servings, fat: t.fat * servings };
 }
 
-type FillRange = "week" | "next-week" | "2weeks" | "month";
-
-function getDatesForRange(range: FillRange): Date[] {
-  const dates: Date[] = [];
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-
-  if (range === "week") {
-    const dayOfWeek = today.getDay();
-    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
-    for (let i = 0; i <= daysUntilSunday; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-  } else if (range === "next-week") {
-    const dayOfWeek = today.getDay();
-    const daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + daysUntilNextMonday + i);
-      dates.push(date);
-    }
-  } else if (range === "2weeks") {
-    for (let i = 0; i < 14; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-  } else {
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-  }
-
-  return dates;
-}
-
-const FILL_RANGE_LABELS: Record<FillRange, string> = {
-  week: "Ten tydzień (pon-nd)",
-  "next-week": "Następny tydzień",
-  "2weeks": "Najbliższe 2 tygodnie",
-  month: "Miesiąc (30 dni)",
-};
-
 interface WeekPlannerProps {
   mealTypes: MealType[];
   meals: MealWithRelations[];
@@ -98,12 +64,7 @@ interface WeekPlannerProps {
 
 export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
   const activeProfile = useActiveProfile();
-  const [weekStart, setWeekStart] = useState(() => {
-    const today = new Date();
-    today.setDate(today.getDate() - today.getDay() + 1); // Monday
-    today.setHours(12, 0, 0, 0); // Noon to avoid timezone issues
-    return today;
-  });
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(todayKey()));
   const [plans, setPlans] = useState<Map<string, DailyPlanWithMeals>>(
     new Map(),
   );
@@ -127,37 +88,41 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
     mealsAddedCount: number;
   } | null>(null);
 
-  const weekDays = getWeekDays(weekStart);
+  const weekDays = Array.from({ length: 7 }, (_, i) =>
+    parseDayKey(addDays(weekStart, i)),
+  );
+
+  // One request for the whole week, keyed by day.
+  const fetchWeekPlans = async (profileId: string) => {
+    const weekPlans = await getDailyPlansByDateRangeAction(
+      profileId,
+      weekStart,
+      addDays(weekStart, 6),
+    );
+    return new Map(weekPlans.map((plan) => [plan.date, plan]));
+  };
 
   useEffect(() => {
     if (!activeProfile) return;
 
+    // Ignore responses for a week the user already navigated away from.
+    let cancelled = false;
     const loadPlans = async () => {
       setLoading(true);
-      const newPlans = new Map<string, DailyPlanWithMeals>();
-
-      await Promise.all(
-        weekDays.map(async (date: Date) => {
-          const plan = await getDailyPlanAction(activeProfile.id, date);
-          if (plan) {
-            newPlans.set(date.toISOString().split("T")[0], plan);
-          }
-        }),
-      );
-
+      const newPlans = await fetchWeekPlans(activeProfile.id);
+      if (cancelled) return;
       setPlans(newPlans);
       setLoading(false);
     };
 
     loadPlans();
+    return () => {
+      cancelled = true;
+    };
   }, [activeProfile, weekStart]);
 
   const navigateWeek = (direction: number) => {
-    setWeekStart((prev) => {
-      const newDate = new Date(prev);
-      newDate.setDate(newDate.getDate() + direction * 7);
-      return newDate;
-    });
+    setWeekStart((prev) => addDays(prev, direction * 7));
   };
 
   const handleAddMeal = async (mealId: string) => {
@@ -166,17 +131,20 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
     try {
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date: addingMeal.date,
+        day: toDayKey(addingMeal.date),
         mealId,
         mealTypeId: addingMeal.mealTypeId,
       });
 
       // Reload the plan for this day
-      const plan = await getDailyPlanAction(activeProfile.id, addingMeal.date);
+      const plan = await getDailyPlanAction(
+        activeProfile.id,
+        toDayKey(addingMeal.date),
+      );
       if (plan) {
         setPlans((prev) => {
           const newPlans = new Map(prev);
-          newPlans.set(addingMeal.date.toISOString().split("T")[0], plan);
+          newPlans.set(toDayKey(addingMeal.date), plan);
           return newPlans;
         });
       }
@@ -194,10 +162,10 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
     try {
       await removeMealFromPlanAction(planMealId);
 
-      const plan = await getDailyPlanAction(activeProfile.id, date);
+      const plan = await getDailyPlanAction(activeProfile.id, toDayKey(date));
       setPlans((prev) => {
         const newPlans = new Map(prev);
-        const key = date.toISOString().split("T")[0];
+        const key = toDayKey(date);
         if (plan) {
           newPlans.set(key, plan);
         } else {
@@ -220,11 +188,11 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
 
     await toggleMealCompletedAction(planMealId, !completed);
 
-    const plan = await getDailyPlanAction(activeProfile.id, date);
+    const plan = await getDailyPlanAction(activeProfile.id, toDayKey(date));
     if (plan) {
       setPlans((prev) => {
         const newPlans = new Map(prev);
-        newPlans.set(date.toISOString().split("T")[0], plan);
+        newPlans.set(toDayKey(date), plan);
         return newPlans;
       });
     }
@@ -239,7 +207,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
   const handleRandomizeCell = async (date: Date, mealTypeId: string) => {
     if (!activeProfile) return;
 
-    const dateKey = date.toISOString().split("T")[0];
+    const dateKey = toDayKey(date);
     setRandomizingCell({ date: dateKey, mealTypeId });
 
     try {
@@ -260,12 +228,12 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
 
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date,
+        day: dateKey,
         mealId: meal.id,
         mealTypeId,
       });
 
-      const plan = await getDailyPlanAction(activeProfile.id, date);
+      const plan = await getDailyPlanAction(activeProfile.id, toDayKey(date));
       if (plan) {
         setPlans((prev) => {
           const newPlans = new Map(prev);
@@ -285,16 +253,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
   const reloadAllPlans = async () => {
     if (!activeProfile) return;
 
-    const newPlans = new Map<string, DailyPlanWithMeals>();
-    await Promise.all(
-      weekDays.map(async (date: Date) => {
-        const plan = await getDailyPlanAction(activeProfile.id, date);
-        if (plan) {
-          newPlans.set(date.toISOString().split("T")[0], plan);
-        }
-      }),
-    );
-    setPlans(newPlans);
+    setPlans(await fetchWeekPlans(activeProfile.id));
   };
 
   const handleFillPlanner = async () => {
@@ -306,7 +265,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
     try {
       const result = await fillPlannerAction({
         profileId: activeProfile.id,
-        dates: getDatesForRange(fillRange),
+        days: getDaysForRange(fillRange),
         filters: {},
         mealTypeIds: mealTypes.map((mt) => mt.id),
         skipExistingDays: skipExisting,
@@ -321,13 +280,13 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
     }
   };
 
-  const fillDates = getDatesForRange(fillRange);
+  const fillDates = getDaysForRange(fillRange);
 
   if (!activeProfile) {
     return <div>Wybierz profil...</div>;
   }
 
-  const today = getTodayNoon();
+  const today = parseDayKey(todayKey());
 
   return (
     <div>
@@ -405,7 +364,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
               {/* Day cells */}
               {weekDays.map((day: Date) => {
                 const isToday = day.getTime() === today.getTime();
-                const key = day.toISOString().split("T")[0];
+                const key = toDayKey(day);
                 const plan = plans.get(key);
                 const planMeals =
                   plan?.meals.filter(
@@ -531,7 +490,7 @@ export function WeekPlanner({ mealTypes, meals }: WeekPlannerProps) {
               </h3>
             </div>
             {weekDays.map((day: Date) => {
-              const key = day.toISOString().split("T")[0];
+              const key = toDayKey(day);
               const plan = plans.get(key);
               const dayTotals = plan?.meals.reduce(
                 (acc, pm) => {

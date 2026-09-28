@@ -246,36 +246,3 @@ export function formatDateShort(date: Date): string {
     month: "short",
   });
 }
-
-export function isSameDay(date1: Date, date2: Date): boolean {
-  return (
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate()
-  );
-}
-
-/**
- * Returns today's date at noon local time.
- * Setting to noon prevents timezone conversion issues when sending to server.
- */
-export function getTodayNoon(): Date {
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  return today;
-}
-
-export function getWeekDays(startDate: Date): Date[] {
-  const days: Date[] = [];
-  const start = new Date(startDate);
-  start.setDate(start.getDate() - start.getDay() + 1); // Monday
-  start.setHours(12, 0, 0, 0); // Noon to avoid timezone issues
-
-  for (let i = 0; i < 7; i++) {
-    const day = new Date(start);
-    day.setDate(start.getDate() + i);
-    days.push(day);
-  }
-
-  return days;
-}

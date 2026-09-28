@@ -17,7 +17,13 @@ import {
   Select,
 } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
-import { cn, formatMinutes, getTodayNoon } from "@/lib/utils";
+import { toDayKey } from "@/lib/day";
+import {
+  FILL_RANGE_LABELS,
+  type FillRange,
+  getDaysForRange,
+} from "@/lib/fill-range";
+import { cn, formatMinutes } from "@/lib/utils";
 import type {
   MealType,
   MealWithRelations,
@@ -45,56 +51,6 @@ function formatDayOption(date: Date, index: number): string {
     month: "short",
   });
 }
-
-type FillRange = "week" | "next-week" | "2weeks" | "month";
-
-function getDatesForRange(range: FillRange): Date[] {
-  const dates: Date[] = [];
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-
-  if (range === "week") {
-    // From today to end of this week (Sunday)
-    const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon...
-    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
-    for (let i = 0; i <= daysUntilSunday; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-  } else if (range === "next-week") {
-    // Next Monday to next Sunday
-    const dayOfWeek = today.getDay();
-    const daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + daysUntilNextMonday + i);
-      dates.push(date);
-    }
-  } else if (range === "2weeks") {
-    for (let i = 0; i < 14; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-  } else {
-    // month — 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-  }
-
-  return dates;
-}
-
-const FILL_RANGE_LABELS: Record<FillRange, string> = {
-  week: "Ten tydzień (pon-nd)",
-  "next-week": "Następny tydzień",
-  "2weeks": "Najbliższe 2 tygodnie",
-  month: "Miesiąc (30 dni)",
-};
 
 interface DayMeal {
   mealType: MealType;
@@ -198,7 +154,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     try {
       await addMealToPlanAction({
         profileId: activeProfile.id,
-        date,
+        day: toDayKey(date),
         mealId: result.id,
         mealTypeId: typeId,
         servings: result.servings,
@@ -273,7 +229,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
         if (dm.meal) {
           await addMealToPlanAction({
             profileId: activeProfile.id,
-            date,
+            day: toDayKey(date),
             mealId: dm.meal.id,
             mealTypeId: dm.mealType.id,
             servings: dm.meal.servings,
@@ -340,7 +296,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     try {
       const result = await fillPlannerAction({
         profileId: activeProfile.id,
-        dates: getDatesForRange(fillRange),
+        days: getDaysForRange(fillRange),
         filters: baseFilters,
         mealTypeIds: mealTypes.map((mt) => mt.id),
         skipExistingDays: skipExisting,
@@ -354,7 +310,7 @@ export function Randomizer({ mealTypes, tags }: RandomizerProps) {
     }
   };
 
-  const fillDates = getDatesForRange(fillRange);
+  const fillDates = getDaysForRange(fillRange);
 
   const totalTime = result
     ? (result.prepTimeMinutes || 0) + (result.cookTimeMinutes || 0)

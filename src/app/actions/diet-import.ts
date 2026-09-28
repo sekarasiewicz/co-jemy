@@ -12,6 +12,7 @@ import { enrichIngredients, extractDietFromPdf } from "@/lib/services/ai";
 import { convertToGrams } from "@/lib/utils";
 import type { Ingredient } from "@/types";
 import { requireAuth } from "@/lib/session";
+import { addDays, assertDayKey } from "@/lib/day";
 
 export interface DietImportResult {
   mealsCreated: number;
@@ -217,13 +218,15 @@ export async function importDietFromPdfAction(
 
   // 3. Build the weekly plan for the chosen profile (days run concurrently;
   //    each day has a distinct date so getOrCreateDailyPlan can't collide).
-  const startDate = new Date(startDateIso);
+  const startDay = assertDayKey(startDateIso);
   const plannedResults = await Promise.all(
     diet.plan.map(async (day) => {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + day.dayIndex);
       try {
-        const plan = await getOrCreateDailyPlan(userId, profileId, date);
+        const plan = await getOrCreateDailyPlan(
+          userId,
+          profileId,
+          addDays(startDay, day.dayIndex),
+        );
         await Promise.all(
           day.meals.map((item) => {
             const mealId = mealIdByName.get(item.mealName.toLowerCase());
