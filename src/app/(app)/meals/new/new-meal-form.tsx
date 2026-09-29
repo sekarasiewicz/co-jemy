@@ -13,7 +13,6 @@ import { ProductImporter } from "./product-importer";
 interface NewMealFormProps {
   mealTypes: MealType[];
   tags: Tag[];
-  ingredients: Ingredient[];
 }
 
 type DraftMeal = Meal & {
@@ -22,45 +21,21 @@ type DraftMeal = Meal & {
   ingredients: (MealIngredient & { ingredient: Ingredient })[];
 };
 
-export function NewMealForm({
-  mealTypes,
-  tags,
-  ingredients,
-}: NewMealFormProps) {
+export function NewMealForm({ mealTypes, tags }: NewMealFormProps) {
   const router = useRouter();
-  // Ingredients created by AI extraction get merged in so the form can label
-  // and calculate with them.
-  const [extraIngredients, setExtraIngredients] = useState<Ingredient[]>([]);
   const [draft, setDraft] = useState<DraftMeal | undefined>(undefined);
   // Remounts MealForm so its useState re-initialises from the new draft.
   const [draftKey, setDraftKey] = useState(0);
 
-  const allIngredients = [...ingredients, ...extraIngredients];
-
   const handleDraft = (d: MealDraft) => {
-    const merged = [...extraIngredients];
-    for (const ing of d.newIngredients) {
-      if (!merged.some((m) => m.id === ing.id)) merged.push(ing);
-    }
-    setExtraIngredients(merged);
-
-    const lookup = [...ingredients, ...merged];
-    const ingredientEntries = d.ingredients
-      .map((e) => {
-        const ingredient = lookup.find((i) => i.id === e.ingredientId);
-        if (!ingredient) return null;
-        return {
-          id: `draft-${e.ingredientId}`,
-          mealId: "",
-          ingredientId: e.ingredientId,
-          amount: e.amount,
-          unit: e.unit,
-          ingredient,
-        };
-      })
-      .filter((e): e is MealIngredient & { ingredient: Ingredient } =>
-        Boolean(e),
-      );
+    const ingredientEntries = d.ingredients.map((e) => ({
+      id: `draft-${e.ingredientId}`,
+      mealId: "",
+      ingredientId: e.ingredientId,
+      amount: e.amount,
+      unit: e.unit,
+      ingredient: e.ingredient,
+    }));
 
     setDraft({
       id: "",
@@ -114,7 +89,6 @@ export function NewMealForm({
         meal={draft}
         mealTypes={mealTypes}
         tags={tags}
-        ingredients={allIngredients}
         onSubmit={handleSubmit}
       />
     </div>

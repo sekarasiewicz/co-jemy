@@ -13,7 +13,12 @@ interface ComboboxProps {
   value: string;
   onChange: (value: string) => void;
   onCreateNew?: (name: string) => Promise<ComboboxOption>;
-  options: ComboboxOption[];
+  // Static options, filtered locally. Ignored when `onSearch` is given.
+  options?: ComboboxOption[];
+  // Server-side search: called (debounced) with the typed text.
+  onSearch?: (query: string) => Promise<ComboboxOption[]>;
+  // Label of the current value when it isn't among the loaded options.
+  selectedLabel?: string;
   placeholder?: string;
   label?: string;
   className?: string;
@@ -23,7 +28,9 @@ export function Combobox({
   value,
   onChange,
   onCreateNew,
-  options,
+  options = [],
+  onSearch,
+  selectedLabel,
   placeholder = "Szukaj...",
   label,
   className,
@@ -34,16 +41,41 @@ export function Combobox({
   const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [results, setResults] = useState<ComboboxOption[]>([]);
+  const [searching, setSearching] = useState(false);
 
-  const selectedOption = options.find((o) => o.value === value);
+  useEffect(() => {
+    if (!onSearch || !isOpen) return;
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const found = await onSearch(search.trim());
+        if (!cancelled) setResults(found);
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [onSearch, isOpen, search]);
 
-  // Filter options based on search
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(search.toLowerCase()),
-  );
+  const selectedOption =
+    options.find((o) => o.value === value) ??
+    (value && selectedLabel ? { value, label: selectedLabel } : undefined);
+
+  const filteredOptions = onSearch
+    ? results
+    : options.filter((option) =>
+        option.label.toLowerCase().includes(search.toLowerCase()),
+      );
 
   // Check if search matches any existing option exactly
-  const exactMatch = options.some(
+  const exactMatch = (onSearch ? results : options).some(
     (o) => o.label.toLowerCase() === search.toLowerCase(),
   );
 
@@ -152,7 +184,13 @@ export function Combobox({
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
-          {filteredOptions.length === 0 && !search.trim() && (
+          {searching && filteredOptions.length === 0 && (
+            <div className="px-3 py-2 text-sm text-muted-foreground">
+              Szukam...
+            </div>
+          )}
+
+          {!searching && filteredOptions.length === 0 && !search.trim() && (
             <div className="px-3 py-2 text-sm text-muted-foreground">
               Zacznij pisać, aby wyszukać...
             </div>
@@ -177,7 +215,7 @@ export function Combobox({
             </button>
           ))}
 
-          {search.trim() && !exactMatch && onCreateNew && (
+          {search.trim() && !exactMatch && !searching && onCreateNew && (
             <button
               type="button"
               onClick={handleCreateNew}

@@ -2,9 +2,12 @@
 
 import { Calculator, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { createIngredientAction } from "@/app/actions/ingredients";
+import {
+  createIngredientAction,
+  searchIngredientsAction,
+} from "@/app/actions/ingredients";
 import { generateMealImageAction } from "@/app/actions/meal-ai";
 import {
   Button,
@@ -17,6 +20,11 @@ import {
   Select,
   Textarea,
 } from "@/components/ui";
+import {
+  recipeNutrition,
+  roundNutrition,
+  scaleNutrition,
+} from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 import type { Ingredient, Meal, MealIngredient, MealType, Tag } from "@/types";
 import { UNITS } from "@/types";
@@ -36,7 +44,6 @@ interface MealFormProps {
   };
   mealTypes: MealType[];
   tags: Tag[];
-  ingredients: Ingredient[];
   onSubmit: (data: MealFormData) => Promise<void>;
 }
 
@@ -64,13 +71,7 @@ export interface MealFormData {
   ingredientsList: IngredientEntry[];
 }
 
-export function MealForm({
-  meal,
-  mealTypes,
-  tags,
-  ingredients,
-  onSubmit,
-}: MealFormProps) {
+export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -121,14 +122,38 @@ export function MealForm({
       })) || [],
   );
 
-  // Keep track of available ingredients (can grow when user creates new ones)
-  const [availableIngredients, setAvailableIngredients] =
-    useState<Ingredient[]>(ingredients);
+  // Ingredients seen so far (the meal's own, search results, newly created),
+  // by id. The combobox searches the server; rows read names and macros here.
+  const [knownIngredients, setKnownIngredients] = useState(
+    () =>
+      new Map<string, Ingredient>(
+        meal?.ingredients.map((mi) => [mi.ingredientId, mi.ingredient]) ?? [],
+      ),
+  );
 
-  const ingredientOptions = availableIngredients.map((ing) => ({
-    value: ing.id,
-    label: ing.name,
-  }));
+  const rememberIngredients = useCallback((found: Ingredient[]) => {
+    if (found.length === 0) return;
+    setKnownIngredients((prev) => {
+      const next = new Map(prev);
+      for (const ing of found) next.set(ing.id, ing);
+      return next;
+    });
+  }, []);
+
+  const searchIngredientOptions = useCallback(
+    async (query: string) => {
+      const found = await searchIngredientsAction(query);
+      rememberIngredients(found);
+      return found.map((ing) => ({ value: ing.id, label: ing.name }));
+    },
+    [rememberIngredients],
+  );
+
+  // Rows with a picked ingredient whose data is loaded.
+  const ingredientLines = selectedIngredients.flatMap((si) => {
+    const ingredient = knownIngredients.get(si.ingredientId);
+    return ingredient ? [{ amount: si.amount, unit: si.unit, ingredient }] : [];
+  });
 
   const addIngredient = () => {
     setSelectedIngredients([
@@ -155,7 +180,7 @@ export function MealForm({
       selectedIngredients.map((ing, i) => {
         if (i === index) {
           if (field === "ingredientId") {
-            const newIng = availableIngredients.find((ig) => ig.id === value);
+            const newIng = knownIngredients.get(String(value));
             return {
               ...ing,
               ingredientId: String(value),
@@ -177,7 +202,7 @@ export function MealForm({
       name,
       category: "Inne",
     });
-    setAvailableIngredients([...availableIngredients, newIngredient]);
+    rememberIngredients([newIngredient]);
     return { value: newIngredient.id, label: newIngredient.name };
   };
 
@@ -188,13 +213,7 @@ export function MealForm({
     }
     setGeneratingImage(true);
     try {
-      const ingredientNames = selectedIngredients
-        .map(
-          (si) =>
-            availableIngredients.find((ing) => ing.id === si.ingredientId)
-              ?.name,
-        )
-        .filter((n): n is string => Boolean(n));
+      const ingredientNames = ingredientLines.map((l) => l.ingredient.name);
       const { url } = unwrap(
         await generateMealImageAction({
           name,
@@ -213,73 +232,27 @@ export function MealForm({
     }
   };
 
-  // Calculate nutritional values from ingredients
+  // Fill the per-portion macro fields from the recipe's ingredients.
   const calculateNutrition = () => {
-    let totalCalories = 0;
-    let totalProtein = 0;
-    let totalCarbs = 0;
-    let totalFat = 0;
-    let hasData = false;
-
-    for (const si of selectedIngredients) {
-      if (!si.ingredientId) continue;
-
-      const ingredient = availableIngredients.find(
-        (ing) => ing.id === si.ingredientId,
-      );
-      if (!ingredient) continue;
-
-      // Convert amount to grams for calculation
-      let amountInGrams = si.amount;
-      if (si.unit === "kg") {
-        amountInGrams = si.amount * 1000;
-      } else if (si.unit !== "g") {
-        // Skip non-gram units for now (can't accurately convert)
-        continue;
-      }
-
-      const multiplier = amountInGrams / 100;
-
-      if (ingredient.caloriesPer100g) {
-        totalCalories += ingredient.caloriesPer100g * multiplier;
-        hasData = true;
-      }
-      if (ingredient.proteinPer100g) {
-        totalProtein += ingredient.proteinPer100g * multiplier;
-        hasData = true;
-      }
-      if (ingredient.carbsPer100g) {
-        totalCarbs += ingredient.carbsPer100g * multiplier;
-        hasData = true;
-      }
-      if (ingredient.fatPer100g) {
-        totalFat += ingredient.fatPer100g * multiplier;
-        hasData = true;
-      }
-    }
-
-    if (!hasData) {
-      return;
-    }
-
-    // Calculate per serving
-    const perServing = servings || 1;
-    setCalories(Math.round(totalCalories / perServing));
-    setProtein(Math.round((totalProtein / perServing) * 10) / 10);
-    setCarbs(Math.round((totalCarbs / perServing) * 10) / 10);
-    setFat(Math.round((totalFat / perServing) * 10) / 10);
+    const perPortion = roundNutrition(
+      scaleNutrition(
+        recipeNutrition(ingredientLines),
+        1 / Math.max(1, servings || 1),
+      ),
+    );
+    setCalories(perPortion.calories);
+    setProtein(perPortion.protein);
+    setCarbs(perPortion.carbs);
+    setFat(perPortion.fat);
   };
 
-  const hasIngredientsWithNutrition = selectedIngredients.some((si) => {
-    const ing = availableIngredients.find((i) => i.id === si.ingredientId);
-    return (
-      ing &&
-      (ing.caloriesPer100g ||
-        ing.proteinPer100g ||
-        ing.carbsPer100g ||
-        ing.fatPer100g)
-    );
-  });
+  const hasIngredientsWithNutrition = ingredientLines.some(
+    ({ ingredient: ing }) =>
+      ing.caloriesPer100g ||
+      ing.proteinPer100g ||
+      ing.carbsPer100g ||
+      ing.fatPer100g,
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -488,7 +461,10 @@ export function MealForm({
                         updateIngredientField(index, "ingredientId", value)
                       }
                       onCreateNew={handleCreateIngredient}
-                      options={ingredientOptions}
+                      onSearch={searchIngredientOptions}
+                      selectedLabel={
+                        knownIngredients.get(si.ingredientId)?.name
+                      }
                       placeholder="Wpisz nazwę składnika..."
                     />
                   </div>

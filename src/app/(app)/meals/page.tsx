@@ -1,13 +1,19 @@
 import { FileText, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { getMealsAction } from "@/app/actions/meals";
+import { listMealsAction } from "@/app/actions/meals";
 import { getMealTypesAction, getTagsAction } from "@/app/actions/tags";
 import { Button } from "@/components/ui";
+import { parseMealListQuery } from "@/lib/meal-list-query";
 import { MealsList } from "./meals-list";
 
-export default async function MealsPage() {
-  const [meals, mealTypes, tags] = await Promise.all([
-    getMealsAction(),
+export default async function MealsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const [list, mealTypes, tags] = await Promise.all([
+    listMealsAction(params),
     getMealTypesAction(),
     getTagsAction(),
   ]);
@@ -40,7 +46,12 @@ export default async function MealsPage() {
         </div>
       </div>
 
-      <MealsList meals={meals} mealTypes={mealTypes} tags={tags} />
+      <MealsList
+        list={list}
+        query={parseMealListQuery(params)}
+        mealTypes={mealTypes}
+        tags={tags}
+      />
     </div>
   );
 }

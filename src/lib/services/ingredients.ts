@@ -8,7 +8,7 @@ import {
 } from "@/db/schema";
 import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
-import { generateId } from "@/lib/utils";
+import { containsPattern, generateId } from "@/lib/utils";
 import type { Ingredient, NewIngredient } from "@/types";
 import { UserError } from "@/lib/action-result";
 
@@ -36,14 +36,16 @@ export async function getIngredientById(
 export async function searchIngredients(
   userId: string,
   query: string,
+  limit = 20,
 ): Promise<Ingredient[]> {
+  const trimmed = query.trim().slice(0, 100);
   return db.query.ingredients.findMany({
     where: and(
       eq(ingredients.userId, userId),
-      ilike(ingredients.name, `%${query}%`),
+      trimmed ? ilike(ingredients.name, containsPattern(trimmed)) : undefined,
     ),
     orderBy: ingredients.name,
-    limit: 10,
+    limit: Math.min(Math.max(limit, 1), 50),
   });
 }
 

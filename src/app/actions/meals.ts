@@ -3,13 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createIngredient, getIngredientsByUserId } from "@/lib/services/ingredients";
 import { parseMarkdownMeals } from "@/lib/markdown-parser";
+import {
+  type MealListParams,
+  parseMealListQuery,
+} from "@/lib/meal-list-query";
 import { addMissingDefaultMealTypes } from "@/lib/services/meal-types";
 import {
   createMeal,
   deleteMeal,
   getFilteredMeals,
   getMealById,
-  getMealsByUserId,
+  listMeals,
+  type MealListPage,
   type MealSummary,
   randomizeDay,
   randomizeSingleMeal,
@@ -21,9 +26,13 @@ import type { Meal, MealWithRelations, RandomizerFilters, } from "@/types";
 import { requireAuth } from "@/lib/session";
 import { UserError } from "@/lib/action-result";
 
-export async function getMealsAction(): Promise<MealWithRelations[]> {
+// Takes the raw URL params and parses them here: actions are callable with
+// any input, and the parser is what keeps the query well-formed.
+export async function listMealsAction(
+  params: MealListParams,
+): Promise<MealListPage> {
   const session = await requireAuth();
-  return getMealsByUserId(session.user.id);
+  return listMeals(session.user.id, parseMealListQuery(params ?? {}));
 }
 
 export async function searchMealsForTypeAction(params: {

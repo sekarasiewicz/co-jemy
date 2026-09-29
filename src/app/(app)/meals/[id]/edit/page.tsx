@@ -1,7 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getIngredientsAction } from "@/app/actions/ingredients";
 import { getMealAction } from "@/app/actions/meals";
 import { getMealTypesAction, getTagsAction } from "@/app/actions/tags";
 import { EditMealForm } from "./edit-meal-form";
@@ -12,11 +11,10 @@ export default async function EditMealPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [meal, mealTypes, tags, ingredients] = await Promise.all([
+  const [meal, mealTypes, tags] = await Promise.all([
     getMealAction(id),
     getMealTypesAction(),
     getTagsAction(),
-    getIngredientsAction(),
   ]);
 
   if (!meal || meal.deletedAt) {
@@ -35,12 +33,7 @@ export default async function EditMealPage({
 
       <h1 className="text-2xl font-bold text-foreground mb-6">Edytuj danie</h1>
 
-      <EditMealForm
-        meal={meal}
-        mealTypes={mealTypes}
-        tags={tags}
-        ingredients={ingredients}
-      />
+      <EditMealForm meal={meal} mealTypes={mealTypes} tags={tags} />
     </div>
   );
 }

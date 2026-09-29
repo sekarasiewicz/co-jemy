@@ -1,15 +1,32 @@
-import { and, eq, ilike, isNull } from "drizzle-orm";
+import {
+  and,
+  eq,
+  exists,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
+  ingredients,
   mealIngredients,
   mealMealTypes,
   meals,
   mealTags,
+  tags,
 } from "@/db/schema";
 import { deleteUnreferencedBlobs } from "@/lib/services/blob-cleanup";
+import {
+  MEAL_FLAGS,
+  MEAL_LIST_PAGE_SIZE,
+  type MealListQuery,
+} from "@/lib/meal-list-query";
 import { filterMeals, pickMealsForDay } from "@/lib/meal-picker";
 import { assertOwned, stripProtected } from "@/lib/services/ownership";
-import { generateId, getRandomItem } from "@/lib/utils";
+import { containsPattern, generateId, getRandomItem } from "@/lib/utils";
 import type {
   Meal,
   MealWithRelations,
@@ -43,6 +60,132 @@ export async function getMealsByUserId(
     mealTypes: meal.mealMealTypes.map((mmt) => mmt.mealType),
     ingredients: meal.mealIngredients,
   }));
+}
+
+function mealListWhere(userId: string, query: MealListQuery): SQL | undefined {
+  const conditions: (SQL | undefined)[] = [
+    eq(meals.userId, userId),
+    isNull(meals.deletedAt),
+  ];
+
+  if (query.q) {
+    const pattern = containsPattern(query.q);
+    conditions.push(
+      or(
+        ilike(meals.name, pattern),
+        ilike(meals.description, pattern),
+        exists(
+          db
+            .select({ one: mealTags.mealId })
+            .from(mealTags)
+            .innerJoin(tags, eq(tags.id, mealTags.tagId))
+            .where(and(eq(mealTags.mealId, meals.id), ilike(tags.name, pattern))),
+        ),
+        exists(
+          db
+            .select({ one: mealIngredients.mealId })
+            .from(mealIngredients)
+            .innerJoin(ingredients, eq(ingredients.id, mealIngredients.ingredientId))
+            .where(
+              and(
+                eq(mealIngredients.mealId, meals.id),
+                ilike(ingredients.name, pattern),
+              ),
+            ),
+        ),
+      ),
+    );
+  }
+
+  if (query.mealTypeIds.length > 0) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: mealMealTypes.mealId })
+          .from(mealMealTypes)
+          .where(
+            and(
+              eq(mealMealTypes.mealId, meals.id),
+              inArray(mealMealTypes.mealTypeId, query.mealTypeIds),
+            ),
+          ),
+      ),
+    );
+  }
+
+  if (query.tagIds.length > 0) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: mealTags.mealId })
+          .from(mealTags)
+          .where(
+            and(
+              eq(mealTags.mealId, meals.id),
+              inArray(mealTags.tagId, query.tagIds),
+            ),
+          ),
+      ),
+    );
+  }
+
+  for (const flag of query.flags) {
+    conditions.push(eq(meals[MEAL_FLAGS[flag].column], true));
+  }
+
+  return and(...conditions);
+}
+
+export interface MealListPage {
+  meals: MealWithRelations[];
+  // Meals matching the filters, and all active meals of the account.
+  total: number;
+  totalAll: number;
+  page: number;
+  pageCount: number;
+}
+
+// One page of the /meals list, filtered and sorted by name in SQL.
+export async function listMeals(
+  userId: string,
+  query: MealListQuery,
+): Promise<MealListPage> {
+  const where = mealListWhere(userId, query);
+  const [total, totalAll] = await Promise.all([
+    db.$count(meals, where),
+    db.$count(meals, and(eq(meals.userId, userId), isNull(meals.deletedAt))),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(total / MEAL_LIST_PAGE_SIZE));
+  const page = Math.min(query.page, pageCount);
+  if (total === 0) {
+    return { meals: [], total, totalAll, page, pageCount };
+  }
+
+  const pageRows = await db.query.meals.findMany({
+    where,
+    with: {
+      mealTags: { with: { tag: true } },
+      mealMealTypes: { with: { mealType: true } },
+      mealIngredients: { with: { ingredient: true } },
+    },
+    orderBy: [sql`lower(${meals.name})`, meals.id],
+    limit: MEAL_LIST_PAGE_SIZE,
+    offset: (page - 1) * MEAL_LIST_PAGE_SIZE,
+  });
+
+  return {
+    meals: pageRows.map((meal) => ({
+      ...meal,
+      tags: meal.mealTags.map((mt) => mt.tag),
+      mealTypes: meal.mealMealTypes.map((mmt) => mmt.mealType),
+      ingredients: meal.mealIngredients,
+    })),
+    total,
+    totalAll,
+    page,
+    pageCount,
+  };
 }
 
 export type MealSummary = {
@@ -84,7 +227,7 @@ export async function searchMealsForType(
         eq(meals.userId, userId),
         isNull(meals.deletedAt),
         eq(mealMealTypes.mealTypeId, mealTypeId),
-        trimmed ? ilike(meals.name, `%${trimmed}%`) : undefined,
+        trimmed ? ilike(meals.name, containsPattern(trimmed)) : undefined,
       ),
     )
     .orderBy(meals.name)

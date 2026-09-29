@@ -219,3 +219,8 @@ export function formatDateShort(date: Date): string {
     month: "short",
   });
 }
+
+// ILIKE pattern that matches `query` anywhere, with its % and _ taken literally.
+export function containsPattern(query: string): string {
+  return `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+}

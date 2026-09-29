@@ -58,9 +58,14 @@ export interface MealDraft {
   isMealPrep: boolean;
   isChildFriendly: boolean;
   mealTypeIds: string[];
-  ingredients: { ingredientId: string; amount: number; unit: string }[];
-  // Ingredients created during extraction — merged into the form's option list.
-  newIngredients: Ingredient[];
+  // Full ingredient rows so the form can label and calculate with them,
+  // including ones created during extraction.
+  ingredients: {
+    ingredientId: string;
+    amount: number;
+    unit: string;
+    ingredient: Ingredient;
+  }[];
 }
 
 async function buildMealDraft(
@@ -92,7 +97,6 @@ async function buildMealDraft(
     }
   }
 
-  const newIngredients: Ingredient[] = [];
   if (neededByName.size > 0) {
     const enrichedByName = new Map<
       string,
@@ -132,7 +136,6 @@ async function buildMealDraft(
     );
     for (const ing of created) {
       ingredientByName.set(ing.name.toLowerCase(), ing);
-      newIngredients.push(ing);
     }
   }
 
@@ -146,6 +149,7 @@ async function buildMealDraft(
       ingredientId: ingredient.id,
       amount: ing.amount,
       unit: ing.unit,
+      ingredient,
     });
     lines.push({ amount: ing.amount, unit: ing.unit, ingredient });
   }
@@ -182,7 +186,6 @@ async function buildMealDraft(
     isChildFriendly: extracted.isChildFriendly,
     mealTypeIds,
     ingredients,
-    newIngredients,
   };
 }
 
@@ -244,7 +247,6 @@ async function buildProductDraft(
   const existing = await getIngredientsByUserId(userId);
   const key = product.name.toLowerCase();
   let ingredient = existing.find((i) => i.name.toLowerCase() === key);
-  const newIngredients: Ingredient[] = [];
 
   if (!ingredient) {
     ingredient = await createIngredient(userId, {
@@ -257,7 +259,6 @@ async function buildProductDraft(
       fatPer100g: product.fatPer100g,
       weightPerUnit: null,
     });
-    newIngredients.push(ingredient);
   }
 
   // One serving of the product. Default to 100 g when the serving is unknown.
@@ -291,8 +292,9 @@ async function buildProductDraft(
     isMealPrep: false,
     isChildFriendly: false,
     mealTypeIds: defaultType ? [defaultType.id] : [],
-    ingredients: [{ ingredientId: ingredient.id, amount, unit: "g" }],
-    newIngredients,
+    ingredients: [
+      { ingredientId: ingredient.id, amount, unit: "g", ingredient },
+    ],
   };
 }
 
