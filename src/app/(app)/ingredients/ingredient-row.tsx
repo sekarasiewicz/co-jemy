@@ -67,7 +67,8 @@ export function IngredientRow({
               <span className="ml-2">T: {ing.fatPer100g}g</span>
             )}
             <span className="ml-1 text-muted-foreground/60">
-              / 100{ing.defaultUnit || "g"}
+              / 100
+              {ing.defaultUnit === "ml" || ing.defaultUnit === "l" ? "ml" : "g"}
             </span>
           </p>
         ) : (
