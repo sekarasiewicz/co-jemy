@@ -56,14 +56,14 @@ export function IngredientRow({
         <p className="font-medium text-foreground truncate">{ing.name}</p>
         {hasNutrition ? (
           <p className="text-sm text-muted-foreground">
-            {ing.caloriesPer100g && <span>{ing.caloriesPer100g} kcal</span>}
-            {ing.proteinPer100g && (
+            {!!ing.caloriesPer100g && <span>{ing.caloriesPer100g} kcal</span>}
+            {!!ing.proteinPer100g && (
               <span className="ml-2">B: {ing.proteinPer100g}g</span>
             )}
-            {ing.carbsPer100g && (
+            {!!ing.carbsPer100g && (
               <span className="ml-2">W: {ing.carbsPer100g}g</span>
             )}
-            {ing.fatPer100g && (
+            {!!ing.fatPer100g && (
               <span className="ml-2">T: {ing.fatPer100g}g</span>
             )}
             <span className="ml-1 text-muted-foreground/60">

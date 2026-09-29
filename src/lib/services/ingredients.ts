@@ -1,4 +1,4 @@
-import { and, count, eq, ilike, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   ingredients,
@@ -44,7 +44,7 @@ export async function searchIngredients(
       eq(ingredients.userId, userId),
       trimmed ? ilike(ingredients.name, containsPattern(trimmed)) : undefined,
     ),
-    orderBy: ingredients.name,
+    orderBy: sql`${ingredients.name} collate "pl-x-icu"`,
     limit: Math.min(Math.max(limit, 1), 50),
   });
 }

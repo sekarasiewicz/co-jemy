@@ -83,7 +83,7 @@ export function DayMealsList({
                       {dm.meal.name}
                     </Link>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                      {dm.meal.calories && (
+                      {!!dm.meal.calories && (
                         <span className="flex items-center gap-1">
                           <Flame className="w-3 h-3" />
                           {dm.meal.calories} kcal

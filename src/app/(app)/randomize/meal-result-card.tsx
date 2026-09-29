@@ -65,7 +65,7 @@ export function MealResultCard({
             <Users className="w-5 h-5" />
             <span>{meal.servings} porcji</span>
           </div>
-          {meal.calories && (
+          {!!meal.calories && (
             <div className="flex items-center gap-2">
               <Flame className="w-5 h-5" />
               <span>{meal.calories} kcal</span>

@@ -169,7 +169,7 @@ export async function listMeals(
       mealMealTypes: { with: { mealType: true } },
       mealIngredients: { with: { ingredient: true } },
     },
-    orderBy: [sql`lower(${meals.name})`, meals.id],
+    orderBy: [sql`${meals.name} collate "pl-x-icu"`, meals.id],
     limit: MEAL_LIST_PAGE_SIZE,
     offset: (page - 1) * MEAL_LIST_PAGE_SIZE,
   });
