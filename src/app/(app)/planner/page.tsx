@@ -8,7 +8,9 @@ export default async function PlannerPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Planer posiłków</h1>
-        <p className="text-muted-foreground">Zaplanuj posiłki na cały tydzień</p>
+        <p className="text-muted-foreground">
+          Zaplanuj posiłki na cały tydzień
+        </p>
       </div>
 
       <WeekPlanner mealTypes={mealTypes} />

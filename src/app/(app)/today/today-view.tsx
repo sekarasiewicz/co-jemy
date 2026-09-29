@@ -3,19 +3,12 @@
 import {
   ArrowLeftRight,
   Calendar,
-  Check,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Copy,
-  Flame,
-  Plus,
   ShoppingCart,
   Shuffle,
-  Trash2,
-  Users,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,46 +19,30 @@ import {
   fillPlannerAction,
   getDailyPlanAction,
   removeMealFromPlanAction,
-  swapDailyPlansAction,
   toggleMealCompletedAction,
 } from "@/app/actions/daily-plans";
 import { randomizeMealAction } from "@/app/actions/meals";
 import { generateShoppingListAction } from "@/app/actions/shopping";
-import {
-  Button,
-  Card,
-  CardContent,
-  DatePicker,
-  Modal,
-} from "@/components/ui";
+import { AddMealModal } from "@/components/meals/add-meal-modal";
+import { Button } from "@/components/ui";
 import { useActiveProfile } from "@/contexts/profile-context";
 import { addDays, parseDayKey, todayKey } from "@/lib/day";
-import { portionsNutrition } from "@/lib/nutrition";
-import { cn, formatAmount, formatMinutes } from "@/lib/utils";
+import {
+  addNutrition,
+  portionsNutrition,
+  ZERO_NUTRITION,
+} from "@/lib/nutrition";
 import type { DailyPlanWithMeals, MealType } from "@/types";
-import { AddMealModal } from "@/components/meals/add-meal-modal";
+import { DayTotalsCard } from "./day-totals-card";
+import { MealTypeCard } from "./meal-type-card";
+import { SwapDayModal } from "./swap-day-modal";
 
-// Distinct accent per meal type so the day cards don't blend together.
-const MEAL_TYPE_ACCENTS: Record<string, { bar: string; text: string }> = {
-  Śniadanie: { bar: "border-t-amber-500", text: "text-amber-600 dark:text-amber-400" },
-  "II śniadanie": { bar: "border-t-lime-500", text: "text-lime-600 dark:text-lime-400" },
-  Obiad: { bar: "border-t-orange-500", text: "text-orange-600 dark:text-orange-400" },
-  Podwieczorek: { bar: "border-t-rose-500", text: "text-rose-600 dark:text-rose-400" },
-  Kolacja: { bar: "border-t-sky-500", text: "text-sky-600 dark:text-sky-400" },
-  Przekąska: { bar: "border-t-violet-500", text: "text-violet-600 dark:text-violet-400" },
-};
-
-const FALLBACK_ACCENTS = [
-  { bar: "border-t-orange-500", text: "text-orange-600 dark:text-orange-400" },
-  { bar: "border-t-lime-500", text: "text-lime-600 dark:text-lime-400" },
-  { bar: "border-t-sky-500", text: "text-sky-600 dark:text-sky-400" },
-  { bar: "border-t-violet-500", text: "text-violet-600 dark:text-violet-400" },
-  { bar: "border-t-amber-500", text: "text-amber-600 dark:text-amber-400" },
-  { bar: "border-t-rose-500", text: "text-rose-600 dark:text-rose-400" },
-];
-
-function getMealTypeAccent(name: string, index: number) {
-  return MEAL_TYPE_ACCENTS[name] ?? FALLBACK_ACCENTS[index % FALLBACK_ACCENTS.length];
+function formatDayLabel(date: Date) {
+  return date.toLocaleDateString("pl-PL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 }
 
 interface TodayViewProps {
@@ -79,7 +56,9 @@ export function TodayView({ mealTypes }: TodayViewProps) {
   const [loading, setLoading] = useState(true);
   const [addingMealType, setAddingMealType] = useState<MealType | null>(null);
   const [generatingList, setGeneratingList] = useState(false);
-  const [randomizingMealType, setRandomizingMealType] = useState<string | null>(null);
+  const [randomizingMealType, setRandomizingMealType] = useState<string | null>(
+    null,
+  );
   const [randomizingAll, setRandomizingAll] = useState(false);
 
   const [selectedDay, setSelectedDay] = useState(todayKey);
@@ -111,7 +90,6 @@ export function TodayView({ mealTypes }: TodayViewProps) {
   const isToday = selectedDay === todayKey();
 
   const [showSwap, setShowSwap] = useState(false);
-  const [swapDate, setSwapDate] = useState("");
   const [dayActionLoading, setDayActionLoading] = useState(false);
 
   const reloadPlan = async () => {
@@ -137,30 +115,6 @@ export function TodayView({ mealTypes }: TodayViewProps) {
     }
   };
 
-  const handleSwap = async () => {
-    if (!activeProfile || !swapDate) return;
-    setDayActionLoading(true);
-    try {
-      await swapDailyPlansAction({
-        profileId: activeProfile.id,
-        dayA: selectedDay,
-        dayB: swapDate,
-      });
-      toast.success("Zamieniono dni");
-      setShowSwap(false);
-      await reloadPlan();
-    } catch {
-      toast.error("Nie udało się zamienić dni");
-    } finally {
-      setDayActionLoading(false);
-    }
-  };
-
-  const openSwap = () => {
-    setSwapDate(addDays(selectedDay, 1));
-    setShowSwap(true);
-  };
-
   const handleAddMeal = async (mealId: string) => {
     if (!addingMealType || !activeProfile) return;
 
@@ -172,7 +126,10 @@ export function TodayView({ mealTypes }: TodayViewProps) {
         mealTypeId: addingMealType.id,
       });
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
+      const updatedPlan = await getDailyPlanAction(
+        activeProfile.id,
+        selectedDay,
+      );
       setPlan(updatedPlan || null);
       setAddingMealType(null);
       toast.success("Dodano do planu");
@@ -186,7 +143,10 @@ export function TodayView({ mealTypes }: TodayViewProps) {
 
     try {
       await removeMealFromPlanAction(planMealId);
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
+      const updatedPlan = await getDailyPlanAction(
+        activeProfile.id,
+        selectedDay,
+      );
       setPlan(updatedPlan || null);
       toast.success("Usunięto z planu");
     } catch {
@@ -196,7 +156,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
 
   const handleToggleCompleted = async (
     planMealId: string,
-    completed: boolean
+    completed: boolean,
   ) => {
     if (!activeProfile) return;
 
@@ -207,10 +167,10 @@ export function TodayView({ mealTypes }: TodayViewProps) {
           ? {
               ...prev,
               meals: prev.meals.map((pm) =>
-                pm.id === planMealId ? { ...pm, completed: value } : pm
+                pm.id === planMealId ? { ...pm, completed: value } : pm,
               ),
             }
-          : prev
+          : prev,
       );
 
     setCompleted(!completed);
@@ -262,7 +222,10 @@ export function TodayView({ mealTypes }: TodayViewProps) {
         mealTypeId: mealType.id,
       });
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
+      const updatedPlan = await getDailyPlanAction(
+        activeProfile.id,
+        selectedDay,
+      );
       setPlan(updatedPlan || null);
       toast.success(`Wylosowano: ${meal.name}`);
     } catch {
@@ -291,11 +254,16 @@ export function TodayView({ mealTypes }: TodayViewProps) {
             })
           : { mealsAddedCount: 0 };
 
-      const updatedPlan = await getDailyPlanAction(activeProfile.id, selectedDay);
+      const updatedPlan = await getDailyPlanAction(
+        activeProfile.id,
+        selectedDay,
+      );
       setPlan(updatedPlan || null);
 
       if (count > 0) {
-        toast.success(`Wylosowano ${count} ${count === 1 ? "danie" : count < 5 ? "dania" : "dań"}`);
+        toast.success(
+          `Wylosowano ${count} ${count === 1 ? "danie" : count < 5 ? "dania" : "dań"}`,
+        );
       } else {
         toast.info("Wszystkie typy posiłków są już wypełnione");
       }
@@ -306,19 +274,11 @@ export function TodayView({ mealTypes }: TodayViewProps) {
     }
   };
 
-  // Calculate totals for the day
-  const totals = plan?.meals.reduce(
-    (acc, pm) => {
-      const n = portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1);
-      return {
-        calories: acc.calories + n.calories,
-        protein: acc.protein + n.protein,
-        carbs: acc.carbs + n.carbs,
-        fat: acc.fat + n.fat,
-      };
-    },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  ) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  const totals = (plan?.meals ?? [])
+    .map((pm) =>
+      portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1),
+    )
+    .reduce(addNutrition, ZERO_NUTRITION);
 
   const completedCount = plan?.meals.filter((pm) => pm.completed).length || 0;
   const totalMeals = plan?.meals.length || 0;
@@ -326,18 +286,12 @@ export function TodayView({ mealTypes }: TodayViewProps) {
   if (!activeProfile) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Wybierz profil, aby zobaczyć plan dnia</p>
+        <p className="text-muted-foreground">
+          Wybierz profil, aby zobaczyć plan dnia
+        </p>
       </div>
     );
   }
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("pl-PL", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    });
-  };
 
   return (
     <div className="w-full">
@@ -352,7 +306,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <p className="text-muted-foreground capitalize text-center min-w-0 flex-1 sm:flex-none sm:min-w-[12rem]">
-            {formatDate(selectedDate)}
+            {formatDayLabel(selectedDate)}
           </p>
           <button
             type="button"
@@ -373,7 +327,8 @@ export function TodayView({ mealTypes }: TodayViewProps) {
           </button>
         )}
         <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-          Cześć, <span className="text-gradient-brand">{activeProfile.name}</span>!
+          Cześć,{" "}
+          <span className="text-gradient-brand">{activeProfile.name}</span>!
         </h1>
         {totalMeals > 0 && (
           <p className="text-muted-foreground mt-2">
@@ -382,43 +337,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
         )}
       </div>
 
-      {/* Quick stats */}
-      {totals.calories > 0 && (
-        <Card className="mb-6 max-w-3xl mx-auto">
-          <CardContent className="py-4">
-            <div className="grid grid-cols-4 gap-3 text-center">
-              <div className="rounded-xl bg-primary/10 py-2">
-                <p className="text-2xl font-extrabold text-primary">
-                  {Math.round(totals.calories)}
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">kcal</p>
-              </div>
-              <div className="rounded-xl bg-fit/15 py-2">
-                <p className="text-2xl font-extrabold text-lime-700 dark:text-lime-400">
-                  {Math.round(totals.protein)}g
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">
-                  białko
-                </p>
-              </div>
-              <div className="rounded-xl bg-amber-500/12 py-2">
-                <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
-                  {Math.round(totals.carbs)}g
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">węgle</p>
-              </div>
-              <div className="rounded-xl bg-sky-500/12 py-2">
-                <p className="text-2xl font-extrabold text-sky-600 dark:text-sky-400">
-                  {Math.round(totals.fat)}g
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">
-                  tłuszcze
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {totals.calories > 0 && <DayTotalsCard totals={totals} />}
 
       {/* Randomize full day */}
       {!loading && (
@@ -450,7 +369,7 @@ export function TodayView({ mealTypes }: TodayViewProps) {
           <Button
             variant="outline"
             className="flex-1"
-            onClick={openSwap}
+            onClick={() => setShowSwap(true)}
             disabled={dayActionLoading}
           >
             <ArrowLeftRight className="w-4 h-4 mr-2" />
@@ -465,165 +384,26 @@ export function TodayView({ mealTypes }: TodayViewProps) {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 items-start">
-          {mealTypes.map((mealType, index) => {
-            const planMeals =
-              plan?.meals.filter((pm) => pm.mealType.id === mealType.id) || [];
-            const accent = getMealTypeAccent(mealType.name, index);
-
-            return (
-              <Card key={mealType.id} className={cn("border-t-4", accent.bar)}>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className={cn("font-semibold", accent.text)}>
-                      {mealType.name}
-                    </h2>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRandomizeMeal(mealType)}
-                        disabled={randomizingMealType === mealType.id || randomizingAll}
-                      >
-                        <Shuffle className={cn("w-4 h-4", randomizingMealType === mealType.id && "animate-spin")} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setAddingMealType(mealType)}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {planMeals.length === 0 ? (
-                    <button type="button"
-                      onClick={() => setAddingMealType(mealType)}
-                      className="w-full py-6 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                    >
-                      <Plus className="w-5 h-5 mx-auto mb-1" />
-                      <span className="text-sm">Dodaj {mealType.name.toLowerCase()}</span>
-                    </button>
-                  ) : (
-                    <div className="space-y-2">
-                      {planMeals.map((pm) => {
-                        const totalTime =
-                          (pm.meal.prepTimeMinutes || 0) +
-                          (pm.meal.cookTimeMinutes || 0);
-
-                        return (
-                          <div
-                            key={pm.id}
-                            className={cn(
-                              "flex flex-wrap items-center gap-3 p-3 rounded-xl border transition-colors",
-                              pm.completed
-                                ? "bg-fit/10 border-fit/30"
-                                : "bg-card border-border"
-                            )}
-                          >
-                            <button type="button"
-                              onClick={() =>
-                                handleToggleCompleted(pm.id, pm.completed)
-                              }
-                              className={cn(
-                                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
-                                pm.completed
-                                  ? "bg-fit border-fit text-white"
-                                  : "border-muted-foreground hover:border-fit"
-                              )}
-                            >
-                              {pm.completed && <Check className="w-4 h-4" />}
-                            </button>
-
-                            {pm.meal.imageUrl && (
-                              <Link
-                                href={`/meals/${pm.meal.id}`}
-                                className="flex-shrink-0"
-                              >
-                                <Image
-                                  src={pm.meal.imageUrl}
-                                  alt={pm.meal.name}
-                                  width={48}
-                                  height={48}
-                                  className="h-12 w-12 rounded-lg border border-border object-cover"
-                                />
-                              </Link>
-                            )}
-
-                            <Link
-                              href={`/meals/${pm.meal.id}`}
-                              className="flex-1 min-w-0"
-                            >
-                              <p
-                                className={cn(
-                                  "font-medium leading-snug break-words",
-                                  pm.completed
-                                    ? "text-lime-700 dark:text-lime-400 line-through"
-                                    : "text-foreground"
-                                )}
-                              >
-                                {pm.meal.name}
-                              </p>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                                {(() => {
-                                  const n = portionsNutrition(pm.meal, pm.meal.mealIngredients, pm.servings || 1);
-                                  return n.calories > 0 ? (
-                                    <span className="flex items-center gap-1">
-                                      <Flame className="w-3 h-3" />
-                                      {Math.round(n.calories)} kcal
-                                      {(n.protein > 0 || n.carbs > 0 || n.fat > 0) && (
-                                        <span className="ml-1">
-                                          ·{n.protein > 0 ? ` B: ${Math.round(n.protein)}g` : ""}
-                                          {n.carbs > 0 ? ` W: ${Math.round(n.carbs)}g` : ""}
-                                          {n.fat > 0 ? ` T: ${Math.round(n.fat)}g` : ""}
-                                        </span>
-                                      )}
-                                    </span>
-                                  ) : null;
-                                })()}
-                                {totalTime > 0 && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {formatMinutes(totalTime)}
-                                  </span>
-                                )}
-                                {pm.servings && pm.servings > 1 && (
-                                  <span className="flex items-center gap-1">
-                                    <Users className="w-3 h-3" />
-                                    {pm.servings} porcji
-                                  </span>
-                                )}
-                              </div>
-                            </Link>
-
-                            <button type="button"
-                              onClick={() => handleRemoveMeal(pm.id)}
-                              className="text-muted-foreground hover:text-destructive transition-colors self-start mt-0.5"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-
-                            {/* Ingredients list */}
-                            {pm.meal.mealIngredients.length > 0 && (
-                              <div className="w-full border-t border-border/50 pt-2">
-                                <ul className="text-xs text-muted-foreground space-y-0.5">
-                                  {pm.meal.mealIngredients.map((mi) => (
-                                    <li key={mi.id}>
-                                      {formatAmount(mi.amount)} {mi.unit} {mi.ingredient.name}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+          {mealTypes.map((mealType, index) => (
+            <MealTypeCard
+              key={mealType.id}
+              mealType={mealType}
+              index={index}
+              planMeals={
+                plan?.meals.filter((pm) => pm.mealType.id === mealType.id) ?? []
+              }
+              randomizing={randomizingMealType === mealType.id}
+              randomizeDisabled={
+                randomizingMealType === mealType.id || randomizingAll
+              }
+              onRandomize={() => handleRandomizeMeal(mealType)}
+              onAdd={() => setAddingMealType(mealType)}
+              onToggleCompleted={(pm) =>
+                handleToggleCompleted(pm.id, pm.completed)
+              }
+              onRemove={(pm) => handleRemoveMeal(pm.id)}
+            />
+          ))}
         </div>
       )}
 
@@ -656,40 +436,15 @@ export function TodayView({ mealTypes }: TodayViewProps) {
         onSelect={handleAddMeal}
       />
 
-      {/* Swap day Modal */}
-      <Modal
-        isOpen={showSwap}
-        onClose={() => !dayActionLoading && setShowSwap(false)}
-        title="Zamień dzień"
-      >
-        <p className="text-muted-foreground mb-4">
-          Plan z <strong className="text-foreground">{formatDate(selectedDate)}</strong>{" "}
-          zostanie zamieniony miejscami z wybranym dniem.
-        </p>
-        <DatePicker
-          label="Zamień z dniem"
-          value={swapDate}
-          onChange={setSwapDate}
-          className="mb-6"
+      {showSwap && (
+        <SwapDayModal
+          profileId={activeProfile.id}
+          day={selectedDay}
+          dayLabel={formatDayLabel(selectedDate)}
+          onSwapped={reloadPlan}
+          onClose={() => setShowSwap(false)}
         />
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setShowSwap(false)}
-            disabled={dayActionLoading}
-            className="flex-1"
-          >
-            Anuluj
-          </Button>
-          <Button
-            onClick={handleSwap}
-            disabled={dayActionLoading || !swapDate}
-            className="flex-1"
-          >
-            {dayActionLoading ? "Zamiana..." : "Zamień"}
-          </Button>
-        </div>
-      </Modal>
+      )}
     </div>
   );
 }

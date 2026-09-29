@@ -1,142 +1,40 @@
 "use client";
 
-import Image from "next/image";
-import {
-  AlertTriangle,
-  GitMerge,
-  ImageIcon,
-  Pencil,
-  Plus,
-  Search,
-  Sparkles,
-  Trash2,
-  UtensilsCrossed,
-  X,
-} from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { GitMerge, Plus, Search, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  createIngredientAction,
   deleteIngredientAction,
-  enrichByNameAction,
   enrichIngredientAction,
-  generateIngredientImageAction,
-  mergeIngredientsAction,
-  updateIngredientAction,
 } from "@/app/actions/ingredients";
-import { createMealFromIngredientAction } from "@/app/actions/meal-ai";
-import {
-  Button,
-  Card,
-  CardContent,
-  ImageUpload,
-  Input,
-  Modal,
-  Select,
-} from "@/components/ui";
-import type { Ingredient } from "@/types";
-import { INGREDIENT_CATEGORIES, UNITS } from "@/types";
+import { Button, Card, CardContent, Input } from "@/components/ui";
 import { unwrap } from "@/lib/action-result";
+import { groupByCategory } from "@/lib/utils";
+import type { Ingredient } from "@/types";
+import { findDuplicateGroups } from "./ingredient-duplicates";
+import { IngredientFormModal } from "./ingredient-form-modal";
+import { IngredientRow } from "./ingredient-row";
+import { MealFromIngredientModal } from "./meal-from-ingredient-modal";
+import { MergeDuplicatesModal } from "./merge-duplicates-modal";
+import { useBulkEnrich } from "./use-bulk-enrich";
 
 interface IngredientsManagerProps {
   initialIngredients: Ingredient[];
 }
 
-interface IngredientFormData {
-  name: string;
-  category: string;
-  image: string;
-  defaultUnit: string;
-  caloriesPer100g: string;
-  proteinPer100g: string;
-  carbsPer100g: string;
-  fatPer100g: string;
-  weightPerUnit: string;
-}
+// Which modal is open. The modals render only while open, so each opening
+// starts with fresh state.
+type OpenModal =
+  | { kind: "form"; ingredient: Ingredient | null }
+  | { kind: "merge" }
+  | { kind: "meal"; ingredient: Ingredient }
+  | null;
 
-interface DuplicateGroup {
-  normalizedName: string;
-  ingredients: Ingredient[];
-  selectedTargetId: string;
-}
-
-const emptyForm: IngredientFormData = {
-  name: "",
-  category: "Inne",
-  image: "",
-  defaultUnit: "g",
-  caloriesPer100g: "",
-  proteinPer100g: "",
-  carbsPer100g: "",
-  fatPer100g: "",
-  weightPerUnit: "",
-};
-
-function normalizeIngredientName(name: string): string {
-  let normalized = name.toLowerCase().trim();
-  // Strip parenthetical weight/volume info like (5g), (ok. 200g), (15ml)
-  normalized = normalized
-    .replace(/\s*\((?:ok\.\s*)?\d+\s*(?:g|ml)\)\s*/gi, " ")
-    .trim();
-  // Strip leading unit words that may have leaked into the name
-  const unitWords = [
-    "kostki",
-    "kostek",
-    "kostka",
-    "garści",
-    "garść",
-    "szczypty",
-    "szczypt",
-    "szczypta",
-    "listki",
-    "listków",
-    "listek",
-    "gałązki",
-    "gałązek",
-    "gałązka",
-    "łodygi",
-    "łodyg",
-    "łodyga",
-    "puszki",
-    "puszek",
-    "puszka",
-    "słoiki",
-    "słoików",
-    "słoik",
-    "łyżki",
-    "łyżek",
-    "łyżka",
-    "łyżeczki",
-    "łyżeczek",
-    "łyżeczka",
-    "szklanki",
-    "szklankę",
-    "szklanka",
-    "ząbki",
-    "ząbków",
-    "ząbek",
-    "plastry",
-    "plasterki",
-    "plasterków",
-    "plaster",
-    "kromki",
-    "kromek",
-    "kromka",
-    "pęczki",
-    "pęczków",
-    "pęczek",
-    "opakowania",
-    "opakowań",
-    "opakowanie",
-  ];
-  for (const word of unitWords) {
-    if (normalized.startsWith(`${word} `)) {
-      normalized = normalized.slice(word.length).trim();
-      break;
-    }
-  }
-  return normalized;
-}
+const isIncomplete = (ing: Ingredient) =>
+  ing.caloriesPer100g == null &&
+  ing.proteinPer100g == null &&
+  ing.carbsPer100g == null &&
+  ing.fatPer100g == null;
 
 export function IngredientsManager({
   initialIngredients,
@@ -144,334 +42,67 @@ export function IngredientsManager({
   const [ingredients, setIngredients] =
     useState<Ingredient[]>(initialIngredients);
   const [search, setSearch] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<IngredientFormData>(emptyForm);
-  const [loading, setLoading] = useState(false);
-  const [merging, setMerging] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [modal, setModal] = useState<OpenModal>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
-  const [convertTarget, setConvertTarget] = useState<Ingredient | null>(null);
-  const [convertName, setConvertName] = useState("");
-  const [converting, setConverting] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
-  const [bulkEnriching, setBulkEnriching] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState({ processed: 0, total: 0 });
-  const abortRef = useRef<AbortController | null>(null);
-
-  const isIncomplete = useCallback((ing: Ingredient) => {
-    return (
-      ing.caloriesPer100g == null &&
-      ing.proteinPer100g == null &&
-      ing.carbsPer100g == null &&
-      ing.fatPer100g == null
-    );
-  }, []);
+  const bulkEnrich = useBulkEnrich(setIngredients);
 
   const incompleteCount = useMemo(
     () => ingredients.filter(isIncomplete).length,
-    [ingredients, isIncomplete],
+    [ingredients],
+  );
+  const duplicateGroups = useMemo(
+    () => findDuplicateGroups(ingredients),
+    [ingredients],
   );
 
-  const duplicateGroups = useMemo(() => {
-    const groups = new Map<string, Ingredient[]>();
-    for (const ing of ingredients) {
-      const key = normalizeIngredientName(ing.name);
-      const group = groups.get(key);
-      if (group) {
-        group.push(ing);
-      } else {
-        groups.set(key, [ing]);
-      }
-    }
-    const result: DuplicateGroup[] = [];
-    for (const [normalizedName, ings] of groups) {
-      if (ings.length >= 2) {
-        // Default target: shortest name (most likely the clean one)
-        const sorted = [...ings].sort((a, b) => a.name.length - b.name.length);
-        result.push({
-          normalizedName,
-          ingredients: ings,
-          selectedTargetId: sorted[0].id,
-        });
-      }
-    }
-    return result.sort((a, b) =>
-      a.normalizedName.localeCompare(b.normalizedName, "pl"),
-    );
-  }, [ingredients]);
-
-  const [mergeSelections, setMergeSelections] = useState<
-    Record<string, string>
-  >({});
-
-  const getTargetId = (group: DuplicateGroup) =>
-    mergeSelections[group.normalizedName] || group.selectedTargetId;
-
+  const searchLower = search.toLowerCase();
   const filteredIngredients = ingredients.filter(
     (ing) =>
-      ing.name.toLowerCase().includes(search.toLowerCase()) ||
-      ing.category.toLowerCase().includes(search.toLowerCase()),
+      ing.name.toLowerCase().includes(searchLower) ||
+      ing.category.toLowerCase().includes(searchLower),
+  );
+  const categories = [...groupByCategory(filteredIngredients)].sort(
+    ([a], [b]) => a.localeCompare(b, "pl"),
   );
 
-  const groupedIngredients = filteredIngredients.reduce(
-    (acc, ing) => {
-      if (!acc[ing.category]) {
-        acc[ing.category] = [];
-      }
-      acc[ing.category].push(ing);
-      return acc;
-    },
-    {} as Record<string, Ingredient[]>,
-  );
-
-  const openAddModal = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (ingredient: Ingredient) => {
-    setEditingId(ingredient.id);
-    setForm({
-      name: ingredient.name,
-      category: ingredient.category,
-      image: ingredient.image || "",
-      defaultUnit: ingredient.defaultUnit || "g",
-      caloriesPer100g: ingredient.caloriesPer100g?.toString() || "",
-      proteinPer100g: ingredient.proteinPer100g?.toString() || "",
-      carbsPer100g: ingredient.carbsPer100g?.toString() || "",
-      fatPer100g: ingredient.fatPer100g?.toString() || "",
-      weightPerUnit: ingredient.weightPerUnit?.toString() || "",
-    });
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingId(null);
-    setForm(emptyForm);
-  };
-
-  const openMergeModal = () => {
-    setMergeSelections({});
-    setIsMergeModalOpen(true);
-  };
-
-  const openConvert = (ing: Ingredient) => {
-    setConvertTarget(ing);
-    setConvertName(ing.name);
-  };
-
-  const confirmConvert = async () => {
-    if (!convertTarget) return;
-    setConverting(true);
-    try {
-      const meal = unwrap(await createMealFromIngredientAction(
-        convertTarget.id,
-        convertName.trim() || undefined,
-      ));
-      toast.success(`Utworzono danie: ${meal.name}`);
-      setConvertTarget(null);
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Nie udało się utworzyć dania",
-      );
-    } finally {
-      setConverting(false);
-    }
-  };
-
-  const handleGenerateImage = async () => {
-    if (!form.name.trim()) {
-      toast.error("Najpierw podaj nazwę składnika");
-      return;
-    }
-    setGeneratingImage(true);
-    try {
-      const { url } = unwrap(await generateIngredientImageAction(form.name.trim()));
-      setForm((prev) => ({ ...prev, image: url }));
-      toast.success("Zdjęcie wygenerowane");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Nie udało się wygenerować zdjęcia");
-    } finally {
-      setGeneratingImage(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-
-    setLoading(true);
-    try {
-      const data = {
-        name: form.name.trim(),
-        category: form.category,
-        image: form.image || null,
-        defaultUnit: form.defaultUnit,
-        caloriesPer100g: form.caloriesPer100g
-          ? Number(form.caloriesPer100g)
-          : null,
-        proteinPer100g: form.proteinPer100g
-          ? Number(form.proteinPer100g)
-          : null,
-        carbsPer100g: form.carbsPer100g ? Number(form.carbsPer100g) : null,
-        fatPer100g: form.fatPer100g ? Number(form.fatPer100g) : null,
-        weightPerUnit: form.weightPerUnit ? Number(form.weightPerUnit) : null,
-      };
-
-      if (editingId) {
-        const updated = await updateIngredientAction(editingId, data);
-        setIngredients(
-          ingredients.map((ing) => (ing.id === editingId ? updated : ing)),
-        );
-        toast.success("Składnik zaktualizowany");
-      } else {
-        const created = await createIngredientAction(data);
-        setIngredients([...ingredients, created]);
-        toast.success("Składnik dodany");
-      }
-      closeModal();
-    } catch {
-      toast.error("Wystąpił błąd");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const replaceIngredient = (updated: Ingredient) =>
+    setIngredients((prev) =>
+      prev.some((i) => i.id === updated.id)
+        ? prev.map((i) => (i.id === updated.id ? updated : i))
+        : [...prev, updated],
+    );
 
   const handleDelete = async (id: string) => {
-    setDeleting(id);
+    setDeletingId(id);
     try {
       unwrap(await deleteIngredientAction(id));
-      setIngredients(ingredients.filter((ing) => ing.id !== id));
+      setIngredients((prev) => prev.filter((ing) => ing.id !== id));
       toast.success("Składnik usunięty");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Nie można usunąć składnika");
+      toast.error(
+        e instanceof Error ? e.message : "Nie można usunąć składnika",
+      );
     } finally {
-      setDeleting(null);
+      setDeletingId(null);
     }
   };
 
-  const handleEnrichSingle = async (ing: Ingredient) => {
+  const handleEnrich = async (ing: Ingredient) => {
     setEnrichingId(ing.id);
     try {
-      const updated = unwrap(await enrichIngredientAction(ing.id));
-      setIngredients((prev) =>
-        prev.map((i) => (i.id === ing.id ? updated : i)),
-      );
+      replaceIngredient(unwrap(await enrichIngredientAction(ing.id)));
       toast.success(`Uzupełniono dane: ${ing.name}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Nie udało się uzupełnić danych");
+      toast.error(
+        e instanceof Error ? e.message : "Nie udało się uzupełnić danych",
+      );
     } finally {
       setEnrichingId(null);
     }
   };
 
-  const handleBulkEnrich = async () => {
-    setBulkEnriching(true);
-    setBulkProgress({ processed: 0, total: 0 });
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const response = await fetch("/api/ingredients/enrich", {
-        method: "POST",
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error("Błąd serwera");
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("Brak strumienia");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        let event = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            event = line.slice(7);
-          } else if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6));
-            if (event === "start") {
-              setBulkProgress({ processed: 0, total: data.total });
-            } else if (event === "progress") {
-              setBulkProgress({
-                processed: data.processed,
-                total: data.total,
-              });
-            } else if (event === "complete") {
-              setBulkProgress({
-                processed: data.processed,
-                total: data.total,
-              });
-            }
-          }
-        }
-      }
-
-      // Reload ingredients from server to get updated data
-      const { getIngredientsAction } = await import(
-        "@/app/actions/ingredients"
-      );
-      const refreshed = await getIngredientsAction();
-      setIngredients(refreshed);
-      toast.success("Uzupełniono dane składników");
-    } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        toast.error("Wystąpił błąd podczas uzupełniania");
-      }
-    } finally {
-      setBulkEnriching(false);
-      abortRef.current = null;
-    }
-  };
-
-  const handleMerge = async () => {
-    setMerging(true);
-    let merged = 0;
-    try {
-      for (const group of duplicateGroups) {
-        const targetId = getTargetId(group);
-        const sourceIds = group.ingredients
-          .filter((ing) => ing.id !== targetId)
-          .map((ing) => ing.id);
-        if (sourceIds.length === 0) continue;
-        await mergeIngredientsAction(sourceIds, targetId);
-        merged++;
-      }
-      // Remove merged-away ingredients from local state
-      const allSourceIds = new Set<string>();
-      for (const group of duplicateGroups) {
-        const targetId = getTargetId(group);
-        for (const ing of group.ingredients) {
-          if (ing.id !== targetId) {
-            allSourceIds.add(ing.id);
-          }
-        }
-      }
-      setIngredients(ingredients.filter((ing) => !allSourceIds.has(ing.id)));
-      setIsMergeModalOpen(false);
-      toast.success(`Scalono ${merged} grup duplikatów`);
-    } catch {
-      toast.error("Wystąpił błąd podczas scalania");
-    } finally {
-      setMerging(false);
-    }
-  };
+  const { progress } = bulkEnrich;
 
   return (
     <>
@@ -482,11 +113,12 @@ export function IngredientsManager({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Szukaj składników..."
+            aria-label="Szukaj składników"
             className="pl-10"
           />
         </div>
         {duplicateGroups.length > 0 && (
-          <Button variant="outline" onClick={openMergeModal}>
+          <Button variant="outline" onClick={() => setModal({ kind: "merge" })}>
             <GitMerge className="w-4 h-4 mr-2" />
             Scal duplikaty ({duplicateGroups.length})
           </Button>
@@ -494,20 +126,20 @@ export function IngredientsManager({
         {incompleteCount > 0 && (
           <Button
             variant="outline"
-            onClick={handleBulkEnrich}
-            disabled={bulkEnriching}
+            onClick={bulkEnrich.start}
+            disabled={bulkEnrich.running}
           >
             <Sparkles className="w-4 h-4 mr-2" />
             Uzupełnij AI ({incompleteCount})
           </Button>
         )}
-        <Button onClick={openAddModal}>
+        <Button onClick={() => setModal({ kind: "form", ingredient: null })}>
           <Plus className="w-4 h-4 mr-2" />
           Dodaj składnik
         </Button>
       </div>
 
-      {bulkEnriching && (
+      {bulkEnrich.running && (
         <div className="mb-6 space-y-2">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
@@ -515,7 +147,7 @@ export function IngredientsManager({
               Uzupełnianie danych AI...
             </span>
             <span>
-              {bulkProgress.processed} / {bulkProgress.total}
+              {progress.processed} / {progress.total}
             </span>
           </div>
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
@@ -523,8 +155,8 @@ export function IngredientsManager({
               className="bg-orange-500 h-2 rounded-full transition-all duration-300"
               style={{
                 width:
-                  bulkProgress.total > 0
-                    ? `${(bulkProgress.processed / bulkProgress.total) * 100}%`
+                  progress.total > 0
+                    ? `${(progress.processed / progress.total) * 100}%`
                     : "0%",
               }}
             />
@@ -544,420 +176,65 @@ export function IngredientsManager({
         </Card>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedIngredients)
-            .sort(([a], [b]) => a.localeCompare(b, "pl"))
-            .map(([category, items]) => (
-              <Card key={category}>
-                <CardContent className="pt-4">
-                  <h2 className="font-semibold text-foreground mb-3">
-                    {category}{" "}
-                    <span className="text-muted-foreground font-normal">
-                      ({items.length})
-                    </span>
-                  </h2>
-                  <div className="divide-y divide-border">
-                    {items
-                      .sort((a, b) => a.name.localeCompare(b.name, "pl"))
-                      .map((ing) => (
-                        <div
-                          key={ing.id}
-                          className="flex items-center gap-4 py-3"
-                        >
-                          {ing.image ? (
-                            <Image
-                              src={ing.image}
-                              alt={ing.name}
-                              width={44}
-                              height={44}
-                              className="h-11 w-11 flex-shrink-0 rounded-lg object-cover border border-border"
-                            />
-                          ) : (
-                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground/50">
-                              <ImageIcon className="h-5 w-5" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground truncate">
-                              {ing.name}
-                            </p>
-                            {ing.caloriesPer100g ||
-                            ing.proteinPer100g ||
-                            ing.carbsPer100g ||
-                            ing.fatPer100g ? (
-                              <p className="text-sm text-muted-foreground">
-                                {ing.caloriesPer100g && (
-                                  <span>{ing.caloriesPer100g} kcal</span>
-                                )}
-                                {ing.proteinPer100g && (
-                                  <span className="ml-2">
-                                    B: {ing.proteinPer100g}g
-                                  </span>
-                                )}
-                                {ing.carbsPer100g && (
-                                  <span className="ml-2">
-                                    W: {ing.carbsPer100g}g
-                                  </span>
-                                )}
-                                {ing.fatPer100g && (
-                                  <span className="ml-2">
-                                    T: {ing.fatPer100g}g
-                                  </span>
-                                )}
-                                <span className="ml-1 text-muted-foreground/60">
-                                  / 100{ing.defaultUnit || "g"}
-                                </span>
-                              </p>
-                            ) : (
-                              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
-                                <AlertTriangle className="w-3 h-3" />
-                                Brak wartości odżywczych
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEnrichSingle(ing)}
-                              loading={enrichingId === ing.id}
-                              title="Uzupełnij dane AI"
-                              className="text-orange-600 hover:text-orange-700"
-                            >
-                              <Sparkles className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openConvert(ing)}
-                              title="Zrób z tego danie"
-                              className="text-sky-600 hover:text-sky-700"
-                            >
-                              <UtensilsCrossed className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditModal(ing)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(ing.id)}
-                              loading={deleting === ing.id}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {categories.map(([category, items]) => (
+            <Card key={category}>
+              <CardContent className="pt-4">
+                <h2 className="font-semibold text-foreground mb-3">
+                  {category}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({items.length})
+                  </span>
+                </h2>
+                <div className="divide-y divide-border">
+                  {[...items]
+                    .sort((a, b) => a.name.localeCompare(b.name, "pl"))
+                    .map((ing) => (
+                      <IngredientRow
+                        key={ing.id}
+                        ingredient={ing}
+                        enriching={enrichingId === ing.id}
+                        deleting={deletingId === ing.id}
+                        onEnrich={() => handleEnrich(ing)}
+                        onMakeMeal={() =>
+                          setModal({ kind: "meal", ingredient: ing })
+                        }
+                        onEdit={() =>
+                          setModal({ kind: "form", ingredient: ing })
+                        }
+                        onDelete={() => handleDelete(ing.id)}
+                      />
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      <Modal isOpen={isModalOpen} onClose={closeModal}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              {editingId ? "Edytuj składnik" : "Nowy składnik"}
-            </h2>
-            <div className="flex items-center gap-2">
-              {form.name.trim() && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    setLoading(true);
-                    try {
-                      const enriched = unwrap(await enrichByNameAction(
-                        form.name.trim(),
-                        form.defaultUnit,
-                      ));
-                      setForm({
-                        ...form,
-                        caloriesPer100g:
-                          enriched.caloriesPer100g?.toString() || "",
-                        proteinPer100g:
-                          enriched.proteinPer100g?.toString() || "",
-                        carbsPer100g: enriched.carbsPer100g?.toString() || "",
-                        fatPer100g: enriched.fatPer100g?.toString() || "",
-                        weightPerUnit: enriched.weightPerUnit?.toString() || "",
-                      });
-                      toast.success("Uzupełniono dane AI");
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : "Nie udało się uzupełnić danych");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  loading={loading}
-                  title="Uzupełnij dane AI"
-                  className="text-orange-600 hover:text-orange-700"
-                >
-                  <Sparkles className="w-4 h-4" />
-                </Button>
-              )}
-              <button
-                type="button"
-                onClick={closeModal}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <Input
-            label="Nazwa"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="np. Pierś kurczaka"
-            required
-          />
-
-          <div className="space-y-2">
-            <ImageUpload
-              label="Zdjęcie"
-              value={form.image}
-              onChange={(url) => setForm({ ...form, image: url })}
-              folder="ingredients"
-              aspect="square"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateImage}
-              loading={generatingImage}
-              disabled={!form.name.trim()}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Wygeneruj zdjęcie z AI
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 items-end">
-            <Select
-              label="Kategoria"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              options={INGREDIENT_CATEGORIES.map((c) => ({
-                value: c,
-                label: c,
-              }))}
-            />
-            <Select
-              label="Jednostka domyślna"
-              value={form.defaultUnit}
-              onChange={(e) =>
-                setForm({ ...form, defaultUnit: e.target.value })
-              }
-              options={UNITS.map((u) => ({ value: u, label: u }))}
-            />
-            <Input
-              label="Waga 1 szt (g)"
-              type="number"
-              value={form.weightPerUnit}
-              onChange={(e) =>
-                setForm({ ...form, weightPerUnit: e.target.value })
-              }
-              min={0}
-              step="any"
-              placeholder="np. 60"
-            />
-          </div>
-
-          <div className="border-t border-border pt-4">
-            <p className="text-sm font-medium text-foreground mb-3">
-              Wartości odżywcze (na 100g)
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Kalorie (kcal)"
-                type="number"
-                value={form.caloriesPer100g}
-                onChange={(e) =>
-                  setForm({ ...form, caloriesPer100g: e.target.value })
-                }
-                min={0}
-              />
-              <Input
-                label="Białko (g)"
-                type="number"
-                value={form.proteinPer100g}
-                onChange={(e) =>
-                  setForm({ ...form, proteinPer100g: e.target.value })
-                }
-                min={0}
-                step={0.1}
-              />
-              <Input
-                label="Węglowodany (g)"
-                type="number"
-                value={form.carbsPer100g}
-                onChange={(e) =>
-                  setForm({ ...form, carbsPer100g: e.target.value })
-                }
-                min={0}
-                step={0.1}
-              />
-              <Input
-                label="Tłuszcze (g)"
-                type="number"
-                value={form.fatPer100g}
-                onChange={(e) =>
-                  setForm({ ...form, fatPer100g: e.target.value })
-                }
-                min={0}
-                step={0.1}
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-              className="flex-1"
-            >
-              Anuluj
-            </Button>
-            <Button type="submit" loading={loading} className="flex-1">
-              {editingId ? "Zapisz" : "Dodaj"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={isMergeModalOpen}
-        onClose={() => setIsMergeModalOpen(false)}
-        size="lg"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Scal duplikaty ({duplicateGroups.length} grup)
-            </h2>
-            <button
-              type="button"
-              onClick={() => setIsMergeModalOpen(false)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            Wybierz który składnik zachować w każdej grupie. Pozostałe zostaną
-            scalone — ich powiązania z daniami i listami zakupów zostaną
-            przeniesione.
-          </p>
-
-          <div className="max-h-[60vh] overflow-y-auto space-y-4">
-            {duplicateGroups.map((group) => (
-              <Card key={group.normalizedName}>
-                <CardContent className="pt-4">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    &quot;{group.normalizedName}&quot;
-                  </p>
-                  <div className="space-y-2">
-                    {group.ingredients.map((ing) => {
-                      const targetId = getTargetId(group);
-                      return (
-                        <label
-                          key={ing.id}
-                          className="flex items-center gap-3 cursor-pointer rounded-lg px-3 py-2 hover:bg-muted/50"
-                        >
-                          <input
-                            type="radio"
-                            name={`merge-${group.normalizedName}`}
-                            checked={targetId === ing.id}
-                            onChange={() =>
-                              setMergeSelections({
-                                ...mergeSelections,
-                                [group.normalizedName]: ing.id,
-                              })
-                            }
-                            className="accent-orange-600"
-                          />
-                          <span className="text-foreground">{ing.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({ing.category})
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => setIsMergeModalOpen(false)}
-              className="flex-1"
-            >
-              Anuluj
-            </Button>
-            <Button onClick={handleMerge} loading={merging} className="flex-1">
-              <GitMerge className="w-4 h-4 mr-2" />
-              Scal wybrane
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        isOpen={!!convertTarget}
-        onClose={() => !converting && setConvertTarget(null)}
-      >
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            Zrób danie ze składnika
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Powstanie danie (1 porcja, typ „Przekąska") z wartościami odżywczymi
-            tego składnika. Nazwę możesz zmienić.
-          </p>
-          <Input
-            label="Nazwa dania"
-            value={convertName}
-            onChange={(e) => setConvertName(e.target.value)}
-            placeholder="np. Baton proteinowy"
-            required
-          />
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setConvertTarget(null)}
-              disabled={converting}
-              className="flex-1"
-            >
-              Anuluj
-            </Button>
-            <Button
-              type="button"
-              onClick={confirmConvert}
-              loading={converting}
-              disabled={!convertName.trim()}
-              className="flex-1"
-            >
-              Utwórz danie
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {modal?.kind === "form" && (
+        <IngredientFormModal
+          ingredient={modal.ingredient}
+          onClose={() => setModal(null)}
+          onSaved={replaceIngredient}
+        />
+      )}
+      {modal?.kind === "merge" && (
+        <MergeDuplicatesModal
+          groups={duplicateGroups}
+          onClose={() => setModal(null)}
+          onMerged={(removedIds) =>
+            setIngredients((prev) =>
+              prev.filter((ing) => !removedIds.has(ing.id)),
+            )
+          }
+        />
+      )}
+      {modal?.kind === "meal" && (
+        <MealFromIngredientModal
+          ingredient={modal.ingredient}
+          onClose={() => setModal(null)}
+        />
+      )}
     </>
   );
 }

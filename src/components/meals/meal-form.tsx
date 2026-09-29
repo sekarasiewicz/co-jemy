@@ -1,23 +1,17 @@
 "use client";
 
-import { Calculator, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Calculator, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import {
-  createIngredientAction,
-  searchIngredientsAction,
-} from "@/app/actions/ingredients";
 import { generateMealImageAction } from "@/app/actions/meal-ai";
 import {
   Button,
   Card,
   CardContent,
   Checkbox,
-  Combobox,
   ImageUpload,
   Input,
-  Select,
   Textarea,
 } from "@/components/ui";
 import {
@@ -27,8 +21,24 @@ import {
 } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 import type { Ingredient, Meal, MealIngredient, MealType, Tag } from "@/types";
-import { UNITS } from "@/types";
 import { unwrap } from "@/lib/action-result";
+import {
+  type IngredientRow,
+  MealIngredientsEditor,
+  newIngredientRow,
+} from "./meal-ingredients-editor";
+
+const MEAL_FLAGS = [
+  ["isVegetarian", "Wegetariańskie"],
+  ["isVegan", "Wegańskie"],
+  ["isGlutenFree", "Bezglutenowe"],
+  ["isLactoseFree", "Bez laktozy"],
+  ["isQuick", "Szybkie (<30 min)"],
+  ["isMealPrep", "Meal prep"],
+  ["isChildFriendly", "Dla dzieci"],
+] as const;
+
+type MealFlag = (typeof MEAL_FLAGS)[number][0];
 
 interface IngredientEntry {
   ingredientId: string;
@@ -91,39 +101,34 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
   const [protein, setProtein] = useState(meal?.protein || "");
   const [carbs, setCarbs] = useState(meal?.carbs || "");
   const [fat, setFat] = useState(meal?.fat || "");
-  const [isVegetarian, setIsVegetarian] = useState(meal?.isVegetarian || false);
-  const [isVegan, setIsVegan] = useState(meal?.isVegan || false);
-  const [isGlutenFree, setIsGlutenFree] = useState(meal?.isGlutenFree || false);
-  const [isLactoseFree, setIsLactoseFree] = useState(
-    meal?.isLactoseFree || false,
-  );
-  const [isQuick, setIsQuick] = useState(meal?.isQuick || false);
-  const [isMealPrep, setIsMealPrep] = useState(meal?.isMealPrep || false);
-  const [isChildFriendly, setIsChildFriendly] = useState(
-    meal?.isChildFriendly || false,
-  );
+  const [flags, setFlags] = useState<Record<MealFlag, boolean>>(() => ({
+    isVegetarian: meal?.isVegetarian || false,
+    isVegan: meal?.isVegan || false,
+    isGlutenFree: meal?.isGlutenFree || false,
+    isLactoseFree: meal?.isLactoseFree || false,
+    isQuick: meal?.isQuick || false,
+    isMealPrep: meal?.isMealPrep || false,
+    isChildFriendly: meal?.isChildFriendly || false,
+  }));
   const [selectedMealTypeIds, setSelectedMealTypeIds] = useState<string[]>(
     meal?.mealTypes.map((mt) => mt.id) || [],
   );
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     meal?.tags.map((t) => t.id) || [],
   );
-  // rowKey: stable React key per row, so removing a row doesn't shift the
-  // comboboxes' state onto the rows below it.
-  const [selectedIngredients, setSelectedIngredients] = useState<
-    (IngredientEntry & { rowKey: string })[]
-  >(
+  const [ingredientRows, setIngredientRows] = useState<IngredientRow[]>(
     () =>
-      meal?.ingredients.map((mi) => ({
-        rowKey: crypto.randomUUID(),
-        ingredientId: mi.ingredientId,
-        amount: mi.amount,
-        unit: mi.unit,
-      })) || [],
+      meal?.ingredients.map((mi) =>
+        newIngredientRow({
+          ingredientId: mi.ingredientId,
+          amount: mi.amount,
+          unit: mi.unit,
+        }),
+      ) ?? [],
   );
 
   // Ingredients seen so far (the meal's own, search results, newly created),
-  // by id. The combobox searches the server; rows read names and macros here.
+  // by id. Rows read names and macros from here.
   const [knownIngredients, setKnownIngredients] = useState(
     () =>
       new Map<string, Ingredient>(
@@ -140,71 +145,13 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
     });
   }, []);
 
-  const searchIngredientOptions = useCallback(
-    async (query: string) => {
-      const found = await searchIngredientsAction(query);
-      rememberIngredients(found);
-      return found.map((ing) => ({ value: ing.id, label: ing.name }));
-    },
-    [rememberIngredients],
-  );
-
   // Rows with a picked ingredient whose data is loaded.
-  const ingredientLines = selectedIngredients.flatMap((si) => {
-    const ingredient = knownIngredients.get(si.ingredientId);
-    return ingredient ? [{ amount: si.amount, unit: si.unit, ingredient }] : [];
+  const ingredientLines = ingredientRows.flatMap((row) => {
+    const ingredient = knownIngredients.get(row.ingredientId);
+    return ingredient
+      ? [{ amount: row.amount, unit: row.unit, ingredient }]
+      : [];
   });
-
-  const addIngredient = () => {
-    setSelectedIngredients([
-      ...selectedIngredients,
-      {
-        rowKey: crypto.randomUUID(),
-        ingredientId: "",
-        amount: 100,
-        unit: "g",
-      },
-    ]);
-  };
-
-  const removeIngredient = (index: number) => {
-    setSelectedIngredients(selectedIngredients.filter((_, i) => i !== index));
-  };
-
-  const updateIngredientField = (
-    index: number,
-    field: keyof IngredientEntry,
-    value: string | number,
-  ) => {
-    setSelectedIngredients(
-      selectedIngredients.map((ing, i) => {
-        if (i === index) {
-          if (field === "ingredientId") {
-            const newIng = knownIngredients.get(String(value));
-            return {
-              ...ing,
-              ingredientId: String(value),
-              unit: newIng?.defaultUnit || ing.unit,
-            };
-          }
-          if (field === "amount") {
-            return { ...ing, amount: Number(value) };
-          }
-          return { ...ing, unit: String(value) };
-        }
-        return ing;
-      }),
-    );
-  };
-
-  const handleCreateIngredient = async (name: string) => {
-    const newIngredient = await createIngredientAction({
-      name,
-      category: "Inne",
-    });
-    rememberIngredients([newIngredient]);
-    return { value: newIngredient.id, label: newIngredient.name };
-  };
 
   const handleGenerateImage = async () => {
     if (!name.trim()) {
@@ -271,17 +218,11 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
         protein: protein ? Number(protein) : undefined,
         carbs: carbs ? Number(carbs) : undefined,
         fat: fat ? Number(fat) : undefined,
-        isVegetarian,
-        isVegan,
-        isGlutenFree,
-        isLactoseFree,
-        isQuick,
-        isMealPrep,
-        isChildFriendly,
+        ...flags,
         mealTypeIds: selectedMealTypeIds,
         tagIds: selectedTagIds,
-        ingredientsList: selectedIngredients
-          .filter((si) => si.ingredientId)
+        ingredientsList: ingredientRows
+          .filter((row) => row.ingredientId)
           .map(({ rowKey: _rowKey, ...entry }) => entry),
       });
     } finally {
@@ -428,85 +369,12 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-foreground">Składniki</h2>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addIngredient}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Dodaj składnik
-            </Button>
-          </div>
-
-          {selectedIngredients.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Kliknij "Dodaj składnik", aby dodać składniki do dania.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {selectedIngredients.map((si, index) => (
-                <div
-                  key={si.rowKey}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <Combobox
-                      value={si.ingredientId}
-                      onChange={(value) =>
-                        updateIngredientField(index, "ingredientId", value)
-                      }
-                      onCreateNew={handleCreateIngredient}
-                      onSearch={searchIngredientOptions}
-                      selectedLabel={
-                        knownIngredients.get(si.ingredientId)?.name
-                      }
-                      placeholder="Wpisz nazwę składnika..."
-                    />
-                  </div>
-                  <div className="w-20">
-                    <Input
-                      type="number"
-                      value={si.amount}
-                      onChange={(e) =>
-                        updateIngredientField(
-                          index,
-                          "amount",
-                          Number(e.target.value),
-                        )
-                      }
-                      min={0}
-                      step="any"
-                    />
-                  </div>
-                  <div className="w-24">
-                    <Select
-                      value={si.unit}
-                      onChange={(e) =>
-                        updateIngredientField(index, "unit", e.target.value)
-                      }
-                      options={UNITS.map((u) => ({ value: u, label: u }))}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeIngredient(index)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <MealIngredientsEditor
+        rows={ingredientRows}
+        onChange={setIngredientRows}
+        knownIngredients={knownIngredients}
+        onIngredientsSeen={rememberIngredients}
+      />
 
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -537,41 +405,16 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
           <h2 className="font-semibold text-foreground">Cechy dania</h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <Checkbox
-              label="Wegetariańskie"
-              checked={isVegetarian}
-              onChange={(e) => setIsVegetarian(e.target.checked)}
-            />
-            <Checkbox
-              label="Wegańskie"
-              checked={isVegan}
-              onChange={(e) => setIsVegan(e.target.checked)}
-            />
-            <Checkbox
-              label="Bezglutenowe"
-              checked={isGlutenFree}
-              onChange={(e) => setIsGlutenFree(e.target.checked)}
-            />
-            <Checkbox
-              label="Bez laktozy"
-              checked={isLactoseFree}
-              onChange={(e) => setIsLactoseFree(e.target.checked)}
-            />
-            <Checkbox
-              label="Szybkie (&lt;30 min)"
-              checked={isQuick}
-              onChange={(e) => setIsQuick(e.target.checked)}
-            />
-            <Checkbox
-              label="Meal prep"
-              checked={isMealPrep}
-              onChange={(e) => setIsMealPrep(e.target.checked)}
-            />
-            <Checkbox
-              label="Dla dzieci"
-              checked={isChildFriendly}
-              onChange={(e) => setIsChildFriendly(e.target.checked)}
-            />
+            {MEAL_FLAGS.map(([flag, label]) => (
+              <Checkbox
+                key={flag}
+                label={label}
+                checked={flags[flag]}
+                onChange={(e) =>
+                  setFlags((prev) => ({ ...prev, [flag]: e.target.checked }))
+                }
+              />
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -596,9 +439,6 @@ export function MealForm({ meal, mealTypes, tags, onSubmit }: MealFormProps) {
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
-                    ...(selectedTagIds.includes(tag.id) && {
-                      ringColor: tag.color,
-                    }),
                   }}
                 >
                   {tag.name}

@@ -90,7 +90,14 @@ export function AddMealModal({
     } finally {
       setLoadingMore(false);
     }
-  }, [mealTypeId, debouncedQuery, results.length, hasMore, loadingMore, loading]);
+  }, [
+    mealTypeId,
+    debouncedQuery,
+    results.length,
+    hasMore,
+    loadingMore,
+    loading,
+  ]);
 
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement | null>(null);
